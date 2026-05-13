@@ -231,8 +231,9 @@ class HordeGame {
   }
 
   update(dt) {
+    if (Input.wasPressed('Escape')) { this.returnToMenu = true; return; }
     if (this.waveState === 'game_over' || this.waveState === 'victory') {
-      if (Input.wasPressed('Enter') || Input.wasPressed('Space') || Input.wasPressed('Escape')) {
+      if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
         this.returnToMenu = true;
       }
       return;
@@ -470,6 +471,11 @@ class HordeGame {
       ctx.font = '10px "Courier New"';
       ctx.fillText(`${rem} enemies left`, cx, 48);
     }
+
+    // ESC hint
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.font = '8px "Courier New"';
+    ctx.fillText('ESC · menu', cx, C.H - 6);
     ctx.textAlign = 'left';
   }
 

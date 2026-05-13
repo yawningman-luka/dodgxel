@@ -360,11 +360,14 @@ const Sprites = {
     this._drawStatusBars(ctx, p1, 10, 1);
     this._drawStatusBars(ctx, p2, C.W - 10, -1);
 
-    // Arena name badge
+    // Arena name badge + ESC hint
     ctx.fillStyle = 'rgba(255,255,255,0.22)';
     ctx.font = '9px "Courier New"';
     ctx.textAlign = 'center';
     ctx.fillText(arena.name, cx, C.H - 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.font = '8px "Courier New"';
+    ctx.fillText('ESC · menu', cx, C.H - 16);
     ctx.textAlign = 'left';
   },
 

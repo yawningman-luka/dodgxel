@@ -404,6 +404,7 @@ class Game {
   }
 
   _updatePlaying(dt) {
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; return; }
     this.arena.update(dt);
     const obs = this.arena.getObstacles();
     const speedMult = this.arena.playerSpeedMult ?? 1;
@@ -454,6 +455,7 @@ class Game {
   }
 
   _updateRoundEnd(dt) {
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; return; }
     this.roundDelay -= dt;
     if (this.roundDelay <= 0) {
       if (this.p1.score >= C.WIN_SCORE || this.p2.score >= C.WIN_SCORE) {
