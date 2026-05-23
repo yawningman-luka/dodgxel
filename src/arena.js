@@ -292,12 +292,13 @@ class DemonNPC {
 // Plane — passes every ~5 seconds, kills on contact (handled in game.js)
 class PlaneObstacle extends Obstacle {
   constructor() {
-    super(-400, 0, 220, 55, null, { ballOnly: true }); // ballOnly so obstacle collision handles ball bounce
-    this._timer   = 3000; // first pass after 3 s
+    // Plane passes ~50 px above cloud surface (GROUND-100=270 → plane at GROUND-170=200)
+    super(-400, 0, 220, 48, null, { ballOnly: true });
+    this._timer   = 3000;
     this._active  = false;
-    this._dir     = 1;    // 1 = L→R, -1 = R→L
+    this._dir     = 1;
     this._speed   = 4.5;
-    this._warnY   = C.GROUND - 155;
+    this._warnY   = C.GROUND - 170; // y=200 → above player head (226) so must jump to clear
   }
 
   get rect() {
@@ -934,7 +935,7 @@ const ARENAS = [
 
   // ── CLOUDS ────────────────────────────────────────────────────────────────
   (() => {
-    const CLOUD_Y  = C.GROUND - 130; // top surface of cloud platforms
+    const CLOUD_Y  = C.GROUND - 100; // top surface of cloud platforms (lower = more visible)
     const plane    = new PlaneObstacle();
     return new Arena({
       name: 'CLOUDS',
