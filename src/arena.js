@@ -890,6 +890,10 @@ const ARENAS = [
       new DebrisRock(450,  210, 24, 0.80),
       new DebrisRock(650,  145, 22, 0.65),
       new DebrisRock(320,  255, 28, 0.45),
+      new DebrisRock( 60,  190, 20, 0.70),
+      new DebrisRock(560,  175, 26, 0.50),
+      new DebrisRock(730,  230, 18, 0.90),
+      new DebrisRock(260,  130, 32, 0.60),
     ],
   }),
 
