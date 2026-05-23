@@ -379,7 +379,42 @@ class PlaneObstacle extends Obstacle {
   }
 }
 
-// Fluffy cloud platform
+// Drifting cloud platform — bobs and drifts within its side of the arena
+class FloatingCloud extends Obstacle {
+  constructor(x, y, w, opts = {}) {
+    super(x, y, w, 30, null, {});
+    this._sx    = x;
+    this._sy    = y;
+    this._ampX  = opts.ampX  ?? 55;
+    this._ampY  = opts.ampY  ?? 18;
+    this._speed = opts.speed ?? 1.0;
+    this._phase = opts.phase ?? 0;
+    this._t     = this._phase;
+  }
+
+  update(dt) {
+    this._t += dt * 0.00042 * this._speed;
+    this.x = Math.round(this._sx + this._ampX * Math.sin(this._t));
+    this.y = Math.round(this._sy + this._ampY * Math.sin(this._t * 1.41 + this._phase));
+  }
+
+  draw(ctx) {
+    const o = this;
+    ctx.fillStyle = 'rgba(255,255,255,0.97)';
+    const puffs = [[0.12,0.28,22],[0.33,0.0,28],[0.54,0.08,24],[0.74,0.26,20],[0.91,0.32,16]];
+    for (const [rx, ry, r] of puffs) {
+      ctx.beginPath();
+      ctx.arc(o.x + o.w * rx, o.y + o.h * 0.5 - r * ry, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillRect(o.x, o.y + o.h * 0.35, o.w, o.h * 0.65);
+    // Soft blue underside
+    ctx.fillStyle = 'rgba(180,210,255,0.45)';
+    ctx.fillRect(o.x, o.y + o.h * 0.35, o.w, 7);
+  }
+}
+
+// Fluffy cloud platform (static, used as reference)
 function makeCloud(x, y, w) {
   return new Obstacle(x, y, w, 30, (ctx, o) => {
     ctx.fillStyle = 'rgba(255,255,255,0.96)';
@@ -935,31 +970,22 @@ const ARENAS = [
 
   // ── CLOUDS ────────────────────────────────────────────────────────────────
   (() => {
-    const CLOUD_Y  = C.GROUND - 100; // top surface of cloud platforms (lower = more visible)
-    const plane    = new PlaneObstacle();
+    const CLOUD_Y = C.GROUND - 100;
     return new Arena({
       name: 'CLOUDS',
       skyTop: '#87CEEB', skyBot: '#C8EAFF',
-      groundColor: '#87CEEB', groundLine: '#87CEEB', // sky color (invisible "ground")
-      noGround: true, // fall = lose
-      plane,
+      groundColor: '#87CEEB', groundLine: '#87CEEB',
+      noGround: true,
       playerStarts: [[150, CLOUD_Y], [650, CLOUD_Y]],
-      badge: 'PLATFORMS  ·  FALL = LOSE',
+      badge: 'FLOATING CLOUDS  ·  FALL = LOSE',
       badgeColor: 'rgba(80,140,200,0.85)',
       badgeTextColor: '#DDEEFF',
 
-      update(dt) {
-        for (const obs of this.obstacles) { if (obs.update) obs.update(dt); }
-        this.plane.update(dt);
-      },
-
       drawBg(ctx) {
-        // Sky gradient
         const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
         g.addColorStop(0, '#6AAEDD'); g.addColorStop(1, '#C8EAFF');
         ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.GROUND);
 
-        // Distant cloud wisps
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         [[80,80,90,22],[300,55,130,18],[550,90,100,20],[700,65,80,18]].forEach(([cx,cy,cw,ch]) => {
           ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
@@ -969,21 +995,14 @@ const ARENAS = [
           ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
         });
 
-        // Sun
         ctx.save();
         ctx.shadowColor = '#FFE066'; ctx.shadowBlur = 20;
         ctx.fillStyle = '#FFD700';
         ctx.beginPath(); ctx.arc(720, 55, 32, 0, Math.PI*2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
-
-        // Vapour trails (static)
-        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(50, 140); ctx.lineTo(400, 125); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(50, 148); ctx.lineTo(400, 133); ctx.stroke();
       },
 
       _drawGround(ctx) {
-        // No solid ground — just fade to sky at bottom
         const g = ctx.createLinearGradient(0, C.GROUND - 30, 0, C.H);
         g.addColorStop(0, 'rgba(200,234,255,0)');
         g.addColorStop(1, 'rgba(140,200,255,0.6)');
@@ -991,16 +1010,9 @@ const ARENAS = [
         ctx.fillRect(0, C.GROUND - 30, C.W, C.H - C.GROUND + 30);
       },
 
-      draw(ctx) {
-        this._drawBackground(ctx);
-        this._drawObstacles(ctx);
-        this.plane.draw(ctx);
-        this._drawGround(ctx);
-      },
-
       obstacles: [
-        makeCloud(50,  CLOUD_Y, 180),  // P1 platform
-        makeCloud(570, CLOUD_Y, 180),  // P2 platform
+        new FloatingCloud(50,  CLOUD_Y, 190, { ampX: 55, ampY: 20, speed: 0.9, phase: 0 }),
+        new FloatingCloud(560, CLOUD_Y, 190, { ampX: 60, ampY: 22, speed: 1.1, phase: 2.3 }),
       ],
     });
   })(),

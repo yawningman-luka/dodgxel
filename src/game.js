@@ -496,17 +496,6 @@ class Game {
       if (this.p2.y > C.GROUND + 10) this._onHit(this.p2, this.p1);
     }
 
-    // Plane death (Clouds arena)
-    if (this.arena.plane?._active && !this.roundOver) {
-      const pr = this.arena.plane.rect;
-      for (const [p, other] of [[this.p1, this.p2], [this.p2, this.p1]]) {
-        const ph = p.crouching ? C.CROUCH_H : C.P_H;
-        if (p.x + C.P_W / 2 > pr.x && p.x - C.P_W / 2 < pr.x + pr.w &&
-            p.y > pr.y && p.y - ph < pr.y + pr.h) {
-          this._onHit(p, other);
-        }
-      }
-    }
 
     // Ball missed — switch possession, no point scored
     if (this.ball.dead && !this.roundOver) {
