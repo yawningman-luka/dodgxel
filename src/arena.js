@@ -97,7 +97,7 @@ class BirdObstacle extends Obstacle {
 // Slowly-drifting debris rock — Moon arena (blocks both player and ball)
 class DebrisRock extends Obstacle {
   constructor(x, y, size, speed) {
-    super(x, y, size, size, null, { ballOnly: true }); // players pass under, ball bounces
+    super(x, y, size, size, null, {}); // blocks both players and ball
     this._cx = x; this._cy = y;
     this._size = size; this._speed = speed;
     this._rot = Math.random() * Math.PI * 2;
