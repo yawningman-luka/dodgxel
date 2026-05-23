@@ -62,7 +62,7 @@ class Player {
 
     // Superpower passive charge; randomly assign power when bar first fills
     if (this.spCharge < C.SP_CHARGE_MAX) {
-      this.spCharge += C.SP_CHARGE_RATE;
+      this.spCharge += C.SP_CHARGE_RATE * (this.hordeMode ? 3.5 : 1);
     } else if (!this._powerAssigned) {
       this.currentPower = C.POWERS[Math.floor(Math.random() * C.POWERS.length)];
       this._powerAssigned = true;

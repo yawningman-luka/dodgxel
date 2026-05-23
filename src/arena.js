@@ -396,7 +396,7 @@ const ARENAS = [
     obstacles: [
       makeBench(100, C.GROUND - 28),
       makeBench(610, C.GROUND - 28),
-      makeTree(370, C.GROUND - 120),
+      makeTree(496, C.GROUND - 120),
     ],
   }),
 
