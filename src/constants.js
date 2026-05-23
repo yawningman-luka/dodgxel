@@ -7,7 +7,7 @@ const C = {
   // Physics
   GRAVITY: 0.55,
   JUMP_FORCE: -13,
-  WALK_SPEED: 3.5,
+  WALK_SPEED: 2.8,
   FRICTION: 0.82,
   BALL_GRAVITY: 0.25,
   BALL_BOUNCE: 0.55,
