@@ -267,6 +267,8 @@ class Player {
       // Platform-only: onGround set only by obstacle collisions
       if (this.y < C.GROUND) this.onGround = false;
     }
+    // Safety ceiling — prevent players floating off the top of the screen
+    if (this.y < 92) { this.y = 92; this.vy = Math.max(0, this.vy); }
 
     if (this.x < hw)        { this.x = hw;        this.vx = 0; }
     if (this.x > C.W - hw)  { this.x = C.W - hw;  this.vx = 0; }

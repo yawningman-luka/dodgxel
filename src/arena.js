@@ -97,7 +97,7 @@ class BirdObstacle extends Obstacle {
 // Slowly-drifting debris rock — Moon arena (blocks both player and ball)
 class DebrisRock extends Obstacle {
   constructor(x, y, size, speed) {
-    super(x, y, size, size, null, {});
+    super(x, y, size, size, null, { ballOnly: true }); // players pass under, ball bounces
     this._cx = x; this._cy = y;
     this._size = size; this._speed = speed;
     this._rot = Math.random() * Math.PI * 2;
@@ -813,9 +813,9 @@ const ARENAS = [
     name: 'MOON',
     skyTop: '#000005', skyBot: '#050518',
     groundColor: '#8A8A9E', groundLine: '#6A6A7E',
-    playerSpeedMult:     0.6,
-    playerGravityMult:   0.30,
-    playerJumpForceMult: 0.78,
+    playerSpeedMult:     0.38,  // wade through moon dust
+    playerGravityMult:   0.22,  // very low gravity → floaty
+    playerJumpForceMult: 0.58,  // combined with low gravity → huge slow arcs
     badge: 'LOW GRAVITY  ·  DEBRIS',
     badgeColor: 'rgba(100,100,160,0.85)',
     badgeTextColor: '#AAAAFF',
