@@ -667,6 +667,32 @@ const Sprites = {
       // Crater surface hint
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.beginPath(); ctx.ellipse(x + Math.round(w*0.38), gy - 5, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+    } else if (idx === 7) { // CLOUDS
+      // Sky gradient
+      const cg = ctx.createLinearGradient(x, y, x, y + skyH);
+      cg.addColorStop(0, '#6AAEDD'); cg.addColorStop(1, '#C8EAFF');
+      ctx.fillStyle = cg; ctx.fillRect(x, y, w, skyH);
+      // Sun
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath(); ctx.arc(x + Math.round(w*0.84), y + 14, 12, 0, Math.PI*2); ctx.fill();
+      // Distant wisps
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath(); ctx.ellipse(x+Math.round(w*0.22), y+Math.round(skyH*0.28), 24, 7, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+Math.round(w*0.6), y+Math.round(skyH*0.18), 18, 5, 0, 0, Math.PI*2); ctx.fill();
+      // Cloud platforms
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      const cp1x = x + Math.round(w*0.06), cp2x = x + Math.round(w*0.55);
+      const cpy  = y + Math.round(skyH*0.72);
+      [cp1x, cp2x].forEach(cpx => {
+        const pw = Math.round(w*0.38);
+        ctx.beginPath(); ctx.ellipse(cpx + pw*0.25, cpy - 6, 12, 8, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cpx + pw*0.55, cpy - 8, 16, 10, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cpx + pw*0.8, cpy - 5, 10, 7, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(cpx, cpy - 2, pw, 10);
+      });
+      // Mini plane
+      ctx.fillStyle = '#DDDDE8';
+      ctx.beginPath(); ctx.ellipse(x+Math.round(w*0.42), y+Math.round(skyH*0.45), 20, 6, 0.15, 0, Math.PI*2); ctx.fill();
     } else if (idx === 6) { // UPSIDE DOWN
       // Dark hell sky
       const hg = ctx.createLinearGradient(x, y, x, y + skyH);

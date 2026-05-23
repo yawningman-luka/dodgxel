@@ -196,14 +196,16 @@ class Game {
     ctx.font = 'bold 26px "Courier New"';
     ctx.fillText('SELECT ARENA', C.W / 2, 52);
 
-    const cardW = 145, cardH = 116, gap = 11;
-    const totalW = ARENAS.length * cardW + (ARENAS.length - 1) * gap;
+    const COLS = 4;
+    const cardW = 145, cardH = 116, gap = 10;
+    const totalW = COLS * cardW + (COLS - 1) * gap;
     const startX = (C.W - totalW) / 2;
 
     for (let i = 0; i < ARENAS.length; i++) {
       const a = ARENAS[i];
-      const cx = startX + i * (cardW + gap);
-      const cy = 80;
+      const col = i % COLS, row = Math.floor(i / COLS);
+      const cx = startX + col * (cardW + gap);
+      const cy = 68 + row * (cardH + 28); // 28px gap between rows
       const sel = i === this.menuCursor;
 
       ctx.fillStyle = sel ? '#222240' : '#161628';
@@ -254,11 +256,13 @@ class Game {
       }
     }
 
+    const rows = Math.ceil(ARENAS.length / COLS);
+    const navY = 68 + rows * (cardH + 28) + 10;
     const pulse2 = 0.6 + 0.4 * Math.sin(Date.now() / 350);
     ctx.globalAlpha = pulse2;
     ctx.fillStyle = '#fff';
-    ctx.font = '14px "Courier New"';
-    ctx.fillText('← → choose · ENTER play · ESC back', C.W / 2, 320);
+    ctx.font = '13px "Courier New"';
+    ctx.fillText('← → choose · ENTER play · ESC back', C.W / 2, navY);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
@@ -387,10 +391,24 @@ class Game {
     this.p1.reset();
     this.p2.reset();
     // Restore arena-specific physics after reset()
-    const gMult  = this.arena?.playerGravityMult   ?? 1;
+    const gMult  = this.arena?.playerGravityMult    ?? 1;
     const jMult  = this.arena?.playerJumpForceMult  ?? 1;
-    this.p1.gravityMult = gMult; this.p2.gravityMult = gMult;
-    this.p1.jumpForceMult = jMult; this.p2.jumpForceMult = jMult;
+    const invert = this.arena?.playerInvertGravity  ?? false;
+    const noGnd  = this.arena?.noGround             ?? false;
+    this.p1.gravityMult   = gMult;   this.p2.gravityMult   = gMult;
+    this.p1.jumpForceMult = jMult;   this.p2.jumpForceMult = jMult;
+    this.p1.invertGravity = invert;  this.p2.invertGravity = invert;
+    this.p1.noGround      = noGnd;   this.p2.noGround      = noGnd;
+    // Override starting position for special arenas
+    if (invert) {
+      this.p1.y = 90; this.p1.vy = 0; this.p1.onGround = true;
+      this.p2.y = 90; this.p2.vy = 0; this.p2.onGround = true;
+    }
+    if (this.arena?.playerStarts) {
+      const [[x1,y1],[x2,y2]] = this.arena.playerStarts;
+      this.p1.x = x1; this.p1.y = y1; this.p1.vy = 0; this.p1.onGround = true;
+      this.p2.x = x2; this.p2.y = y2; this.p2.vy = 0; this.p2.onGround = true;
+    }
 
     this.p1.hitCallback = (victim, attacker) => this._onHit(victim, attacker);
     this.p2.hitCallback = (victim, attacker) => this._onHit(victim, attacker);
@@ -419,22 +437,23 @@ class Game {
     const speedMult = this.arena.playerSpeedMult ?? 1;
     this.p1.update(dt, this.ball, obs, this.p2, speedMult);
     this.p2.update(dt, this.ball, obs, this.p1, speedMult);
-    this.ball.update(dt, obs);
+    const bGravMult = this.arena.ballGravityMult ?? 1;
+    this.ball.update(dt, obs, bGravMult);
     if (this.arena.checkTeleport) this.arena.checkTeleport(this.ball);
 
     if (!this.ball.inFlight) {
       if (this.ball.holder === 0 && this.p1.hasBall) {
         this.ball.x = this.p1.x + this.p1.dir * 22;
-        this.ball.y = this.p1.y - 34;
+        this.ball.y = this.p1.y + (this.p1.invertGravity ? 34 : -34);
       } else if (this.ball.holder === 1 && this.p2.hasBall) {
         this.ball.x = this.p2.x + this.p2.dir * 22;
-        this.ball.y = this.p2.y - 34;
+        this.ball.y = this.p2.y + (this.p2.invertGravity ? 34 : -34);
       }
     }
 
     // Second ball (double power)
     if (this.ball2) {
-      this.ball2.update(dt, obs);
+      this.ball2.update(dt, obs, bGravMult);
       if (this.arena.checkTeleport) this.arena.checkTeleport(this.ball2);
       if (!this.roundOver) {
         for (const [player, other] of [[this.p1, this.p2], [this.p2, this.p1]]) {
@@ -461,14 +480,30 @@ class Game {
     }
     this._ballWasInFlight = this.ball.inFlight;
 
-    // Demon fireballs (Upside-Down arena)
+    // Demon fireballs (Upside-Down arena) — hit = other player scores
     if (this.arena.demon && !this.roundOver) {
       this.arena.demon.checkBallHit(this.ball);
-      for (const player of [this.p1, this.p2]) {
+      for (const [player, other] of [[this.p1, this.p2], [this.p2, this.p1]]) {
         if (this.arena.demon.checkPlayerHit(player)) {
-          player.stunTimer = 700;
-          player.vy = -5;
-          player.vx = (player.x < C.W / 2 ? -3 : 3);
+          this._onHit(player, other);
+        }
+      }
+    }
+
+    // Fall death (Clouds arena — no ground, step off = lose)
+    if (this.arena.noGround && !this.roundOver) {
+      if (this.p1.y > C.GROUND + 10) this._onHit(this.p1, this.p2);
+      if (this.p2.y > C.GROUND + 10) this._onHit(this.p2, this.p1);
+    }
+
+    // Plane death (Clouds arena)
+    if (this.arena.plane?._active && !this.roundOver) {
+      const pr = this.arena.plane.rect;
+      for (const [p, other] of [[this.p1, this.p2], [this.p2, this.p1]]) {
+        const ph = p.crouching ? C.CROUCH_H : C.P_H;
+        if (p.x + C.P_W / 2 > pr.x && p.x - C.P_W / 2 < pr.x + pr.w &&
+            p.y > pr.y && p.y - ph < pr.y + pr.h) {
+          this._onHit(p, other);
         }
       }
     }

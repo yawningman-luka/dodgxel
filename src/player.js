@@ -38,10 +38,12 @@ class Player {
 
     this.justCaughtFlash = 0;
     this.hitCallback = null; // set by game to trigger scoring
-    this.noMidline = false;
-    this.hordeMode = false;
+    this.noMidline     = false;
+    this.hordeMode     = false;
     this.gravityMult   = 1;
     this.jumpForceMult = 1;
+    this.invertGravity = false; // ceiling-is-floor mode
+    this.noGround      = false; // platforms-only, fall = die
   }
 
   get catchRadius() {
@@ -132,7 +134,8 @@ class Player {
       }
 
       if (Input.wasPressed(k.jump) && this.onGround && !this.crouching) {
-        this.vy = C.JUMP_FORCE * this.jumpForceMult;
+        // Inverted: jump pushes downward (away from ceiling)
+        this.vy = (this.invertGravity ? 1 : -1) * Math.abs(C.JUMP_FORCE) * this.jumpForceMult;
         this.onGround = false;
       }
     }
@@ -171,10 +174,11 @@ class Player {
     const speed = C.MIN_THROW_SPEED + (C.MAX_THROW_SPEED - C.MIN_THROW_SPEED) * pct;
 
     const vx = this.dir * Math.cos(this.aimAngle) * speed;
-    const vy = -Math.sin(this.aimAngle) * speed;
+    // Inverted: throw direction flips vertically
+    const vy = (this.invertGravity ? 1 : -1) * Math.sin(this.aimAngle) * speed;
 
     const armX = this.x + this.dir * 26;
-    const armY = this.y - 34;
+    const armY = this.invertGravity ? this.y + 34 : this.y - 34;
 
     const usePower = this._powerAssigned && this.spCharge >= C.SP_CHARGE_MAX;
     const useRocket = usePower && this.currentPower === 'rocket';
@@ -187,8 +191,9 @@ class Player {
     if (useDouble && this.extraThrowCallback) {
       // Second ball at a slightly offset angle
       const vx2 = this.dir * Math.cos(this.aimAngle - 0.22) * speed;
-      const vy2 = -Math.sin(this.aimAngle - 0.22) * speed;
-      this.extraThrowCallback(armX, armY + 10, vx2, vy2, this.index);
+      const vy2 = (this.invertGravity ? 1 : -1) * Math.sin(this.aimAngle - 0.22) * speed;
+      const armYOff = this.invertGravity ? -10 : 10;
+      this.extraThrowCallback(armX, armY + armYOff, vx2, vy2, this.index);
     }
 
     if (usePower) {
@@ -229,14 +234,40 @@ class Player {
   }
 
   _applyPhysics(obstacles) {
+    const CEIL_Y = 90; // y where inverted players "stand" (just below HUD)
+    const hw = C.P_W / 2;
+
+    if (this.invertGravity) {
+      // Gravity pulls toward ceiling (negative vy direction)
+      if (!this.onGround) this.vy -= C.GRAVITY * this.gravityMult;
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.y <= CEIL_Y) { this.y = CEIL_Y; this.vy = 0; this.onGround = true; }
+      else                   this.onGround = false;
+      // Soft floor so players don't fall off bottom entirely
+      if (this.y > C.GROUND - 20) { this.y = C.GROUND - 20; this.vy = 0; }
+      if (this.x < hw)       { this.x = hw;       this.vx = 0; }
+      if (this.x > C.W - hw) { this.x = C.W - hw; this.vx = 0; }
+      if (!this.noMidline) {
+        const mid = C.W / 2;
+        if (this.index === 0 && this.x > mid - hw) { this.x = mid - hw; this.vx = 0; }
+        if (this.index === 1 && this.x < mid + hw) { this.x = mid + hw; this.vx = 0; }
+      }
+      return; // no obstacle collisions needed for upside-down arena
+    }
+
     if (!this.onGround) this.vy += C.GRAVITY * this.gravityMult;
     this.x += this.vx;
     this.y += this.vy;
 
-    if (this.y >= C.GROUND) { this.y = C.GROUND; this.vy = 0; this.onGround = true; }
-    else this.onGround = false;
+    if (!this.noGround) {
+      if (this.y >= C.GROUND) { this.y = C.GROUND; this.vy = 0; this.onGround = true; }
+      else this.onGround = false;
+    } else {
+      // Platform-only: onGround set only by obstacle collisions
+      if (this.y < C.GROUND) this.onGround = false;
+    }
 
-    const hw = C.P_W / 2;
     if (this.x < hw)        { this.x = hw;        this.vx = 0; }
     if (this.x > C.W - hw)  { this.x = C.W - hw;  this.vx = 0; }
     if (!this.noMidline) {
@@ -275,6 +306,14 @@ class Player {
   }
 
   draw(ctx, ball) {
+    // Flip everything upside-down when gravity is inverted
+    if (this.invertGravity) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(1, -1);
+      ctx.translate(-this.x, -this.y);
+    }
+
     // Catch ring
     if (!this.hasBall && ball.inFlight && !ball.dead &&
         ball.canBeCaught(this.x, this.y, this.catchRadius)) {
@@ -299,5 +338,7 @@ class Player {
       ctx.arc(this.x, this.y - 22, 30, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    if (this.invertGravity) ctx.restore();
   }
 }

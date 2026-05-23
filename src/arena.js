@@ -144,12 +144,14 @@ class DebrisRock extends Obstacle {
 
 // Demon NPC — Upside-Down arena, shoots slow fire balls at both players
 class DemonNPC {
-  constructor(x, y) {
+  // inverted: true when players are on ceiling (fire balls thrown upward)
+  constructor(x, y, inverted = false) {
     this.x = x; this.y = y;
+    this.inverted = inverted;
     this.fireBalls = [];
     this._throwTimer = 2200 + Math.random() * 1800;
     this._animT = 0;
-    this._lastTarget = 0; // alternates 0/1
+    this._lastTarget = 0;
   }
 
   update(dt) {
@@ -160,20 +162,27 @@ class DemonNPC {
       this._lastTarget ^= 1;
       const dir = this._lastTarget === 0 ? -1 : 1;
       const angle = Math.PI * (0.25 + Math.random() * 0.35);
-      const speed = 1.8 + Math.random() * 1.4;
+      // Inverted: throw fast upward; normal: throw at moderate speed
+      const speed = this.inverted ? 5.5 + Math.random() * 1.5 : 1.8 + Math.random() * 1.4;
+      const vySign = this.inverted ? 1 : -1; // inverted: +sin pushes down from ceiling toward players; wait — players are on ceiling so fire balls go UP
+      // Actually: demon is at bottom, players at ceiling (y=90). Fire must go UP (negative vy).
+      const vy0 = this.inverted ? -Math.sin(angle) * speed : -Math.sin(angle) * speed;
       this.fireBalls.push({
         x: this.x, y: this.y - 35,
         vx: dir * Math.cos(angle) * speed,
-        vy: -Math.sin(angle) * speed,
+        vy: vy0,
         r: 8, dead: false, age: 0,
       });
     }
+    const fbGrav = this.inverted ? 0.012 : 0.06; // inverted: very weak gravity so balls reach ceiling
     for (const fb of this.fireBalls) {
       if (fb.dead) continue;
-      fb.vy += 0.06;
+      fb.vy += fbGrav; // slight pull downward in both modes
       fb.x += fb.vx; fb.y += fb.vy;
       fb.age += dt;
-      if (fb.age > 5000 || fb.y > C.GROUND + 30) fb.dead = true;
+      const dead = fb.age > 5500 ||
+                   (this.inverted ? fb.y < 85 : fb.y > C.GROUND + 30);
+      if (dead) fb.dead = true;
     }
     this.fireBalls = this.fireBalls.filter(fb => !fb.dead);
   }
@@ -245,12 +254,14 @@ class DemonNPC {
   checkPlayerHit(player) {
     if (player.stunTimer > 0) return false;
     const hitH = player.crouching ? C.CROUCH_H : C.P_H;
+    const top    = player.invertGravity ? player.y       : player.y - hitH;
+    const bottom = player.invertGravity ? player.y + hitH : player.y + 4;
     for (const fb of this.fireBalls) {
       if (fb.dead) continue;
       if (fb.x + fb.r > player.x - C.P_W / 2 - 4 &&
           fb.x - fb.r < player.x + C.P_W / 2 + 4 &&
-          fb.y + fb.r > player.y - hitH &&
-          fb.y - fb.r < player.y + 4) {
+          fb.y + fb.r > top &&
+          fb.y - fb.r < bottom) {
         fb.dead = true;
         return true;
       }
@@ -276,6 +287,111 @@ class DemonNPC {
       }
     }
   }
+}
+
+// Plane — passes every ~5 seconds, kills on contact (handled in game.js)
+class PlaneObstacle extends Obstacle {
+  constructor() {
+    super(-400, 0, 220, 55, null, { ballOnly: true }); // ballOnly so obstacle collision handles ball bounce
+    this._timer   = 3000; // first pass after 3 s
+    this._active  = false;
+    this._dir     = 1;    // 1 = L→R, -1 = R→L
+    this._speed   = 4.5;
+    this._warnY   = C.GROUND - 155;
+  }
+
+  get rect() {
+    if (!this._active) return { x: -2000, y: -2000, w: 0, h: 0 };
+    return { x: this.x, y: this.y, w: this.w, h: this.h };
+  }
+
+  update(dt) {
+    if (!this._active) {
+      this._timer -= dt;
+      if (this._timer <= 0) {
+        this._active = true;
+        this._dir    = Math.random() < 0.5 ? 1 : -1;
+        this.x       = this._dir > 0 ? -this.w - 10 : C.W + 10;
+        this.y       = this._warnY;
+      }
+    } else {
+      this.x += this._speed * this._dir;
+      if (this._dir > 0 && this.x > C.W + 20)  { this._active = false; this._timer = 5000; }
+      if (this._dir < 0 && this.x < -this.w - 20) { this._active = false; this._timer = 5000; }
+    }
+  }
+
+  draw(ctx) {
+    // Warning flash when incoming
+    if (!this._active && this._timer < 1600) {
+      const blink = Math.floor(this._timer / 180) % 2 === 0;
+      if (blink) {
+        ctx.save();
+        ctx.fillStyle = '#FF4400';
+        ctx.font = 'bold 13px "Courier New"';
+        ctx.textAlign = this._dir > 0 ? 'left' : 'right';
+        const ax = this._dir > 0 ? 6 : C.W - 6;
+        ctx.fillText(this._dir > 0 ? '▶▶ PLANE' : 'PLANE ◀◀', ax, this._warnY + 28);
+        ctx.restore();
+      }
+      return;
+    }
+    if (!this._active) return;
+
+    ctx.save();
+    ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+    if (this._dir < 0) ctx.scale(-1, 1);
+
+    // Fuselage
+    ctx.fillStyle = '#DDDDE8';
+    ctx.beginPath(); ctx.ellipse(0, 0, this.w / 2, this.h * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+    // Nose cone
+    ctx.fillStyle = '#BBBBD0';
+    ctx.beginPath();
+    ctx.moveTo(this.w / 2 - 8, -this.h * 0.18);
+    ctx.quadraticCurveTo(this.w / 2 + 30, 0, this.w / 2 - 8, this.h * 0.18);
+    ctx.closePath(); ctx.fill();
+    // Wings
+    ctx.fillStyle = '#CCCCDD';
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(-70, this.h * 0.45);
+    ctx.lineTo(35, 0);
+    ctx.closePath(); ctx.fill();
+    // Window strip
+    ctx.fillStyle = '#88CCFF';
+    for (let wx = -40; wx < 50; wx += 16) {
+      ctx.fillRect(wx, -5, 10, 8);
+    }
+    // Tail fin
+    ctx.fillStyle = '#CCCCDD';
+    ctx.beginPath();
+    ctx.moveTo(-this.w / 2 + 18, -4);
+    ctx.lineTo(-this.w / 2 + 12, -this.h * 0.42);
+    ctx.lineTo(-this.w / 2 + 44, -4);
+    ctx.closePath(); ctx.fill();
+    // Engines
+    ctx.fillStyle = '#999AAA';
+    ctx.beginPath(); ctx.ellipse(-15, this.h * 0.28, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20, this.h * 0.28, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Fluffy cloud platform
+function makeCloud(x, y, w) {
+  return new Obstacle(x, y, w, 30, (ctx, o) => {
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    const puffs = [[0.15,0.3,22],[0.35,0.0,28],[0.55,0.1,24],[0.75,0.3,20],[0.92,0.35,16]];
+    for (const [rx, ry, r] of puffs) {
+      ctx.beginPath();
+      ctx.arc(o.x + o.w * rx, o.y + o.h * 0.5 - r * ry, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillRect(o.x, o.y + o.h * 0.35, o.w, o.h * 0.65);
+    ctx.fillStyle = 'rgba(200,220,255,0.4)';
+    ctx.fillRect(o.x, o.y + o.h * 0.35, o.w, 6);
+  });
 }
 
 // --- Obstacle factory functions ---
@@ -743,13 +859,15 @@ const ARENAS = [
 
   // ── UPSIDE DOWN ───────────────────────────────────────────────────────────
   (() => {
-    const demon = new DemonNPC(C.W / 2, C.GROUND - 5);
+    const demon = new DemonNPC(C.W / 2, C.GROUND - 5, true); // inverted=true
     return new Arena({
       name: 'UPSIDE DOWN',
       skyTop: '#1A0005', skyBot: '#380010',
       groundColor: '#0D0005', groundLine: '#AA0020',
       demon,
-      badge: 'DEMON ARENA  ·  FIREBALLS',
+      playerInvertGravity: true,
+      ballGravityMult: -1,
+      badge: 'UPSIDE DOWN  ·  LOSE IF HIT',
       badgeColor: 'rgba(140,0,10,0.88)',
       badgeTextColor: '#FF6666',
 
@@ -811,6 +929,78 @@ const ARENAS = [
       },
 
       obstacles: [],
+    });
+  })(),
+
+  // ── CLOUDS ────────────────────────────────────────────────────────────────
+  (() => {
+    const CLOUD_Y  = C.GROUND - 130; // top surface of cloud platforms
+    const plane    = new PlaneObstacle();
+    return new Arena({
+      name: 'CLOUDS',
+      skyTop: '#87CEEB', skyBot: '#C8EAFF',
+      groundColor: '#87CEEB', groundLine: '#87CEEB', // sky color (invisible "ground")
+      noGround: true, // fall = lose
+      plane,
+      playerStarts: [[150, CLOUD_Y], [650, CLOUD_Y]],
+      badge: 'PLATFORMS  ·  FALL = LOSE',
+      badgeColor: 'rgba(80,140,200,0.85)',
+      badgeTextColor: '#DDEEFF',
+
+      update(dt) {
+        for (const obs of this.obstacles) { if (obs.update) obs.update(dt); }
+        this.plane.update(dt);
+      },
+
+      drawBg(ctx) {
+        // Sky gradient
+        const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
+        g.addColorStop(0, '#6AAEDD'); g.addColorStop(1, '#C8EAFF');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.GROUND);
+
+        // Distant cloud wisps
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        [[80,80,90,22],[300,55,130,18],[550,90,100,20],[700,65,80,18]].forEach(([cx,cy,cw,ch]) => {
+          ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        [[160,110,70,14],[420,100,90,16],[640,115,65,13]].forEach(([cx,cy,cw,ch]) => {
+          ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
+        });
+
+        // Sun
+        ctx.save();
+        ctx.shadowColor = '#FFE066'; ctx.shadowBlur = 20;
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath(); ctx.arc(720, 55, 32, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
+
+        // Vapour trails (static)
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(50, 140); ctx.lineTo(400, 125); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(50, 148); ctx.lineTo(400, 133); ctx.stroke();
+      },
+
+      _drawGround(ctx) {
+        // No solid ground — just fade to sky at bottom
+        const g = ctx.createLinearGradient(0, C.GROUND - 30, 0, C.H);
+        g.addColorStop(0, 'rgba(200,234,255,0)');
+        g.addColorStop(1, 'rgba(140,200,255,0.6)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, C.GROUND - 30, C.W, C.H - C.GROUND + 30);
+      },
+
+      draw(ctx) {
+        this._drawBackground(ctx);
+        this._drawObstacles(ctx);
+        this.plane.draw(ctx);
+        this._drawGround(ctx);
+      },
+
+      obstacles: [
+        makeCloud(50,  CLOUD_Y, 180),  // P1 platform
+        makeCloud(570, CLOUD_Y, 180),  // P2 platform
+      ],
     });
   })(),
 ];

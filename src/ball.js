@@ -31,17 +31,17 @@ class Ball {
     this.dead = false;
   }
 
-  update(dt, obstacles) {
+  update(dt, obstacles, gravityMult = 1) {
     if (!this.inFlight || this.dead) return;
     if (this.teleportCooldown > 0) this.teleportCooldown -= dt;
 
     const gravity = this.isRocket ? C.BALL_GRAVITY * 0.4 : C.BALL_GRAVITY;
-    this.vy += gravity;
+    this.vy += gravity * gravityMult; // negative gravityMult = inverted (pulls up)
 
     this.x += this.vx;
     this.y += this.vy;
 
-    // Wall bounce — clear lastThrower so ball can hit anyone after bouncing
+    // Wall bounce
     if (this.x - C.BALL_R < 0) {
       this.x = C.BALL_R;
       this.vx = Math.abs(this.vx) * 0.8;
@@ -53,28 +53,51 @@ class Ball {
       this.lastThrower = -1;
     }
 
-    // Ceiling bounce
-    if (this.y - C.BALL_R < 42) {
-      this.y = C.BALL_R + 42;
-      this.vy = Math.abs(this.vy) * 0.65;
-      this.lastThrower = -1;
-    }
-
-    // Ground — one bounce allowed, dies on second contact
-    if (this.y + C.BALL_R >= C.GROUND) {
-      this.y = C.GROUND - C.BALL_R;
-      this.lastThrower = -1;
-      if (this.groundBounces < 1) {
-        this.vy = -Math.abs(this.vy) * 0.58;
-        this.vx *= 0.75;
-        this.groundBounces++;
-        if (Math.abs(this.vy) < 1.2) {
+    if (gravityMult >= 0) {
+      // Normal: ceiling bounce at y≈42, dies on ground
+      if (this.y - C.BALL_R < 42) {
+        this.y = C.BALL_R + 42;
+        this.vy = Math.abs(this.vy) * 0.65;
+        this.lastThrower = -1;
+      }
+      if (this.y + C.BALL_R >= C.GROUND) {
+        this.y = C.GROUND - C.BALL_R;
+        this.lastThrower = -1;
+        if (this.groundBounces < 1) {
+          this.vy = -Math.abs(this.vy) * 0.58;
+          this.vx *= 0.75;
+          this.groundBounces++;
+          if (Math.abs(this.vy) < 1.2) {
+            this.dead = true; this.inFlight = false;
+            this.vx = 0; this.vy = 0; this.spinning = false;
+          }
+        } else {
           this.dead = true; this.inFlight = false;
           this.vx = 0; this.vy = 0; this.spinning = false;
         }
-      } else {
-        this.dead = true; this.inFlight = false;
-        this.vx = 0; this.vy = 0; this.spinning = false;
+      }
+    } else {
+      // Inverted: floor bounce at C.GROUND, dies on ceiling at y=90
+      if (this.y + C.BALL_R > C.GROUND - 5) {
+        this.y = C.GROUND - 5 - C.BALL_R;
+        this.vy = -Math.abs(this.vy) * 0.65;
+        this.lastThrower = -1;
+      }
+      if (this.y - C.BALL_R <= 90) {
+        this.y = 90 + C.BALL_R;
+        this.lastThrower = -1;
+        if (this.groundBounces < 1) {
+          this.vy = Math.abs(this.vy) * 0.58; // bounce back downward
+          this.vx *= 0.75;
+          this.groundBounces++;
+          if (Math.abs(this.vy) < 1.2) {
+            this.dead = true; this.inFlight = false;
+            this.vx = 0; this.vy = 0; this.spinning = false;
+          }
+        } else {
+          this.dead = true; this.inFlight = false;
+          this.vx = 0; this.vy = 0; this.spinning = false;
+        }
       }
     }
 
@@ -129,8 +152,9 @@ class Ball {
     const hitH = player.crouching ? C.CROUCH_H : C.P_H;
     const left = player.x - C.P_W / 2 - 3;
     const right = player.x + C.P_W / 2 + 3;
-    const top = player.y - hitH;
-    const bottom = player.y + 4;
+    // Inverted players: feet at ceiling (player.y), body extends downward
+    const top    = player.invertGravity ? player.y       : player.y - hitH;
+    const bottom = player.invertGravity ? player.y + hitH : player.y + 4;
     return (this.x + C.BALL_R > left && this.x - C.BALL_R < right &&
             this.y + C.BALL_R > top  && this.y - C.BALL_R < bottom);
   }
