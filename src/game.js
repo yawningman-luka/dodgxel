@@ -175,11 +175,18 @@ class Game {
 
   // ---- Arena Select ----
   _updateArenaSelect() {
-    if (Input.wasPressed('ArrowLeft') || Input.wasPressed('KeyA')) {
+    const COLS = 4;
+    if (Input.wasPressed('ArrowLeft')  || Input.wasPressed('KeyA')) {
       this.menuCursor = (this.menuCursor - 1 + ARENAS.length) % ARENAS.length;
     }
     if (Input.wasPressed('ArrowRight') || Input.wasPressed('KeyD')) {
       this.menuCursor = (this.menuCursor + 1) % ARENAS.length;
+    }
+    if (Input.wasPressed('ArrowUp')    || Input.wasPressed('KeyW')) {
+      this.menuCursor = (this.menuCursor - COLS + ARENAS.length) % ARENAS.length;
+    }
+    if (Input.wasPressed('ArrowDown')  || Input.wasPressed('KeyS')) {
+      this.menuCursor = (this.menuCursor + COLS) % ARENAS.length;
     }
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
       this._startGame(this.menuCursor);
@@ -262,7 +269,7 @@ class Game {
     ctx.globalAlpha = pulse2;
     ctx.fillStyle = '#fff';
     ctx.font = '13px "Courier New"';
-    ctx.fillText('← → choose · ENTER play · ESC back', C.W / 2, navY);
+    ctx.fillText('← → ↑ ↓  choose · ENTER play · ESC back', C.W / 2, navY);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }

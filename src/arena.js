@@ -149,7 +149,7 @@ class DemonNPC {
     this.x = x; this.y = y;
     this.inverted = inverted;
     this.fireBalls = [];
-    this._throwTimer = 2200 + Math.random() * 1800;
+    this._throwTimer = 1200 + Math.random() * 800;
     this._animT = 0;
     this._lastTarget = 0;
   }
@@ -158,12 +158,11 @@ class DemonNPC {
     this._animT += dt;
     this._throwTimer -= dt;
     if (this._throwTimer <= 0) {
-      this._throwTimer = 2400 + Math.random() * 2000;
+      this._throwTimer = 1400 + Math.random() * 1000;
       this._lastTarget ^= 1;
       const dir = this._lastTarget === 0 ? -1 : 1;
       const angle = Math.PI * (0.25 + Math.random() * 0.35);
-      // Inverted: throw fast upward; normal: throw at moderate speed
-      const speed = this.inverted ? 5.5 + Math.random() * 1.5 : 1.8 + Math.random() * 1.4;
+      const speed = this.inverted ? 2.2 + Math.random() * 0.8 : 1.8 + Math.random() * 1.4;
       const vySign = this.inverted ? 1 : -1; // inverted: +sin pushes down from ceiling toward players; wait — players are on ceiling so fire balls go UP
       // Actually: demon is at bottom, players at ceiling (y=90). Fire must go UP (negative vy).
       const vy0 = this.inverted ? -Math.sin(angle) * speed : -Math.sin(angle) * speed;
