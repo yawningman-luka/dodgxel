@@ -94,6 +94,190 @@ class BirdObstacle extends Obstacle {
   }
 }
 
+// Slowly-drifting debris rock — Moon arena (blocks both player and ball)
+class DebrisRock extends Obstacle {
+  constructor(x, y, size, speed) {
+    super(x, y, size, size, null, {});
+    this._cx = x; this._cy = y;
+    this._size = size; this._speed = speed;
+    this._rot = Math.random() * Math.PI * 2;
+    this._rotSpeed = (Math.random() - 0.5) * 0.003;
+  }
+
+  update(dt) {
+    this.x -= this._speed * (dt / 16);
+    this._rot += this._rotSpeed * dt;
+    if (this.x + this._size < -20) {
+      this.x = C.W + 60 + Math.random() * 200;
+      this.y = this._cy + (Math.random() - 0.5) * 40;
+    }
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x + this._size / 2, this.y + this._size / 2);
+    ctx.rotate(this._rot);
+    const s = this._size;
+    ctx.fillStyle = '#7A7A8E';
+    ctx.beginPath();
+    ctx.moveTo(-s/2+3, -s/2);
+    ctx.lineTo(s/2, -s/2+4);
+    ctx.lineTo(s/2-3, s/2-1);
+    ctx.lineTo(-s/2+1, s/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#A0A0B8';
+    ctx.beginPath();
+    ctx.moveTo(-s/4, -s/3);
+    ctx.lineTo(s/5, -s/4);
+    ctx.lineTo(s/6, s/6);
+    ctx.lineTo(-s/5, s/5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.arc(-s/6, -s/4, s/7, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Demon NPC — Upside-Down arena, shoots slow fire balls at both players
+class DemonNPC {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.fireBalls = [];
+    this._throwTimer = 2200 + Math.random() * 1800;
+    this._animT = 0;
+    this._lastTarget = 0; // alternates 0/1
+  }
+
+  update(dt) {
+    this._animT += dt;
+    this._throwTimer -= dt;
+    if (this._throwTimer <= 0) {
+      this._throwTimer = 2400 + Math.random() * 2000;
+      this._lastTarget ^= 1;
+      const dir = this._lastTarget === 0 ? -1 : 1;
+      const angle = Math.PI * (0.25 + Math.random() * 0.35);
+      const speed = 1.8 + Math.random() * 1.4;
+      this.fireBalls.push({
+        x: this.x, y: this.y - 35,
+        vx: dir * Math.cos(angle) * speed,
+        vy: -Math.sin(angle) * speed,
+        r: 8, dead: false, age: 0,
+      });
+    }
+    for (const fb of this.fireBalls) {
+      if (fb.dead) continue;
+      fb.vy += 0.06;
+      fb.x += fb.vx; fb.y += fb.vy;
+      fb.age += dt;
+      if (fb.age > 5000 || fb.y > C.GROUND + 30) fb.dead = true;
+    }
+    this.fireBalls = this.fireBalls.filter(fb => !fb.dead);
+  }
+
+  draw(ctx) {
+    // Fire balls
+    for (const fb of this.fireBalls) {
+      if (fb.dead) continue;
+      ctx.save();
+      ctx.shadowColor = '#FF4400'; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#FF2200';
+      ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#FFAA00';
+      ctx.beginPath(); ctx.arc(fb.x - 2, fb.y - 2, fb.r * 0.45, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+    // Demon body
+    const bob = Math.sin(this._animT * 0.002) * 4;
+    ctx.save();
+    ctx.translate(this.x, this.y + bob);
+    // Shadow
+    ctx.fillStyle = 'rgba(200,0,0,0.18)';
+    ctx.beginPath(); ctx.ellipse(0, 2, 28, 7, 0, 0, Math.PI * 2); ctx.fill();
+    // Wings
+    const wFlap = Math.sin(this._animT * 0.004) * 12;
+    ctx.fillStyle = '#440011';
+    ctx.beginPath();
+    ctx.moveTo(-8, -30); ctx.quadraticCurveTo(-55, -60 + wFlap, -60, -25 + wFlap);
+    ctx.quadraticCurveTo(-40, -10 + wFlap, -8, -20); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(8, -30); ctx.quadraticCurveTo(55, -60 + wFlap, 60, -25 + wFlap);
+    ctx.quadraticCurveTo(40, -10 + wFlap, 8, -20); ctx.fill();
+    // Body
+    ctx.fillStyle = '#880022';
+    ctx.beginPath();
+    ctx.ellipse(0, -22, 16, 20, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#AA0033';
+    ctx.beginPath();
+    ctx.ellipse(0, -24, 12, 15, 0, 0, Math.PI * 2); ctx.fill();
+    // Head
+    ctx.fillStyle = '#AA0033';
+    ctx.beginPath(); ctx.arc(0, -46, 14, 0, Math.PI * 2); ctx.fill();
+    // Horns
+    ctx.fillStyle = '#550011';
+    ctx.beginPath(); ctx.moveTo(-8,-56); ctx.lineTo(-14,-72); ctx.lineTo(-4,-60); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(8,-56); ctx.lineTo(14,-72); ctx.lineTo(4,-60); ctx.fill();
+    // Eyes (glowing)
+    ctx.shadowColor = '#FF8800'; ctx.shadowBlur = 8;
+    ctx.fillStyle = '#FF6600';
+    ctx.beginPath(); ctx.arc(-5, -48, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, -48, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(-5, -48, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, -48, 2, 0, Math.PI * 2); ctx.fill();
+    // Mouth
+    ctx.strokeStyle = '#FF2200'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, -43, 6, 0.2, Math.PI - 0.2); ctx.stroke();
+    // Arms stretched out ready to throw
+    const pulse = 0.4 + 0.6 * Math.sin(this._animT * 0.003);
+    ctx.strokeStyle = `rgba(255,100,0,${pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-12, -28); ctx.lineTo(-32, -18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, -28); ctx.lineTo(32, -18); ctx.stroke();
+    ctx.restore();
+  }
+
+  checkPlayerHit(player) {
+    if (player.stunTimer > 0) return false;
+    const hitH = player.crouching ? C.CROUCH_H : C.P_H;
+    for (const fb of this.fireBalls) {
+      if (fb.dead) continue;
+      if (fb.x + fb.r > player.x - C.P_W / 2 - 4 &&
+          fb.x - fb.r < player.x + C.P_W / 2 + 4 &&
+          fb.y + fb.r > player.y - hitH &&
+          fb.y - fb.r < player.y + 4) {
+        fb.dead = true;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  checkBallHit(ball) {
+    if (!ball.inFlight || ball.dead) return;
+    for (const fb of this.fireBalls) {
+      if (fb.dead) continue;
+      const dx = ball.x - fb.x, dy = ball.y - fb.y;
+      const d2 = dx * dx + dy * dy;
+      const rSum = C.BALL_R + fb.r;
+      if (d2 < rSum * rSum) {
+        fb.dead = true;
+        // Deflect ball away from fireball
+        const dist = Math.sqrt(d2) || 1;
+        const spd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        ball.vx = (dx / dist) * spd * 0.8;
+        ball.vy = (dy / dist) * spd * 0.8 - 1;
+        ball.lastThrower = -1;
+      }
+    }
+  }
+}
+
 // --- Obstacle factory functions ---
 
 function makeBench(x, y) {
@@ -506,4 +690,127 @@ const ARENAS = [
       }),
     ],
   }),
+
+  // ── MOON ──────────────────────────────────────────────────────────────────
+  new Arena({
+    name: 'MOON',
+    skyTop: '#000005', skyBot: '#050518',
+    groundColor: '#8A8A9E', groundLine: '#6A6A7E',
+    playerSpeedMult:     0.6,
+    playerGravityMult:   0.30,
+    playerJumpForceMult: 0.78,
+    badge: 'LOW GRAVITY  ·  DEBRIS',
+    badgeColor: 'rgba(100,100,160,0.85)',
+    badgeTextColor: '#AAAAFF',
+
+    drawBg(ctx) {
+      ctx.fillStyle = '#000005'; ctx.fillRect(0, 0, C.W, C.GROUND);
+      // Stars
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      for (let i = 0; i < 120; i++) {
+        const sx = (i * 137.5 + 7) % C.W;
+        const sy = (i * 71.3 + 13) % (C.GROUND - 40);
+        const sr = 0.3 + (i % 4) * 0.3;
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+      }
+      // Earth
+      ctx.save();
+      ctx.shadowColor = '#4488FF'; ctx.shadowBlur = 18;
+      ctx.fillStyle = '#1144AA';
+      ctx.beginPath(); ctx.arc(680, 75, 44, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1A8B3A';
+      ctx.beginPath(); ctx.arc(660, 62, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(688, 85, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(200,220,255,0.2)';
+      ctx.beginPath(); ctx.arc(680, 75, 44, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath(); ctx.ellipse(667, 58, 22, 8, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Surface craters
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      [[100,C.GROUND-12,22],[250,C.GROUND-8,14],[450,C.GROUND-10,18],[620,C.GROUND-9,12]].forEach(([cx,cy,r]) => {
+        ctx.beginPath(); ctx.ellipse(cx, cy, r, r*0.35, 0, 0, Math.PI*2); ctx.fill();
+      });
+    },
+
+    obstacles: [
+      new DebrisRock(180,  160, 30, 0.55),
+      new DebrisRock(450,  210, 24, 0.80),
+      new DebrisRock(650,  145, 22, 0.65),
+      new DebrisRock(320,  255, 28, 0.45),
+    ],
+  }),
+
+  // ── UPSIDE DOWN ───────────────────────────────────────────────────────────
+  (() => {
+    const demon = new DemonNPC(C.W / 2, C.GROUND - 5);
+    return new Arena({
+      name: 'UPSIDE DOWN',
+      skyTop: '#1A0005', skyBot: '#380010',
+      groundColor: '#0D0005', groundLine: '#AA0020',
+      demon,
+      badge: 'DEMON ARENA  ·  FIREBALLS',
+      badgeColor: 'rgba(140,0,10,0.88)',
+      badgeTextColor: '#FF6666',
+
+      update(dt) {
+        for (const obs of this.obstacles) { if (obs.update) obs.update(dt); }
+        this.demon.update(dt);
+      },
+
+      drawBg(ctx) {
+        const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
+        g.addColorStop(0, '#1A0005'); g.addColorStop(0.5, '#300010'); g.addColorStop(1, '#480018');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.GROUND);
+        // Ceiling cracks
+        ctx.strokeStyle = 'rgba(255,80,0,0.28)'; ctx.lineWidth = 1.5;
+        [[60,0,90,28],[200,0,170,35],[350,0,320,22],[540,0,510,30],[700,0,680,25]].forEach(([x1,y1,x2,y2]) => {
+          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-14,y2+12); ctx.stroke();
+        });
+        // Stalactites
+        const stalacs = [[80,14,38],[180,10,28],[360,12,32],[500,16,42],[700,11,26]];
+        stalacs.forEach(([sx,sw,sh]) => {
+          ctx.fillStyle = '#1A0005';
+          ctx.beginPath(); ctx.moveTo(sx-sw/2,0); ctx.lineTo(sx+sw/2,0); ctx.lineTo(sx,sh); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#2A000A';
+          ctx.beginPath(); ctx.moveTo(sx-sw/4,0); ctx.lineTo(sx+sw/4,0); ctx.lineTo(sx,sh*0.5); ctx.closePath(); ctx.fill();
+        });
+        // Lava glow pools
+        ctx.fillStyle = 'rgba(255,60,0,0.12)';
+        [[150,C.GROUND-8,55],[400,C.GROUND-6,40],[600,C.GROUND-9,50]].forEach(([lx,ly,lw]) => {
+          ctx.beginPath(); ctx.ellipse(lx, ly, lw, 9, 0, 0, Math.PI*2); ctx.fill();
+        });
+        // Pentagram
+        ctx.save();
+        ctx.strokeStyle = 'rgba(200,0,30,0.15)'; ctx.lineWidth = 1;
+        ctx.translate(C.W/2, C.GROUND-2);
+        const R = 60;
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = (i*2*Math.PI/5) - Math.PI/2, b = ((i+2)*2*Math.PI/5) - Math.PI/2;
+          ctx.moveTo(Math.cos(a)*R, Math.sin(a)*R); ctx.lineTo(Math.cos(b)*R, Math.sin(b)*R);
+        }
+        ctx.stroke(); ctx.restore();
+      },
+
+      _drawGround(ctx) {
+        ctx.fillStyle = '#0D0005'; ctx.fillRect(0, C.GROUND, C.W, C.H - C.GROUND);
+        ctx.fillStyle = '#AA0020'; ctx.fillRect(0, C.GROUND, C.W, 3);
+        ctx.save();
+        ctx.shadowColor = '#FF3300'; ctx.shadowBlur = 14;
+        ctx.fillStyle = '#CC1100'; ctx.fillRect(0, C.GROUND+2, C.W, 2);
+        ctx.shadowBlur = 0; ctx.restore();
+      },
+
+      draw(ctx) {
+        this._drawBackground(ctx);
+        this._drawObstacles(ctx);
+        this.demon.draw(ctx);
+        this._drawGround(ctx);
+      },
+
+      obstacles: [],
+    });
+  })(),
 ];

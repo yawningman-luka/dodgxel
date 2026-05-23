@@ -225,12 +225,13 @@ class Game {
       Sprites.drawArenaIcon(ctx, i, cx + 4, cy + 4, cardW - 8, Math.round(cardH * 0.55));
 
       // Feature badge
-      if (a.ballGroundBounce === 0) {
-        ctx.fillStyle = 'rgba(210,180,140,0.85)';
+      const badgeLabel = a.badge ?? (a.ballGroundBounce === 0 ? 'SAND — ball sticks!' : null);
+      if (badgeLabel) {
+        ctx.fillStyle = a.badgeColor ?? 'rgba(210,180,140,0.85)';
         ctx.fillRect(cx + 4, cy + cardH * 0.55 - 16, cardW - 8, 16);
-        ctx.fillStyle = '#663';
+        ctx.fillStyle = a.badgeTextColor ?? '#663';
         ctx.font = '9px "Courier New"';
-        ctx.fillText('SAND — ball sticks!', cx + cardW / 2, cy + cardH * 0.55 - 4);
+        ctx.fillText(badgeLabel, cx + cardW / 2, cy + cardH * 0.55 - 4);
       }
 
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -385,6 +386,12 @@ class Game {
   _startRound(ballHolder) {
     this.p1.reset();
     this.p2.reset();
+    // Restore arena-specific physics after reset()
+    const gMult  = this.arena?.playerGravityMult   ?? 1;
+    const jMult  = this.arena?.playerJumpForceMult  ?? 1;
+    this.p1.gravityMult = gMult; this.p2.gravityMult = gMult;
+    this.p1.jumpForceMult = jMult; this.p2.jumpForceMult = jMult;
+
     this.p1.hitCallback = (victim, attacker) => this._onHit(victim, attacker);
     this.p2.hitCallback = (victim, attacker) => this._onHit(victim, attacker);
     this.p1.extraThrowCallback = (x, y, vx, vy, thrower) => this._spawnBall2(x, y, vx, vy, thrower);
@@ -393,8 +400,10 @@ class Game {
     this.ball2 = null;
     if (ballHolder === 0) this.p1.hasBall = true;
     else                  this.p2.hasBall = true;
-    this.roundOver = false;
+    this.roundOver  = false;
     this.roundWinner = -1;
+    this._ballThrownBy = ballHolder; // tracks actual thrower even after bounces reset lastThrower
+    this._ballWasInFlight = false;
   }
 
   _spawnBall2(x, y, vx, vy, throwerIndex) {
@@ -445,12 +454,33 @@ class Game {
       if (this.ball2 && this.ball2.dead) this.ball2 = null;
     }
 
+    // Track who threw — capture lastThrower at the moment of launch,
+    // because wall/ceiling bounces reset it to -1 before the ball dies.
+    if (this.ball.inFlight && !this._ballWasInFlight) {
+      this._ballThrownBy = this.ball.lastThrower; // 0 or 1
+    }
+    this._ballWasInFlight = this.ball.inFlight;
+
+    // Demon fireballs (Upside-Down arena)
+    if (this.arena.demon && !this.roundOver) {
+      this.arena.demon.checkBallHit(this.ball);
+      for (const player of [this.p1, this.p2]) {
+        if (this.arena.demon.checkPlayerHit(player)) {
+          player.stunTimer = 700;
+          player.vy = -5;
+          player.vx = (player.x < C.W / 2 ? -3 : 3);
+        }
+      }
+    }
+
     // Ball missed — switch possession, no point scored
     if (this.ball.dead && !this.roundOver) {
-      const nextHolder = this.ball.lastThrower === 0 ? 1 : 0;
+      const nextHolder = this._ballThrownBy === 0 ? 1 : 0;
       this.ball.reset(nextHolder);
       if (nextHolder === 0) this.p1.hasBall = true;
       else                  this.p2.hasBall = true;
+      this._ballThrownBy = nextHolder;
+      this._ballWasInFlight = false;
     }
   }
 

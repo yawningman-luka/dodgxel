@@ -637,6 +637,65 @@ const Sprites = {
       this.px(ctx, '#88AAFF', x + Math.round(w * 0.39), ty - 4, 7, 5);
       this.px(ctx, '#FFEEAA', x + Math.round(w * 0.55), ty, 9, 16);
       this.px(ctx, '#FFDD88', x + Math.round(w * 0.56), ty - 4, 7, 5);
+    } else if (idx === 5) { // MOON
+      // Black sky + stars
+      ctx.fillStyle = '#000008'; ctx.fillRect(x, y, w, skyH);
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      for (let i = 0; i < 30; i++) {
+        const sx = x + (i * 17.3) % w, sy = y + (i * 9.7) % (skyH - 8);
+        ctx.beginPath(); ctx.arc(sx, sy, 0.5 + (i%3)*0.4, 0, Math.PI*2); ctx.fill();
+      }
+      // Earth globe
+      ctx.save();
+      ctx.shadowColor = '#4488FF'; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#1144AA';
+      ctx.beginPath(); ctx.arc(x + Math.round(w*0.8), y + Math.round(skyH*0.3), 12, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#1A8B3A';
+      ctx.beginPath(); ctx.arc(x + Math.round(w*0.78), y + Math.round(skyH*0.25), 5, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Debris rocks
+      ctx.fillStyle = '#7A7A8E';
+      [[0.18,0.42],[0.55,0.28],[0.75,0.55]].forEach(([rx,ry]) => {
+        ctx.beginPath();
+        const rcx = x+Math.round(w*rx), rcy = y+Math.round(skyH*ry);
+        ctx.moveTo(rcx-5,rcy); ctx.lineTo(rcx+2,rcy-6); ctx.lineTo(rcx+7,rcy-2);
+        ctx.lineTo(rcx+5,rcy+5); ctx.lineTo(rcx-3,rcy+5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#A0A0B8';
+        ctx.beginPath(); ctx.arc(rcx-1, rcy-1, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#7A7A8E';
+      });
+      // Crater surface hint
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.ellipse(x + Math.round(w*0.38), gy - 5, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+    } else if (idx === 6) { // UPSIDE DOWN
+      // Dark hell sky
+      const hg = ctx.createLinearGradient(x, y, x, y + skyH);
+      hg.addColorStop(0, '#1A0005'); hg.addColorStop(1, '#400015');
+      ctx.fillStyle = hg; ctx.fillRect(x, y, w, skyH);
+      // Stalactite
+      ctx.fillStyle = '#1A0005';
+      [[x+Math.round(w*0.15),10,22],[x+Math.round(w*0.5),14,28],[x+Math.round(w*0.8),9,20]].forEach(([sx,sw,sh]) => {
+        ctx.beginPath(); ctx.moveTo(sx-sw/2,y); ctx.lineTo(sx+sw/2,y); ctx.lineTo(sx,y+sh); ctx.closePath(); ctx.fill();
+      });
+      // Cracks in ceiling
+      ctx.strokeStyle = 'rgba(255,80,0,0.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x+Math.round(w*0.28),y); ctx.lineTo(x+Math.round(w*0.36),y+18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+Math.round(w*0.65),y); ctx.lineTo(x+Math.round(w*0.58),y+14); ctx.stroke();
+      // Lava glow at bottom
+      ctx.fillStyle = 'rgba(255,60,0,0.15)';
+      ctx.beginPath(); ctx.ellipse(x + Math.round(w*0.5), gy-4, Math.round(w*0.35), 7, 0, 0, Math.PI*2); ctx.fill();
+      // Mini demon
+      ctx.save();
+      ctx.translate(x + Math.round(w*0.5), gy - 6);
+      ctx.fillStyle = '#880022';
+      ctx.beginPath(); ctx.arc(0, -10, 6, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#550011';
+      ctx.beginPath(); ctx.moveTo(-3,-15); ctx.lineTo(-6,-21); ctx.lineTo(0,-17); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(3,-15); ctx.lineTo(6,-21); ctx.lineTo(0,-17); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#FF6600';
+      ctx.beginPath(); ctx.arc(-2,-11,2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(2,-11,2,0,Math.PI*2); ctx.fill();
+      ctx.restore();
     }
   },
 

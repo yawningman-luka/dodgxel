@@ -40,6 +40,8 @@ class Player {
     this.hitCallback = null; // set by game to trigger scoring
     this.noMidline = false;
     this.hordeMode = false;
+    this.gravityMult   = 1;
+    this.jumpForceMult = 1;
   }
 
   get catchRadius() {
@@ -130,7 +132,7 @@ class Player {
       }
 
       if (Input.wasPressed(k.jump) && this.onGround && !this.crouching) {
-        this.vy = C.JUMP_FORCE;
+        this.vy = C.JUMP_FORCE * this.jumpForceMult;
         this.onGround = false;
       }
     }
@@ -227,7 +229,7 @@ class Player {
   }
 
   _applyPhysics(obstacles) {
-    if (!this.onGround) this.vy += C.GRAVITY;
+    if (!this.onGround) this.vy += C.GRAVITY * this.gravityMult;
     this.x += this.vx;
     this.y += this.vy;
 
