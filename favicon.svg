@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Base ball: golden yellow -->
+  <circle cx="16" cy="16" r="14" fill="#FFD700"/>
+
+  <!-- Brown seam lines -->
+  <path d="M8 6 Q16 14 8 26" stroke="#8B5E1A" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M24 6 Q16 14 24 26" stroke="#8B5E1A" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M4 13 Q16 16 28 13" stroke="#8B5E1A" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M4 19 Q16 22 28 19" stroke="#8B5E1A" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Dark shading bottom-right -->
+  <circle cx="16" cy="16" r="14" fill="url(#shade)"/>
+
+  <!-- Highlight top-left -->
+  <ellipse cx="11" cy="10" rx="5" ry="3.5" fill="rgba(255,255,255,0.38)" transform="rotate(-20 11 10)"/>
+
+  <defs>
+    <radialGradient id="shade" cx="65%" cy="65%" r="70%">
+      <stop offset="0%" stop-color="#7B3A00" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#7B3A00" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
