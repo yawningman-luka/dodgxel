@@ -2,21 +2,21 @@
 
 const HORDE_WAVES = [
   { label: 'ZOMBIES',          spawnInterval: 1500, enemies: [{ type: 'zombie',      count: 6  }] },
-  { label: 'MORE ZOMBIES',     spawnInterval: 1200, enemies: [{ type: 'zombie',      count: 10 }] },
-  { label: 'FAST ZOMBIES',     spawnInterval: 1000, enemies: [{ type: 'fast_zombie', count: 7  }] },
-  { label: 'MIXED HORDE',      spawnInterval: 950,  enemies: [{ type: 'fast_zombie', count: 5  }, { type: 'zombie',      count: 4 }] },
-  { label: 'NINJAS',           spawnInterval: 900,  enemies: [{ type: 'ninja',       count: 7  }] },
-  { label: 'NINJAS + ZOMBIES', spawnInterval: 850,  enemies: [{ type: 'ninja',       count: 6  }, { type: 'zombie',      count: 5 }] },
-  { label: 'DINOSAURS',        spawnInterval: 1200, enemies: [{ type: 'dino',        count: 5  }, { type: 'ninja',       count: 3 }] },
-  { label: 'HEAVY ASSAULT',    spawnInterval: 1000, enemies: [{ type: 'dino',        count: 6  }, { type: 'ninja',       count: 4 }] },
-  { label: 'SPAGHETTI CHAOS',  spawnInterval: 1000, enemies: [{ type: 'fsm',         count: 4  }, { type: 'ninja',       count: 5 }] },
-  { label: 'EVERYTHING',       spawnInterval: 750,  enemies: [{ type: 'fsm',         count: 4  }, { type: 'dino',        count: 4 }, { type: 'ninja', count: 5 }] },
+  { label: 'MORE ZOMBIES',     spawnInterval: 1200, enemies: [{ type: 'zombie',      count: 9  }] },
+  { label: 'FAST ZOMBIES',     spawnInterval: 1000, enemies: [{ type: 'fast_zombie', count: 6  }] },
+  { label: 'MIXED HORDE',      spawnInterval: 950,  enemies: [{ type: 'fast_zombie', count: 4  }, { type: 'zombie',      count: 4 }] },
+  { label: 'NINJAS',           spawnInterval: 950,  enemies: [{ type: 'ninja',       count: 5  }] },
+  { label: 'NINJAS + ZOMBIES', spawnInterval: 900,  enemies: [{ type: 'ninja',       count: 4  }, { type: 'zombie',      count: 5 }] },
+  { label: 'DINOSAURS',        spawnInterval: 1200, enemies: [{ type: 'dino',        count: 4  }, { type: 'ninja',       count: 3 }] },
+  { label: 'HEAVY ASSAULT',    spawnInterval: 1000, enemies: [{ type: 'dino',        count: 5  }, { type: 'ninja',       count: 3 }] },
+  { label: 'SPAGHETTI CHAOS',  spawnInterval: 1000, enemies: [{ type: 'fsm',         count: 3  }, { type: 'ninja',       count: 4 }] },
+  { label: 'EVERYTHING',       spawnInterval: 850,  enemies: [{ type: 'fsm',         count: 3  }, { type: 'dino',        count: 3 }, { type: 'ninja', count: 4 }] },
 ];
 
 const ENEMY_DEFS = {
   zombie:      { speed: 0.65, hp: 1, w: 20, h: 44, throwInterval: 3200, throwSpeed: 3.5, color: '#4A8A3C', pants: '#3A2A1A' },
   fast_zombie: { speed: 1.75, hp: 1, w: 20, h: 44, throwInterval: 2000, throwSpeed: 5.0, color: '#3A7A5C', pants: '#4A3A7A' },
-  ninja:       { speed: 2.3,  hp: 1, w: 16, h: 44, throwInterval: 1100, throwSpeed: 9.0, color: '#181818', pants: '#101010' },
+  ninja:       { speed: 2.0,  hp: 1, w: 16, h: 44, throwInterval: 1300, throwSpeed: 7.0, color: '#181818', pants: '#101010' },
   dino:        { speed: 1.1,  hp: 2, w: 30, h: 54, throwInterval: 2400, throwSpeed: 6.0, color: '#3A8A3A', pants: '#2A6A2A' },
   fsm:         { speed: 0.9,  hp: 2, w: 32, h: 44, throwInterval: 1800, throwSpeed: 7.0, color: '#C8A060', pants: '#A06030', floats: true },
 };
@@ -56,27 +56,31 @@ class EnemyBall {
 
 // ── Enemy ─────────────────────────────────────────────────────────────────────
 class Enemy {
-  constructor(x, type) {
+  constructor(x, type, waveNum = 1) {
     this.x = x; this.y = C.GROUND; this.type = type;
     this.def = ENEMY_DEFS[type];
     this.hp = this.def.hp; this.maxHp = this.def.hp;
     this.w = this.def.w; this.h = this.def.h;
+    // Speed scales up from wave 5 onward: +8% per wave
+    this.speed = this.def.speed * (1 + Math.max(0, waveNum - 5) * 0.08);
     this.vy = 0; this.onGround = true; this.dead = false;
     this._flashTimer = 0; this._floatOffset = Math.random() * Math.PI * 2;
     this.throwTimer = this.def.throwInterval * (0.4 + Math.random() * 0.6);
     this._legAnim = Math.random() * Math.PI * 2;
+    this.contactCooldown = 0;
   }
 
   update(dt, players, enemyBalls) {
     if (this.dead) return;
     if (this._flashTimer > 0) this._flashTimer -= dt;
+    if (this.contactCooldown > 0) this.contactCooldown -= dt;
     this._legAnim += dt * 0.012;
     const def = this.def;
     if (def.floats) {
-      this.x -= def.speed;
+      this.x -= this.speed;
       this.y = (C.GROUND - 90) - 28 * Math.abs(Math.sin(Date.now() * 0.002 + this._floatOffset));
     } else {
-      this.x -= def.speed;
+      this.x -= this.speed;
       if (!this.onGround) {
         this.vy += C.GRAVITY; this.y += this.vy;
         if (this.y >= C.GROUND) { this.y = C.GROUND; this.vy = 0; this.onGround = true; }
@@ -239,6 +243,7 @@ class HordeGame {
       return;
     }
 
+    Particles.update(dt);
     this.arena.update(dt);
     const obs = this.arena.getObstacles();
 
@@ -317,8 +322,11 @@ class HordeGame {
       if (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
           ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h) {
         const killed = e.takeBall(ball);
-        this.score += killed ? 10 : 2;
+        this.score += killed ? 10 * this.wave : 2;
         if (killed) {
+          Particles.emit(e.x, e.y - e.h / 2, 18,
+            ['#FF4444', '#FF8800', '#FFD700', '#FFFFFF'],
+            { upBias: 2, maxSpeed: 5, minSize: 2, maxSize: 4 });
           const thrower = ball.lastThrower === 0 ? this.p1 : ball.lastThrower === 1 ? this.p2 : null;
           if (thrower) thrower.spCharge = Math.min(C.SP_CHARGE_MAX, thrower.spCharge + C.SP_CHARGE_HIT);
         }
@@ -346,13 +354,15 @@ class HordeGame {
   }
 
   _checkEnemyContact(enemy) {
+    if (enemy.contactCooldown > 0) return;
     for (const [player, fallen] of [[this.p1, this.p1Fallen], [this.p2, this.p2Fallen]]) {
       if (fallen || player.stunTimer > 0) continue;
       const er = enemy.rect;
       const hitH = player.crouching ? C.CROUCH_H : C.P_H;
       if (er.x < player.x + C.P_W / 2 && er.x + er.w > player.x - C.P_W / 2 &&
           er.y < player.y              && er.y + er.h  > player.y - hitH) {
-        enemy.dead = true;
+        enemy.contactCooldown = 1500; // 1.5s before it can hit again
+        enemy._flashTimer = 250;
         this._hitPlayer(player);
         break;
       }
@@ -361,6 +371,10 @@ class HordeGame {
 
   _hitPlayer(player) {
     const isP1 = player === this.p1;
+    const col = isP1 ? C.COL.P1_HUD : C.COL.P2_HUD;
+    Particles.emit(player.x, player.y - 22, 16,
+      [col, '#FF4444', '#FFFFFF'],
+      { upBias: 2, maxSpeed: 4 });
     if (isP1) { this.p1Hp = Math.max(0, this.p1Hp - 1); if (this.p1Hp <= 0) this.p1Fallen = true; }
     else       { this.p2Hp = Math.max(0, this.p2Hp - 1); if (this.p2Hp <= 0) this.p2Fallen = true; }
     player.stunTimer = this.p1Fallen || this.p2Fallen ? 0 : 900;
@@ -377,13 +391,16 @@ class HordeGame {
       case 'spawning':
         this._spawnTimer -= dt;
         if (this._spawnQueue.length > 0 && this._spawnTimer <= 0) {
-          this.enemies.push(new Enemy(C.W + 50 + Math.random() * 120, this._spawnQueue.shift()));
+          this.enemies.push(new Enemy(C.W + 50 + Math.random() * 120, this._spawnQueue.shift(), this.wave));
           this._spawnTimer = HORDE_WAVES[this.wave - 1].spawnInterval;
         }
         if (this._spawnQueue.length === 0) this.waveState = 'fighting';
         break;
       case 'fighting':
         if (this.enemies.length === 0) {
+          // Restore 1 HP to survivors on wave clear
+          if (!this.p1Fallen) this.p1Hp = Math.min(3, this.p1Hp + 1);
+          if (!this.p2Fallen) this.p2Hp = Math.min(3, this.p2Hp + 1);
           this.waveState = this.wave >= HORDE_WAVES.length ? 'victory' : 'wave_end';
           this.waveTimer = 3200;
         }
@@ -437,6 +454,7 @@ class HordeGame {
 
     for (const b of this._extraBalls) b.draw(ctx);
 
+    Particles.draw(ctx);
     this._drawHUD(ctx);
     this._drawOverlay(ctx);
   }
@@ -524,7 +542,9 @@ class HordeGame {
     // Active power
     if (player._powerAssigned && player.spCharge >= C.SP_CHARGE_MAX) {
       const pcol = player.currentPower === 'rocket' ? C.COL.SP_ROCKET
-                 : player.currentPower === 'double' ? C.COL.SP_DOUBLE : C.COL.SP_SHADOW;
+                 : player.currentPower === 'double' ? C.COL.SP_DOUBLE
+                 : player.currentPower === 'curve'  ? C.COL.SP_CURVE
+                 : C.COL.SP_SHADOW;
       ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 200);
       ctx.fillStyle = pcol; ctx.font = 'bold 10px "Courier New"';
       ctx.textAlign = right ? 'right' : 'left';

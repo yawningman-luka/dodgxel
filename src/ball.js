@@ -15,6 +15,9 @@ class Ball {
     this.dead = false; // true after scoring, prevents re-scoring
     this.teleportCooldown = 0;
     this.groundBounces = 0;
+    this._trail = [];
+    this.curve = false;
+    this._curveT = 0;
   }
 
   // vx/vy: actual velocity components
@@ -29,11 +32,24 @@ class Ball {
     this.isRocket = !!isRocket;
     this.shadow = !!isShadow;
     this.dead = false;
+    this._trail = [];
+    this.curve = false;
+    this._curveT = 0;
   }
 
   update(dt, obstacles, gravityMult = 1) {
     if (!this.inFlight || this.dead) return;
     if (this.teleportCooldown > 0) this.teleportCooldown -= dt;
+
+    // Trail — record position before this frame's move
+    this._trail.push({ x: this.x, y: this.y });
+    if (this._trail.length > 7) this._trail.shift();
+
+    // Curve effect — sinusoidal horizontal drift
+    if (this.curve) {
+      this._curveT += dt;
+      this.vx += Math.sin(this._curveT * 0.005) * 0.2;
+    }
 
     const gravity = this.isRocket ? C.BALL_GRAVITY * 0.4 : C.BALL_GRAVITY;
     this.vy += gravity * gravityMult; // negative gravityMult = inverted (pulls up)
@@ -41,16 +57,14 @@ class Ball {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Wall bounce
+    // Wall bounce — keep lastThrower so wall-bounce hits still score
     if (this.x - C.BALL_R < 0) {
       this.x = C.BALL_R;
       this.vx = Math.abs(this.vx) * 0.8;
-      this.lastThrower = -1;
     }
     if (this.x + C.BALL_R > C.W) {
       this.x = C.W - C.BALL_R;
       this.vx = -Math.abs(this.vx) * 0.8;
-      this.lastThrower = -1;
     }
 
     if (gravityMult >= 0) {
@@ -58,7 +72,6 @@ class Ball {
       if (this.y - C.BALL_R < 42) {
         this.y = C.BALL_R + 42;
         this.vy = Math.abs(this.vy) * 0.65;
-        this.lastThrower = -1;
       }
       if (this.y + C.BALL_R >= C.GROUND) {
         this.y = C.GROUND - C.BALL_R;
@@ -81,7 +94,6 @@ class Ball {
       if (this.y + C.BALL_R > C.GROUND - 5) {
         this.y = C.GROUND - 5 - C.BALL_R;
         this.vy = -Math.abs(this.vy) * 0.65;
-        this.lastThrower = -1;
       }
       if (this.y - C.BALL_R <= 90) {
         this.y = 90 + C.BALL_R;
@@ -161,6 +173,34 @@ class Ball {
 
   draw(ctx) {
     if (!this.inFlight && !this.dead) return;
+
+    // Trail (skip for rocket — it has its own)
+    if (this.inFlight && !this.isRocket && this._trail.length > 1) {
+      const trailCol = this.curve ? C.COL.SP_CURVE : C.COL.BALL;
+      for (let i = 0; i < this._trail.length - 1; i++) {
+        const t = this._trail[i];
+        const frac = (i + 1) / this._trail.length;
+        ctx.globalAlpha = frac * 0.32;
+        ctx.fillStyle = trailCol;
+        const r = C.BALL_R * (0.35 + frac * 0.45);
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Curve aura
+    if (this.curve && this.inFlight) {
+      const pulse = 0.25 + 0.2 * Math.sin(Date.now() / 80);
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = C.COL.SP_CURVE;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, C.BALL_R + 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     Sprites.drawBall(ctx, this.x, this.y, this.spinning, false);
     if (this.isRocket && this.inFlight) {
       for (let i = 1; i <= 4; i++) {

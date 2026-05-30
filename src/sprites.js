@@ -404,7 +404,7 @@ const Sprites = {
     const py = 28;
     const spPct = player.spCharge / C.SP_CHARGE_MAX;
     const ready = spPct >= 1;
-    const pColors = { rocket: C.COL.SP_ROCKET, double: C.COL.SP_DOUBLE, shadow: C.COL.SP_SHADOW };
+    const pColors = { rocket: C.COL.SP_ROCKET, double: C.COL.SP_DOUBLE, shadow: C.COL.SP_SHADOW, curve: C.COL.SP_CURVE };
     const pCol = pColors[player.currentPower] || '#FFD700';
     const pfx = dir > 0 ? x + IW : x, pfw = BW - IW;
 
@@ -479,6 +479,20 @@ const Sprites = {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(mx - r(w * 0.22), y + r(h * 0.3), 2, 3);
       ctx.fillRect(mx + r(w * 0.08), y + r(h * 0.3), 2, 3);
+    } else if (type === 'curve') {
+      // Wavy path with a ball at the end
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= 12; i++) {
+        const px = x + (i / 12) * w;
+        const py = y + Math.round(h / 2) + Math.sin(i * Math.PI * 0.55) * Math.round(h * 0.33);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x + w - 2, y + Math.round(h / 2) + Math.sin(12 * Math.PI * 0.55) * Math.round(h * 0.33), 2, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       // Fallback: filled rect
       ctx.fillRect(x + 2, y + 2, w - 4, h - 4);

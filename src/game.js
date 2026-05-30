@@ -25,6 +25,8 @@ class Game {
     this.roundWinner = -1;
     this.roundOver = false;
     this.menuCursor = 0;
+    this._p1ScoreFlash = 0;
+    this._p2ScoreFlash = 0;
 
     // Controls screen state
     this._ctrlCursor = { col: 0, row: 0 };
@@ -39,6 +41,21 @@ class Game {
     this.roundWinner = attacker ? attacker.index : this.ball.lastThrower;
     this.state = C.STATE.ROUND_END;
     this.roundDelay = C.ROUND_DELAY;
+
+    // Score flash
+    const FLASH_DUR = 700;
+    if (this.roundWinner === 0) this._p1ScoreFlash = FLASH_DUR;
+    else if (this.roundWinner === 1) this._p2ScoreFlash = FLASH_DUR;
+
+    // Hit particles from victim + confetti from scorer
+    const wCol = this.roundWinner === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
+    const scorer = this.roundWinner === 0 ? this.p1 : this.p2;
+    Particles.emit(scorer.x, scorer.y - 30, 28,
+      [wCol, '#FFD700', '#FFFFFF', '#FF6600'],
+      { upBias: 3, maxSpeed: 6, minSize: 2, maxSize: 4 });
+    Particles.emit(victim.x, victim.y - 22, 16,
+      ['#FF4444', '#FF8888', '#FFFFFF'],
+      { upBias: 1, maxSpeed: 3.5 });
   }
 
   update(dt) {
@@ -166,9 +183,26 @@ class Game {
     ctx.font = '11px "Courier New"';
     ctx.fillText('↑ ↓  navigate', C.W / 2, by0 + btns.length * (bh + gap) + 4);
 
-    // Characters
-    Sprites.drawBoy( ctx, C.W / 2 - 105, C.H - 44, 'idle',  1, Math.PI / 8, false);
-    Sprites.drawGirl(ctx, C.W / 2 + 105, C.H - 44, 'idle', -1, Math.PI / 8, false);
+    // Animated characters tossing ball to each other
+    const boyX = C.W / 2 - 105, girlX = C.W / 2 + 105, charY = C.H - 44;
+    const cycleDur = 2600;
+    const cyclePos = Date.now() % (cycleDur * 2);
+    const half = cyclePos < cycleDur; // true = boy throws, false = girl throws
+    const p = (cyclePos % cycleDur) / cycleDur; // 0→1 within current half
+
+    const fromX = half ? boyX : girlX;
+    const toX   = half ? girlX : boyX;
+    const ballX = fromX + (toX - fromX) * p;
+    const ballY = charY - 44 - Math.sin(p * Math.PI) * 65;
+
+    const boyState  = half && p < 0.18 ? 'throwing' : 'idle';
+    const girlState = !half && p < 0.18 ? 'throwing' : 'idle';
+    const boyHasBall  = !half && p > 0.82;
+    const girlHasBall =  half && p > 0.82;
+
+    Sprites.drawBall(ctx, ballX, ballY, true, false);
+    Sprites.drawBoy( ctx, boyX,  charY, boyState,  1, Math.PI / 5, boyHasBall);
+    Sprites.drawGirl(ctx, girlX, charY, girlState, -1, Math.PI / 5, girlHasBall);
 
     ctx.textAlign = 'left';
   }
@@ -215,11 +249,13 @@ class Game {
       const cy = 68 + row * (cardH + 28); // 28px gap between rows
       const sel = i === this.menuCursor;
 
+      if (sel) { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 18; }
       ctx.fillStyle = sel ? '#222240' : '#161628';
       ctx.strokeStyle = sel ? '#FFD700' : '#333';
       ctx.lineWidth = sel ? 3 : 1;
       ctx.fillRect(cx, cy, cardW, cardH);
       ctx.strokeRect(cx, cy, cardW, cardH);
+      ctx.shadowBlur = 0;
 
       // Sky gradient
       const skyGrad = ctx.createLinearGradient(cx + 4, cy + 4, cx + 4, cy + 4 + cardH * 0.55);
@@ -422,6 +458,9 @@ class Game {
     this.p1.extraThrowCallback = (x, y, vx, vy, thrower) => this._spawnBall2(x, y, vx, vy, thrower);
     this.p2.extraThrowCallback = (x, y, vx, vy, thrower) => this._spawnBall2(x, y, vx, vy, thrower);
     this.ball.reset(ballHolder);
+    Particles.clear();
+    this._p1ScoreFlash = 0;
+    this._p2ScoreFlash = 0;
     this.ball2 = null;
     if (ballHolder === 0) this.p1.hasBall = true;
     else                  this.p2.hasBall = true;
@@ -438,7 +477,10 @@ class Game {
   }
 
   _updatePlaying(dt) {
-    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; return; }
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); return; }
+    Particles.update(dt);
+    if (this._p1ScoreFlash > 0) this._p1ScoreFlash -= dt;
+    if (this._p2ScoreFlash > 0) this._p2ScoreFlash -= dt;
     this.arena.update(dt);
     const obs = this.arena.getObstacles();
     const speedMult = this.arena.playerSpeedMult ?? 1;
@@ -516,7 +558,10 @@ class Game {
   }
 
   _updateRoundEnd(dt) {
-    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; return; }
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); return; }
+    Particles.update(dt);
+    if (this._p1ScoreFlash > 0) this._p1ScoreFlash -= dt;
+    if (this._p2ScoreFlash > 0) this._p2ScoreFlash -= dt;
     this.roundDelay -= dt;
     if (this.roundDelay <= 0) {
       if (this.p1.score >= C.WIN_SCORE || this.p2.score >= C.WIN_SCORE) {
@@ -533,10 +578,14 @@ class Game {
 
   _updateGameOver() {
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
+      // Instant rematch — same arena, scores reset
+      this._startGame(this.arenaIndex);
+    }
+    if (Input.wasPressed('KeyR')) {
       this.state = C.STATE.ARENA_SELECT;
       this.menuCursor = this.arenaIndex;
     }
-    if (Input.wasPressed('Escape')) this.state = C.STATE.MENU;
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); }
   }
 
   _drawGame(ctx) {
@@ -566,6 +615,29 @@ class Game {
     }
 
     Sprites.drawHUD(ctx, this.p1, this.p2, this.arena);
+
+    // Particles
+    Particles.draw(ctx);
+
+    // Score flash overlay — big animated number when a point is scored
+    const FLASH_DUR = 700;
+    for (const [flash, score, col, fx] of [
+      [this._p1ScoreFlash, this.p1.score, C.COL.P1_HUD, C.W * 0.22],
+      [this._p2ScoreFlash, this.p2.score, C.COL.P2_HUD, C.W * 0.78],
+    ]) {
+      if (flash > 0) {
+        const t = flash / FLASH_DUR;
+        const sz = Math.round(32 + t * 28);
+        ctx.globalAlpha = t * 0.9;
+        ctx.shadowColor = col; ctx.shadowBlur = 22;
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${sz}px "Courier New"`;
+        ctx.textAlign = 'center';
+        ctx.fillText(score, fx, C.H / 2 + 10);
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      }
+    }
+    ctx.textAlign = 'left';
   }
 
   _drawGameOver(ctx) {
@@ -589,7 +661,7 @@ class Game {
     ctx.globalAlpha = pulse;
     ctx.fillStyle = '#fff';
     ctx.font = '15px "Courier New"';
-    ctx.fillText('ENTER to rematch · ESC for menu', C.W / 2, C.H / 2 + 62);
+    ctx.fillText('ENTER = rematch · R = new arena · ESC = menu', C.W / 2, C.H / 2 + 62);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }

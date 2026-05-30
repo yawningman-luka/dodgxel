@@ -59,6 +59,7 @@ const C = {
     SP_ROCKET: '#FF6B35',
     SP_DOUBLE: '#FFD700',
     SP_SHADOW: '#9B59B6',
+    SP_CURVE:  '#00E5FF',
   },
 
   // Game states
@@ -90,8 +91,8 @@ const C = {
   },
 
   // Superpowers — all shoot-based, randomly assigned when bar fills
-  POWERS: ['rocket', 'double', 'shadow'],
-  POWER_NAMES: { rocket: 'ROCKET', double: 'DOUBLE', shadow: 'SHADOW' },
+  POWERS: ['rocket', 'double', 'shadow', 'curve'],
+  POWER_NAMES: { rocket: 'ROCKET', double: 'DOUBLE', shadow: 'SHADOW', curve: 'CURVE' },
 
   // Controls screen action list and labels
   CTRL_ACTIONS: ['left','right','jump','crouch','throw','catch','shield'],

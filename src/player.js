@@ -184,9 +184,11 @@ class Player {
     const useRocket = usePower && this.currentPower === 'rocket';
     const useShadow = usePower && this.currentPower === 'shadow';
     const useDouble = usePower && this.currentPower === 'double';
+    const useCurve  = usePower && this.currentPower === 'curve';
 
     ball.throw(armX, armY, vx * (useRocket ? 2.2 : 1), vy, useRocket, useShadow);
     ball.lastThrower = this.index;
+    if (useCurve) { ball.curve = true; ball._curveT = 0; }
 
     if (useDouble && this.extraThrowCallback) {
       // Second ball at a slightly offset angle
