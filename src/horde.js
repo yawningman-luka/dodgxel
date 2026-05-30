@@ -190,6 +190,171 @@ class Enemy {
   }
 }
 
+// ── Boss enemy — THE OVERLORD ─────────────────────────────────────────────────
+class BossEnemy {
+  constructor() {
+    this.x = C.W + 100;
+    this.y = C.GROUND;
+    this.w = 52; this.h = 72;
+    this.hp = 15; this.maxHp = 15;
+    this.dead = false;
+    this._phase = 'enter';
+    this._dir = -1;
+    this._patrolL = C.W * 0.26;
+    this._patrolR = C.W * 0.74;
+    this._speed = 1.5;
+    this._fireTimer = 2000;
+    this._chargeTimer = 7000 + Math.random() * 3000;
+    this._chargeTime = 0;
+    this._chargeDx = 0;
+    this._flashTimer = 0;
+    this._animT = 0;
+    this.contactCooldown = 0;
+  }
+
+  update(dt, players, enemyBalls) {
+    if (this.dead) return;
+    if (this._flashTimer > 0) this._flashTimer -= dt;
+    if (this.contactCooldown > 0) this.contactCooldown -= dt;
+    this._animT += dt;
+
+    if (this._phase === 'enter') {
+      this.x -= 2.2;
+      if (this.x <= this._patrolR) { this.x = this._patrolR; this._phase = 'patrol'; }
+      return;
+    }
+
+    if (this._phase === 'patrol') {
+      this.x += this._dir * this._speed;
+      if (this.x <= this._patrolL) { this.x = this._patrolL; this._dir =  1; }
+      if (this.x >= this._patrolR) { this.x = this._patrolR; this._dir = -1; }
+
+      // Fire 3-ball spread
+      this._fireTimer -= dt;
+      if (this._fireTimer <= 0 && players.length > 0) {
+        this._fireTimer = 1600 + Math.random() * 1400;
+        let target = players[0];
+        for (const p of players) if (Math.abs(this.x - p.x) < Math.abs(this.x - target.x)) target = p;
+        const dx = target.x - this.x, dy = (target.y - 22) - (this.y - this.h * 0.5);
+        const base = Math.atan2(dy, dx);
+        const spd = 5.5;
+        for (let a = -1; a <= 1; a++) {
+          const ang = base + a * 0.24;
+          enemyBalls.push(new EnemyBall(
+            this.x, this.y - this.h * 0.55,
+            Math.cos(ang) * spd, Math.sin(ang) * spd - 1.2
+          ));
+        }
+      }
+
+      // Charge attack
+      this._chargeTimer -= dt;
+      if (this._chargeTimer <= 0 && players.length > 0) {
+        this._chargeTimer = 7000 + Math.random() * 4000;
+        this._phase = 'charge';
+        let target = players[0];
+        for (const p of players) if (Math.abs(this.x - p.x) < Math.abs(this.x - target.x)) target = p;
+        this._chargeDx = Math.sign(target.x - this.x) * 6;
+        this._chargeTime = 650;
+      }
+
+    } else if (this._phase === 'charge') {
+      this.x += this._chargeDx;
+      this._chargeTime -= dt;
+      if (this._chargeTime <= 0 || this.x < 30 || this.x > C.W - 30) {
+        this._phase = 'patrol';
+        this.x = Math.max(this._patrolL, Math.min(this._patrolR, this.x));
+      }
+    }
+  }
+
+  takeBall(ball) {
+    this.hp--;
+    this._flashTimer = 180;
+    ball.dead = true; ball.inFlight = false; ball.vx = 0; ball.vy = 0; ball.spinning = false;
+    if (this.hp <= 0) { this.dead = true; return true; }
+    return false;
+  }
+
+  get rect() { return { x: this.x - this.w / 2, y: this.y - this.h, w: this.w, h: this.h }; }
+
+  draw(ctx) {
+    if (this.dead) return;
+    const flash = this._flashTimer > 0 && Math.floor(this._flashTimer / 50) % 2 === 0;
+    ctx.save();
+    ctx.translate(Math.round(this.x), Math.round(this.y));
+    if (flash) ctx.globalAlpha = 0.3;
+    this._drawBody(ctx);
+    ctx.globalAlpha = 1;
+
+    // Boss HP bar (wide, above head)
+    const bw = this.w * 2.2, bh = 8, bx = -bw / 2;
+    const hpPct = this.hp / this.maxHp;
+    ctx.fillStyle = '#330000'; ctx.fillRect(bx, -this.h - 18, bw, bh);
+    ctx.fillStyle = hpPct > 0.5 ? '#FF3333' : hpPct > 0.25 ? '#FF8800' : '#FF0000';
+    ctx.fillRect(bx, -this.h - 18, bw * hpPct, bh);
+    ctx.strokeStyle = '#880000'; ctx.lineWidth = 1; ctx.strokeRect(bx, -this.h - 18, bw, bh);
+    ctx.fillStyle = '#FF4444'; ctx.font = 'bold 9px "Courier New"';
+    ctx.textAlign = 'center';
+    ctx.fillText('THE OVERLORD', 0, -this.h - 22);
+    ctx.restore();
+  }
+
+  _drawBody(ctx) {
+    const t = this._animT, h = this.h, w = this.w;
+    const charging = this._phase === 'charge';
+
+    // Legs
+    const leg = Math.sin(t * 0.014) * 6;
+    Sprites.px(ctx, '#440022', -w * .34, -h * .38, w * .28, h * .38 + leg);
+    Sprites.px(ctx, '#440022',  w * .06, -h * .38, w * .28, h * .38 - leg);
+    Sprites.px(ctx, '#220011', -w * .4,  -h * .06, w * .33, h * .07);
+    Sprites.px(ctx, '#220011',  w * .07, -h * .06, w * .33, h * .07);
+
+    // Body
+    Sprites.px(ctx, '#880033', -w * .5, -h * .86, w, h * .48);
+
+    // Wings
+    const flap = Math.sin(t * 0.008) * 10;
+    ctx.fillStyle = 'rgba(160,0,50,0.72)';
+    ctx.beginPath();
+    ctx.moveTo(-w * .5, -h * .78); ctx.lineTo(-w * 1.3, -h * .92 + flap);
+    ctx.lineTo(-w * 1.05, -h * .54); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo( w * .5, -h * .78); ctx.lineTo( w * 1.3, -h * .92 + flap);
+    ctx.lineTo( w * 1.05, -h * .54); ctx.closePath(); ctx.fill();
+
+    // Tail
+    ctx.strokeStyle = '#660022'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(w * .42, -h * .5);
+    ctx.quadraticCurveTo(w * .85, -h * .28 + Math.sin(t * 0.01) * 10, w * .62, -h * .06);
+    ctx.stroke();
+
+    // Head
+    Sprites.px(ctx, '#AA0044', -w * .42, -h, w * .84, h * .18);
+
+    // Horns
+    ctx.fillStyle = '#FF2200';
+    ctx.beginPath(); ctx.moveTo(-w*.24,-h); ctx.lineTo(-w*.4,-h*1.25); ctx.lineTo(-w*.1,-h); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( w*.24,-h); ctx.lineTo( w*.4,-h*1.25); ctx.lineTo( w*.1,-h); ctx.closePath(); ctx.fill();
+
+    // Eyes
+    const eyeCol = charging ? '#FF0000' : '#FF6600';
+    ctx.shadowColor = eyeCol; ctx.shadowBlur = 10;
+    ctx.fillStyle = eyeCol;
+    ctx.beginPath(); ctx.arc(-w * .17, -h * .88, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w * .17, -h * .88, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Mouth / roar when charging
+    if (charging) {
+      ctx.fillStyle = '#FF4400';
+      ctx.beginPath(); ctx.arc(0, -h * .82, 7, 0, Math.PI); ctx.fill();
+    }
+  }
+}
+
 // ── HordeGame ─────────────────────────────────────────────────────────────────
 class HordeGame {
   constructor(canvas) {
@@ -232,6 +397,7 @@ class HordeGame {
     this.arena = ARENAS[0];
     this.score = 0;
     this.returnToMenu = false;
+    this.boss = null;
   }
 
   update(dt) {
@@ -290,6 +456,51 @@ class HordeGame {
         if (!e.dead) this._checkEnemyContact(e);
       }
       this.enemies = this.enemies.filter(e => !e.dead);
+    }
+
+    // Boss fight
+    if (this.boss && !this.boss.dead && this.waveState === 'boss_fight') {
+      const alive = [this.p1, this.p2].filter((p, i) => ![this.p1Fallen, this.p2Fallen][i]);
+      this.boss.update(dt, alive, this.enemyBalls);
+
+      // Ball hits boss
+      for (const ball of [this.p1Ball, this.p2Ball, ...this._extraBalls]) {
+        if (!ball.inFlight || ball.dead) continue;
+        const r = this.boss.rect;
+        if (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
+            ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h) {
+          const killed = this.boss.takeBall(ball);
+          this.score += killed ? 10 * (HORDE_WAVES.length + 1) : 5;
+          if (killed) {
+            Particles.emit(this.boss.x, this.boss.y - this.boss.h / 2, 40,
+              ['#FF4444','#FF8800','#FFD700','#FFFFFF','#FF0000'],
+              { upBias: 3, maxSpeed: 8, minSize: 2, maxSize: 6 });
+          }
+          const thrower = ball.lastThrower === 0 ? this.p1 : ball.lastThrower === 1 ? this.p2 : null;
+          if (thrower) thrower.spCharge = Math.min(C.SP_CHARGE_MAX, thrower.spCharge + C.SP_CHARGE_HIT);
+          break;
+        }
+      }
+
+      // Boss contact damage
+      if (this.boss.contactCooldown <= 0) {
+        const br = this.boss.rect;
+        for (const [player, fallen] of [[this.p1, this.p1Fallen], [this.p2, this.p2Fallen]]) {
+          if (fallen || player.stunTimer > 0) continue;
+          const hitH = player.crouching ? C.CROUCH_H : C.P_H;
+          if (br.x < player.x + C.P_W / 2 && br.x + br.w > player.x - C.P_W / 2 &&
+              br.y < player.y && br.y + br.h > player.y - hitH) {
+            this.boss.contactCooldown = 1500;
+            this.boss._flashTimer = 200;
+            this._hitPlayer(player);
+            break;
+          }
+        }
+      }
+
+      if (this.boss.dead) {
+        this.waveState = 'victory';
+      }
     }
 
     this._tickWave(dt);
@@ -379,7 +590,11 @@ class HordeGame {
     else       { this.p2Hp = Math.max(0, this.p2Hp - 1); if (this.p2Hp <= 0) this.p2Fallen = true; }
     player.stunTimer = this.p1Fallen || this.p2Fallen ? 0 : 900;
     player.vx = 4; player.vy = -5;
-    if (this.p1Fallen && this.p2Fallen) this.waveState = 'game_over';
+    if (this.p1Fallen && this.p2Fallen) {
+      this.waveState = 'game_over';
+      // Show which stage they reached
+      this._diedInBoss = this.waveState === 'boss_fight' || this.boss !== null;
+    }
   }
 
   _tickWave(dt) {
@@ -401,13 +616,25 @@ class HordeGame {
           // Restore 1 HP to survivors on wave clear
           if (!this.p1Fallen) this.p1Hp = Math.min(3, this.p1Hp + 1);
           if (!this.p2Fallen) this.p2Hp = Math.min(3, this.p2Hp + 1);
-          this.waveState = this.wave >= HORDE_WAVES.length ? 'victory' : 'wave_end';
-          this.waveTimer = 3200;
+          if (this.wave >= HORDE_WAVES.length) {
+            this.waveState = 'boss_intro';
+            this.waveTimer = 3500;
+          } else {
+            this.waveState = 'wave_end';
+            this.waveTimer = 3200;
+          }
         }
         break;
       case 'wave_end':
         this.waveTimer -= dt;
         if (this.waveTimer <= 0) { this.waveState = 'countdown'; this.waveTimer = 2400; }
+        break;
+      case 'boss_intro':
+        this.waveTimer -= dt;
+        if (this.waveTimer <= 0) {
+          this.boss = new BossEnemy();
+          this.waveState = 'boss_fight';
+        }
         break;
     }
   }
@@ -430,6 +657,7 @@ class HordeGame {
     this.arena.draw(ctx);
 
     for (const e of this.enemies) e.draw(ctx);
+    if (this.boss) this.boss.draw(ctx);
     for (const eb of this.enemyBalls) eb.draw(ctx);
 
     // P1
@@ -488,6 +716,21 @@ class HordeGame {
       ctx.fillStyle = rem > 6 ? '#FF8888' : '#FFBB44';
       ctx.font = '10px "Courier New"';
       ctx.fillText(`${rem} enemies left`, cx, 48);
+    }
+
+    // Boss HP bar (centre, below wave info)
+    if (this.boss && !this.boss.dead && this.waveState === 'boss_fight') {
+      const bw = 220, bh = 10, bx = cx - bw / 2;
+      const hpPct = this.boss.hp / this.boss.maxHp;
+      const bPulse = 0.7 + 0.3 * Math.sin(Date.now() / 180);
+      ctx.fillStyle = '#1A0000'; ctx.fillRect(bx, 38, bw, bh);
+      ctx.fillStyle = hpPct > 0.5 ? '#FF3333' : hpPct > 0.25 ? '#FF8800' : '#FF0000';
+      ctx.globalAlpha = bPulse;
+      ctx.fillRect(bx, 38, bw * hpPct, bh);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#880000'; ctx.lineWidth = 1; ctx.strokeRect(bx, 38, bw, bh);
+      ctx.fillStyle = '#FF4444'; ctx.font = 'bold 9px "Courier New"';
+      ctx.fillText('⚡ OVERLORD', cx, 36);
     }
 
     // ESC hint
@@ -592,6 +835,26 @@ class HordeGame {
       ctx.textAlign = 'left';
     }
 
+    if (this.waveState === 'boss_intro') {
+      const t = this.waveTimer / 3500;
+      ctx.fillStyle = `rgba(80,0,0,${0.55 * (1 - t * 0.5)})`;
+      ctx.fillRect(0, 0, C.W, C.H);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(C.W / 2 - 230, C.H / 2 - 58, 460, 116);
+      ctx.textAlign = 'center';
+      const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 120);
+      ctx.globalAlpha = pulse;
+      ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 30;
+      ctx.fillStyle = '#FF2222'; ctx.font = 'bold 38px "Courier New"';
+      ctx.fillText('BOSS FIGHT!', C.W / 2, C.H / 2 - 10);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.fillStyle = '#FF8888'; ctx.font = '15px "Courier New"';
+      ctx.fillText('THE OVERLORD AWAKENS…', C.W / 2, C.H / 2 + 18);
+      ctx.fillStyle = '#555'; ctx.font = '11px "Courier New"';
+      ctx.fillText(`Incoming in ${Math.ceil(this.waveTimer / 1000)}…`, C.W / 2, C.H / 2 + 42);
+      ctx.textAlign = 'left';
+    }
+
     if (this.waveState === 'victory') {
       ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(0, 0, C.W, C.H);
       ctx.textAlign = 'center';
@@ -599,7 +862,7 @@ class HordeGame {
       ctx.fillStyle = '#FFD700'; ctx.font = 'bold 42px "Courier New"';
       ctx.fillText('VICTORY!', C.W / 2, C.H / 2 - 48);
       ctx.shadowBlur = 0;
-      ctx.fillStyle = '#88FF88'; ctx.font = '18px "Courier New"'; ctx.fillText('All 10 waves survived!', C.W / 2, C.H / 2);
+      ctx.fillStyle = '#88FF88'; ctx.font = '18px "Courier New"'; ctx.fillText('All 10 waves + The Overlord defeated!', C.W / 2, C.H / 2);
       ctx.fillStyle = '#FFF';    ctx.font = '18px "Courier New"'; ctx.fillText(`Final Score: ${this.score}`, C.W / 2, C.H / 2 + 36);
       ctx.fillStyle = '#555';    ctx.font = '12px "Courier New"'; ctx.fillText('ENTER  to return to menu', C.W / 2, C.H / 2 + 72);
       ctx.textAlign = 'left';
@@ -613,7 +876,10 @@ class HordeGame {
       ctx.fillText('GAME OVER', C.W / 2, C.H / 2 - 48);
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#ccc'; ctx.font = '16px "Courier New"';
-      ctx.fillText(`Wave ${this.wave}  ·  ${HORDE_WAVES.length - this.wave} waves remaining`, C.W / 2, C.H / 2);
+      const statusLine = this.boss
+        ? `Wave ${this.wave}  ·  Fell to The Overlord`
+        : `Wave ${this.wave}  ·  ${HORDE_WAVES.length - this.wave} waves remaining`;
+      ctx.fillText(statusLine, C.W / 2, C.H / 2);
       ctx.fillStyle = '#FFF'; ctx.font = '18px "Courier New"'; ctx.fillText(`Score: ${this.score}`, C.W / 2, C.H / 2 + 36);
       ctx.fillStyle = '#555'; ctx.font = '12px "Courier New"'; ctx.fillText('ENTER  to return to menu', C.W / 2, C.H / 2 + 72);
       ctx.textAlign = 'left';
