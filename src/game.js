@@ -183,24 +183,42 @@ class Game {
     ctx.font = '11px "Courier New"';
     ctx.fillText('↑ ↓  navigate', C.W / 2, by0 + btns.length * (bh + gap) + 4);
 
-    // Animated characters tossing ball to each other
+    // Animated characters: hold ball → wind up → throw → arc → catch → hold
     const boyX = C.W / 2 - 105, girlX = C.W / 2 + 105, charY = C.H - 44;
     const cycleDur = 2600;
     const cyclePos = Date.now() % (cycleDur * 2);
-    const half = cyclePos < cycleDur; // true = boy throws, false = girl throws
-    const p = (cyclePos % cycleDur) / cycleDur; // 0→1 within current half
+    const boyThrows = cyclePos < cycleDur; // which half of the loop
+    const p = (cyclePos % cycleDur) / cycleDur; // 0→1 per half
 
-    const fromX = half ? boyX : girlX;
-    const toX   = half ? girlX : boyX;
-    const ballX = fromX + (toX - fromX) * p;
-    const ballY = charY - 44 - Math.sin(p * Math.PI) * 65;
+    // Ball is in the air between p=0.20 and p=0.80
+    const inFlight = p > 0.20 && p < 0.80;
+    const fp = inFlight ? (p - 0.20) / 0.60 : 0; // 0→1 during flight
 
-    const boyState  = half && p < 0.18 ? 'throwing' : 'idle';
-    const girlState = !half && p < 0.18 ? 'throwing' : 'idle';
-    const boyHasBall  = !half && p > 0.82;
-    const girlHasBall =  half && p > 0.82;
+    const fromX = boyThrows ? boyX : girlX;
+    const toX   = boyThrows ? girlX : boyX;
 
-    Sprites.drawBall(ctx, ballX, ballY, true, false);
+    let boyHasBall, girlHasBall, boyState, girlState;
+    if (inFlight) {
+      // Ball in the air — both hands empty
+      boyHasBall = girlHasBall = false;
+      boyState  = boyThrows && fp < 0.25 ? 'throwing' : 'idle';
+      girlState = !boyThrows && fp < 0.25 ? 'throwing' : 'idle';
+      const bx = fromX + (toX - fromX) * fp;
+      const by = charY - 44 - Math.sin(fp * Math.PI) * 68;
+      Sprites.drawBall(ctx, bx, by, true, false);
+    } else if (p <= 0.20) {
+      // Holder winds up with ball in hand
+      boyHasBall  =  boyThrows;
+      girlHasBall = !boyThrows;
+      boyState  = boyThrows  && p > 0.08 ? 'throwing' : 'idle';
+      girlState = !boyThrows && p > 0.08 ? 'throwing' : 'idle';
+    } else {
+      // Receiver just caught — holds the ball briefly
+      boyHasBall  = !boyThrows;
+      girlHasBall =  boyThrows;
+      boyState = girlState = 'idle';
+    }
+
     Sprites.drawBoy( ctx, boyX,  charY, boyState,  1, Math.PI / 5, boyHasBall);
     Sprites.drawGirl(ctx, girlX, charY, girlState, -1, Math.PI / 5, girlHasBall);
 
