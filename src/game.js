@@ -167,7 +167,7 @@ class Game {
     const BTNS = [
       { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',   col: C.COL.P1_HUD, bh:42 },
       { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',        col:'#FF6600',     bh:42 },
-      { label:'🪱 WORMS MODE',    sub:'turn-based · action points · 2 maps',   col:'#88CC44',     bh:42 },
+      { label:'💣 SALVO MODE',    sub:'turn-based · action points · 2 maps',   col:'#88CC44',     bh:42 },
       { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',col:'#00CCFF',     bh:42 },
       { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',          col:'#AAAAAA',     bh:30 },
       { label:'⚙️ CONTROLS',     sub:'remap keys for both players',            col:'#888888',     bh:30 },
@@ -572,7 +572,7 @@ class Game {
       ctx.globalAlpha = t;
       ctx.fillStyle = '#FFD700';
       ctx.font = 'bold 20px "Courier New"';
-      const nextLabel = cs.dest === 'horde' ? '▶  ENTERING HORDE…' : cs.dest === 'worms' ? '▶  ENTERING WORMS…' : cs.dest === 'online' ? '▶  STARTING ONLINE…' : '▶  SELECTING ARENA…';
+      const nextLabel = cs.dest === 'horde' ? '▶  ENTERING HORDE…' : cs.dest === 'worms' ? '▶  ENTERING SALVO…' : cs.dest === 'online' ? '▶  STARTING ONLINE…' : '▶  SELECTING ARENA…';
       ctx.fillText(nextLabel, C.W / 2, C.H - 18);
       ctx.globalAlpha = 1;
     }
@@ -960,9 +960,9 @@ class Game {
         ],
       },
       {
-        title: '🪱 WORMS MODE', col: '#88CC44',
+        title: '💣 SALVO MODE', col: '#88CC44',
         lines: [
-          '  Turn-based strategy — inspired by Worms.',
+          '  Turn-based dodgeball strategy.',
           '',
           '  ⚡ 3 ACTION POINTS per turn:',
           '     • Walk uses movement budget (bar below AP)',

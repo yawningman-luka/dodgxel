@@ -1,4 +1,4 @@
-// ── Worms / Battleship turn-based mode ───────────────────────────────────────
+// ── Salvo — turn-based dodgeball mode ────────────────────────────────────────
 // Action points per turn: AP_MAX (3). Movement depletes a pixel budget.
 // Jump costs 1 AP. Throwing ends the turn immediately.
 // ─────────────────────────────────────────────────────────────────────────────
