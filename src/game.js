@@ -163,30 +163,25 @@ class Game {
     ctx.font = '10px "Courier New"';
     ctx.fillText('🏐 Catch  ·  🛡️ Shield  ·  ⚡ Superpowers  ·  First to 11', C.W/2, 70);
 
-    // 7 menu buttons in two visual groups
+    // 7 menu buttons — narrower to leave room for characters on each side
     const BTNS = [
-      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',   col: C.COL.P1_HUD, bh:42 },
-      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',        col:'#FF6600',     bh:42 },
-      { label:'💣 SALVO MODE',    sub:'turn-based · action points · 2 maps',   col:'#88CC44',     bh:42 },
-      { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',col:'#00CCFF',     bh:42 },
-      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',          col:'#AAAAAA',     bh:30 },
-      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',            col:'#888888',     bh:30 },
-      { label:'🔨 ARENA BUILDER', sub:'design & save your own stages',          col:'#00CC88',     bh:30 },
+      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',    col: C.COL.P1_HUD, bh:42 },
+      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',         col:'#FF6600',     bh:42 },
+      { label:'💣 SALVO MODE',    sub:'turn-based · action points · 2 maps',    col:'#88CC44',     bh:42 },
+      { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend', col:'#00CCFF',     bh:42 },
+      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',           col:'#AAAAAA',     bh:30 },
+      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',             col:'#888888',     bh:30 },
+      { label:'🔨 ARENA BUILDER', sub:'design & save your own stages',           col:'#00CC88',     bh:30 },
     ];
-    const bw = 320, bx = C.W/2 - bw/2;
-    let by = 82;
+    const bw = 270, bx = C.W/2 - bw/2;
+    let by = 80;
     const pulse = 0.65 + 0.35*Math.sin(Date.now()/280);
 
     for (let i = 0; i < BTNS.length; i++) {
       const b = BTNS[i];
       const sel = i === this.menuCursor;
-      const gap = 5;
-      // Separator before utilities group
-      if (i === 4) {
-        ctx.fillStyle = '#2a2a3a';
-        ctx.fillRect(bx, by, bw, 1);
-        by += 5;
-      }
+      const gap = 4;
+      if (i === 4) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
 
       ctx.fillStyle = sel ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.45)';
       ctx.fillRect(bx, by, bw, b.bh);
@@ -200,27 +195,66 @@ class Game {
 
       ctx.textAlign = 'left';
       ctx.fillStyle = sel ? '#fff' : '#888';
-      ctx.font = `bold ${b.bh > 36 ? 13 : 11}px "Courier New"`;
-      ctx.fillText(b.label, bx+14, by + (b.bh > 36 ? 17 : 13));
+      ctx.font = `bold ${b.bh > 36 ? 12 : 10}px "Courier New"`;
+      ctx.fillText(b.label, bx+12, by + (b.bh > 36 ? 16 : 12));
       if (b.bh > 36) {
         ctx.fillStyle = sel ? b.col : '#444';
-        ctx.font = '9px "Courier New"';
-        ctx.fillText(b.sub, bx+14, by+30);
+        ctx.font = '8px "Courier New"';
+        ctx.fillText(b.sub, bx+12, by+28);
       }
       if (sel) {
         ctx.fillStyle = b.col;
-        ctx.font = 'bold 11px "Courier New"';
+        ctx.font = 'bold 10px "Courier New"';
         ctx.textAlign = 'right';
         ctx.fillText('▶ ENTER', bx+bw-8, by+b.bh/2+4);
       }
-
       by += b.bh + gap;
     }
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#303040';
     ctx.font = '9px "Courier New"';
-    ctx.fillText('↑ ↓  navigate', C.W/2, by + 6);
+    ctx.fillText('↑ ↓  navigate', C.W/2, by + 5);
+
+    // ── Animated characters flanking the menu ──────────────────────────────
+    // P1 boy on the left, P2 girl on the right — pass ball back and forth
+    const boyX = 78, girlX = C.W - 78, charY = C.H - 52;
+    const cycleDur = 2600;
+    const cyclePos = Date.now() % (cycleDur * 2);
+    const boyThrows = cyclePos < cycleDur;
+    const p = (cyclePos % cycleDur) / cycleDur;
+    const inFlight = p > 0.20 && p < 0.80;
+    const fp = inFlight ? (p - 0.20) / 0.60 : 0;
+    const fromX = boyThrows ? boyX : girlX;
+    const toX   = boyThrows ? girlX : boyX;
+
+    let boyHasBall, girlHasBall, boyState, girlState;
+    if (inFlight) {
+      boyHasBall = girlHasBall = false;
+      boyState  = boyThrows && fp < 0.25 ? 'throwing' : 'idle';
+      girlState = !boyThrows && fp < 0.25 ? 'throwing' : 'idle';
+      const ballX = fromX + (toX - fromX) * fp;
+      const ballY = charY - 40 - Math.sin(fp * Math.PI) * 80;
+      Sprites.drawBall(ctx, ballX, ballY, true, false);
+    } else if (p <= 0.20) {
+      boyHasBall  =  boyThrows; girlHasBall = !boyThrows;
+      boyState  = boyThrows  && p > 0.08 ? 'throwing' : 'idle';
+      girlState = !boyThrows && p > 0.08 ? 'throwing' : 'idle';
+    } else {
+      boyHasBall = !boyThrows; girlHasBall = boyThrows;
+      boyState = girlState = 'idle';
+    }
+
+    // Scale characters down slightly for the menu
+    ctx.save();
+    ctx.translate(boyX, charY); ctx.scale(0.72, 0.72); ctx.translate(-boyX, -charY);
+    Sprites.drawBoy( ctx, boyX,  charY, boyState,   1, Math.PI/5, boyHasBall);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(girlX, charY); ctx.scale(0.72, 0.72); ctx.translate(-girlX, -charY);
+    Sprites.drawGirl(ctx, girlX, charY, girlState, -1, Math.PI/5, girlHasBall);
+    ctx.restore();
+
     ctx.textAlign = 'left';
   }
 
@@ -617,8 +651,8 @@ class Game {
     ctx.fillText(ch.name, cx, py + 38);
 
     // Large character preview
-    const previewY = py + 170;
-    const previewScale = 2.2;
+    const previewY = py + 155;
+    const previewScale = 1.7;
     ctx.save();
     ctx.translate(cx, previewY);
     ctx.scale(previewScale, previewScale);
