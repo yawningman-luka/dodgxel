@@ -16,8 +16,13 @@ const Sprites = {
 
   // Draw boy (P1) character
   // x,y = feet center, dir = 1 (right) or -1 (left)
-  drawBoy(ctx, x, y, state, dir, armAngle, hasBall) {
-    const p = C.PX;
+  // colors: optional { shirt, pants, hair, hairDark } overrides
+  drawBoy(ctx, x, y, state, dir, armAngle, hasBall, colors) {
+    const shirt    = (colors && colors.shirt)    || C.COL.BOY_SHIRT;
+    const pants    = (colors && colors.pants)    || C.COL.BOY_PANTS;
+    const hair     = (colors && colors.hair)     || C.COL.JACO_HAIR;
+    const hairDark = (colors && colors.hairDark) || C.COL.JACO_HAIR_DARK;
+
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     if (dir < 0) ctx.scale(-1, 1);
@@ -33,15 +38,13 @@ const Sprites = {
     const crouching = state === 'crouch';
 
     if (crouching) {
-      // Very low crouch — legs splayed wide, torso compressed
-      this.px(ctx, C.COL.BOY_PANTS, -12, -8, 10, 8);
-      this.px(ctx, C.COL.BOY_PANTS, 4, -8, 10, 8);
+      this.px(ctx, pants, -12, -8, 10, 8);
+      this.px(ctx, pants, 4, -8, 10, 8);
       this.px(ctx, C.COL.SHOE, -14, -3, 12, 5);
       this.px(ctx, C.COL.SHOE, 4, -3, 12, 5);
     } else {
-      // Standing legs
-      this.px(ctx, C.COL.BOY_PANTS, -8, -32, 8, 20);
-      this.px(ctx, C.COL.BOY_PANTS, 2, -32, 8, 20);
+      this.px(ctx, pants, -8, -32, 8, 20);
+      this.px(ctx, pants, 2, -32, 8, 20);
       this.px(ctx, C.COL.SHOE, -10, -14, 11, 7);
       this.px(ctx, C.COL.SHOE, 1, -14 + (legOff > 0 ? -legOff : 0), 11, 7);
       this.px(ctx, C.COL.SHOE, -10, -14 + (legOff < 0 ? legOff : 0), 11, 7);
@@ -51,20 +54,19 @@ const Sprites = {
     const bodyH = crouching ? 14 : 22;
 
     // Torso
-    this.px(ctx, C.COL.BOY_SHIRT, -10, bodyTop, 22, bodyH);
+    this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
-    // Throwing arm (back arm) - always visible
+    // Throwing arm (back arm)
     const backArmY = bodyTop + 6;
-    this.px(ctx, C.COL.BOY_SHIRT, -14, backArmY, 6, 14);
+    this.px(ctx, shirt, -14, backArmY, 6, 14);
     this.px(ctx, C.COL.SKIN, -14, backArmY + 12, 6, 8);
 
-    // Throwing / idle front arm
+    // Front arm
     if (state === 'throwing' || hasBall) {
-      // Arm rotated to aim angle
       ctx.save();
       ctx.translate(10, bodyTop + 8);
       ctx.rotate(-armAngle);
-      this.px(ctx, C.COL.BOY_SHIRT, 0, -3, 18, 7);
+      this.px(ctx, shirt, 0, -3, 18, 7);
       this.px(ctx, C.COL.SKIN, 16, -3, 8, 7);
       if (hasBall) {
         ctx.fillStyle = C.COL.BALL;
@@ -76,8 +78,7 @@ const Sprites = {
       }
       ctx.restore();
     } else {
-      // Normal front arm
-      this.px(ctx, C.COL.BOY_SHIRT, 10, bodyTop + 6, 6, 14);
+      this.px(ctx, shirt, 10, bodyTop + 6, 6, 14);
       this.px(ctx, C.COL.SKIN, 10, bodyTop + 18, 6, 8);
     }
 
@@ -85,17 +86,16 @@ const Sprites = {
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
 
-    // Hair (brown-yellow with straight-cut bangs)
-    this.px(ctx, C.COL.JACO_HAIR, -10, headY - 2, 22, 10); // top
-    this.px(ctx, C.COL.JACO_HAIR, -10, headY - 2, 4, 22); // left side
-    this.px(ctx, C.COL.JACO_HAIR, 8, headY - 2, 4, 22); // right side
-    this.px(ctx, C.COL.JACO_HAIR_DARK, -10, headY + 8, 22, 3); // bangs line
+    // Hair
+    this.px(ctx, hair, -10, headY - 2, 22, 10);
+    this.px(ctx, hair, -10, headY - 2, 4, 22);
+    this.px(ctx, hair, 8, headY - 2, 4, 22);
+    this.px(ctx, hairDark, -10, headY + 8, 22, 3);
 
     // Eyes
     if (!blink) {
       this.px(ctx, C.COL.EYE, -3, headY + 10, 4, 5);
       this.px(ctx, C.COL.EYE, 4, headY + 10, 4, 5);
-      // Eye shine
       this.px(ctx, '#fff', -2, headY + 10, 2, 2);
       this.px(ctx, '#fff', 5, headY + 10, 2, 2);
     } else {
@@ -103,15 +103,18 @@ const Sprites = {
       this.px(ctx, C.COL.EYE, 4, headY + 13, 4, 2);
     }
 
-    // Mouth (small smile)
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
-
     ctx.restore();
   },
 
   // Draw girl (P2) character
-  drawGirl(ctx, x, y, state, dir, armAngle, hasBall) {
-    const p = C.PX;
+  // colors: optional { shirt, pants, hair, hairDark } overrides
+  drawGirl(ctx, x, y, state, dir, armAngle, hasBall, colors) {
+    const shirt    = (colors && colors.shirt)    || C.COL.GIRL_SHIRT;
+    const pants    = (colors && colors.pants)    || C.COL.GIRL_PANTS;
+    const hair     = (colors && colors.hair)     || C.COL.HAIR;
+    const hairDark = (colors && colors.hairDark) || C.COL.HAIR_DARK;
+
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     if (dir < 0) ctx.scale(-1, 1);
@@ -125,13 +128,13 @@ const Sprites = {
 
     // Legs
     if (crouching) {
-      this.px(ctx, C.COL.GIRL_PANTS, -12, -8, 10, 8);
-      this.px(ctx, C.COL.GIRL_PANTS, 4, -8, 10, 8);
+      this.px(ctx, pants, -12, -8, 10, 8);
+      this.px(ctx, pants, 4, -8, 10, 8);
       this.px(ctx, C.COL.SHOE, -14, -3, 12, 5);
       this.px(ctx, C.COL.SHOE, 4, -3, 12, 5);
     } else {
-      this.px(ctx, C.COL.GIRL_PANTS, -8, -32, 8, 20);
-      this.px(ctx, C.COL.GIRL_PANTS, 2, -32, 8, 20);
+      this.px(ctx, pants, -8, -32, 8, 20);
+      this.px(ctx, pants, 2, -32, 8, 20);
       this.px(ctx, C.COL.SHOE, -10, -14, 11, 7);
       this.px(ctx, C.COL.SHOE, 1, -14 + (legOff > 0 ? -legOff : 0), 11, 7);
       this.px(ctx, C.COL.SHOE, -10, -14 + (legOff < 0 ? legOff : 0), 11, 7);
@@ -141,11 +144,11 @@ const Sprites = {
     const bodyH = crouching ? 14 : 22;
 
     // Torso
-    this.px(ctx, C.COL.GIRL_SHIRT, -10, bodyTop, 22, bodyH);
+    this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
     // Back arm
     const backArmY = bodyTop + 6;
-    this.px(ctx, C.COL.GIRL_SHIRT, -14, backArmY, 6, 14);
+    this.px(ctx, shirt, -14, backArmY, 6, 14);
     this.px(ctx, C.COL.SKIN, -14, backArmY + 12, 6, 8);
 
     // Front arm
@@ -153,7 +156,7 @@ const Sprites = {
       ctx.save();
       ctx.translate(10, bodyTop + 8);
       ctx.rotate(-armAngle);
-      this.px(ctx, C.COL.GIRL_SHIRT, 0, -3, 18, 7);
+      this.px(ctx, shirt, 0, -3, 18, 7);
       this.px(ctx, C.COL.SKIN, 16, -3, 8, 7);
       if (hasBall) {
         ctx.fillStyle = C.COL.BALL;
@@ -165,7 +168,7 @@ const Sprites = {
       }
       ctx.restore();
     } else {
-      this.px(ctx, C.COL.GIRL_SHIRT, 10, bodyTop + 6, 6, 14);
+      this.px(ctx, shirt, 10, bodyTop + 6, 6, 14);
       this.px(ctx, C.COL.SKIN, 10, bodyTop + 18, 6, 8);
     }
 
@@ -173,16 +176,16 @@ const Sprites = {
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
 
-    // Hair with straight-cut bangs
-    this.px(ctx, C.COL.HAIR, -10, headY - 2, 22, 10);
-    this.px(ctx, C.COL.HAIR, -10, headY - 2, 4, 22);
-    this.px(ctx, C.COL.HAIR, 8, headY - 2, 4, 22);
-    this.px(ctx, C.COL.HAIR_DARK, -10, headY + 8, 22, 3); // bangs line
+    // Hair
+    this.px(ctx, hair, -10, headY - 2, 22, 10);
+    this.px(ctx, hair, -10, headY - 2, 4, 22);
+    this.px(ctx, hair, 8, headY - 2, 4, 22);
+    this.px(ctx, hairDark, -10, headY + 8, 22, 3);
 
-    // Ponytail (sticking out to the back = left when facing right)
-    this.px(ctx, C.COL.HAIR, -22, headY + 2, 14, 8);
-    this.px(ctx, C.COL.HAIR, -26, headY + 6, 8, 6);
-    this.px(ctx, C.COL.HAIR_DARK, -14, headY + 4, 4, 4); // tie
+    // Ponytail
+    this.px(ctx, hair, -22, headY + 2, 14, 8);
+    this.px(ctx, hair, -26, headY + 6, 8, 6);
+    this.px(ctx, hairDark, -14, headY + 4, 4, 4);
 
     // Eyes
     if (!blink) {
@@ -195,9 +198,7 @@ const Sprites = {
       this.px(ctx, C.COL.EYE, 4, headY + 13, 4, 2);
     }
 
-    // Mouth
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
-
     ctx.restore();
   },
 
@@ -313,9 +314,9 @@ const Sprites = {
     ctx.textAlign = 'center';
     ctx.font = 'bold 10px "Courier New"';
     ctx.fillStyle = C.COL.P1_HUD;
-    ctx.fillText(C.P1_NAME, cx - 78, 19);
+    ctx.fillText(p1.charName || C.P1_NAME, cx - 78, 19);
     ctx.fillStyle = C.COL.P2_HUD;
-    ctx.fillText(C.P2_NAME, cx + 78, 19);
+    ctx.fillText(p2.charName || C.P2_NAME, cx + 78, 19);
 
     // Leading player indicator — pulsing glow on the leader's score
     const leading = p1.score > p2.score ? 0 : p2.score > p1.score ? 1 : -1;
@@ -707,6 +708,25 @@ const Sprites = {
       // Mini plane
       ctx.fillStyle = '#DDDDE8';
       ctx.beginPath(); ctx.ellipse(x+Math.round(w*0.42), y+Math.round(skyH*0.45), 20, 6, 0.15, 0, Math.PI*2); ctx.fill();
+    } else if (idx >= 8) { // CUSTOM (user-built)
+      // Draw a "★ CUSTOM" placeholder with a simple platform doodle
+      ctx.fillStyle = 'rgba(255,215,0,0.08)';
+      ctx.fillRect(x, y, w, skyH);
+      // A couple of brown platform tiles
+      ctx.fillStyle = '#7B4A18';
+      ctx.fillRect(x + Math.round(w*0.08), y + Math.round(skyH*0.55), Math.round(w*0.36), Math.round(skyH*0.12));
+      ctx.fillStyle = '#C8854A';
+      ctx.fillRect(x + Math.round(w*0.08), y + Math.round(skyH*0.55), Math.round(w*0.36), Math.round(skyH*0.04));
+      ctx.fillStyle = '#7B4A18';
+      ctx.fillRect(x + Math.round(w*0.54), y + Math.round(skyH*0.30), Math.round(w*0.36), Math.round(skyH*0.12));
+      ctx.fillStyle = '#C8854A';
+      ctx.fillRect(x + Math.round(w*0.54), y + Math.round(skyH*0.30), Math.round(w*0.36), Math.round(skyH*0.04));
+      // Star
+      ctx.fillStyle = 'rgba(255,215,0,0.55)';
+      ctx.font = '18px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('★', x + Math.round(w*0.5), y + Math.round(skyH*0.45));
+      ctx.textAlign = 'left';
     } else if (idx === 6) { // UPSIDE DOWN
       // Dark hell sky
       const hg = ctx.createLinearGradient(x, y, x, y + skyH);

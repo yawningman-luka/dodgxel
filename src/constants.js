@@ -71,6 +71,11 @@ const C = {
     ROUND_END: 'round_end',
     GAME_OVER: 'game_over',
     HORDE: 'horde',
+    ARENA_BUILDER: 'arena_builder',
+    CHAR_SELECT: 'char_select',
+    WORMS: 'worms',
+    HOW_TO_PLAY: 'how_to_play',
+    ONLINE_LOBBY: 'online_lobby',
   },
 
   WIN_SCORE: 11,
@@ -101,6 +106,55 @@ const C = {
     throw: 'Throw / Power', catch: 'Catch', shield: 'Shield',
   },
 };
+
+// ── Character roster ─────────────────────────────────────────────────────────
+const CHARACTERS = [
+  {
+    id: 'jaco', name: 'JACO', type: 'boy', power: 'rocket',
+    colors: { shirt: '#4169E1', pants: '#1C3A6E', hair: '#A0722A', hairDark: '#6B4A10' },
+    bio: 'Blazing rocket throw. Pure speed, maximum impact.',
+    accentCol: '#FF6B35',
+  },
+  {
+    id: 'lucy', name: 'LUCY', type: 'girl', power: 'curve',
+    colors: { shirt: '#E14169', pants: '#6E1C3A', hair: '#FFD700', hairDark: '#DAA520' },
+    bio: 'Bending throws that follow every dodge.',
+    accentCol: '#00E5FF',
+  },
+  {
+    id: 'rex', name: 'REX', type: 'boy', power: 'shadow',
+    colors: { shirt: '#6A0DAD', pants: '#3D0070', hair: '#2C2C2C', hairDark: '#111111' },
+    bio: 'Ghost throw — barely visible, almost uncatchable.',
+    accentCol: '#9B59B6',
+  },
+  {
+    id: 'nova', name: 'NOVA', type: 'girl', power: 'double',
+    colors: { shirt: '#CC8800', pants: '#885500', hair: '#FF6B35', hairDark: '#CC4400' },
+    bio: 'Fires two balls at once. Twice the chaos.',
+    accentCol: '#FFD700',
+  },
+  {
+    id: 'blaze', name: 'BLAZE', type: 'boy', power: 'rocket',
+    colors: { shirt: '#CC2200', pants: '#881100', hair: '#FF9900', hairDark: '#CC6600' },
+    bio: 'All offence. The rocket is his only move.',
+    accentCol: '#FF6B35',
+  },
+  {
+    id: 'iris', name: 'IRIS', type: 'girl', power: 'curve',
+    colors: { shirt: '#007755', pants: '#004433', hair: '#88DDAA', hairDark: '#66BB88' },
+    bio: 'Reads every move. The curve never misses twice.',
+    accentCol: '#00E5FF',
+  },
+  {
+    id: 'custom', name: 'CUSTOM', type: null, power: null, colors: null,
+    bio: 'Design your own fighter.',
+    accentCol: '#888888',
+  },
+];
+
+// Color presets for the custom slot
+const CUSTOM_SHIRT_PRESETS  = ['#4169E1','#E14169','#CC2200','#007755','#CC8800','#6A0DAD','#AAAAAA'];
+const CUSTOM_HAIR_PRESETS   = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B35','#2C2C2C','#FFFFFF'];
 
 // Mutable control bindings — loaded from localStorage, used at runtime
 const Controls = {

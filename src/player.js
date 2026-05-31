@@ -36,6 +36,12 @@ class Player {
     this._powerAssigned = false;
     this.extraThrowCallback = null;
 
+    // Set by character select; persist across rounds
+    if (this.signaturePower === undefined) this.signaturePower = null;
+    if (this.charColors === undefined)     this.charColors     = null;
+    if (this.charType === undefined)       this.charType       = null; // 'boy'|'girl'|null
+    if (this.charName === undefined)       this.charName       = null;
+
     this.justCaughtFlash = 0;
     this.hitCallback = null; // set by game to trigger scoring
     this.noMidline     = false;
@@ -53,6 +59,16 @@ class Player {
   update(dt, ball, obstacles, otherPlayer, speedMult = 1) {
     const k = this.keys;
 
+    // _netInput: semantic { left, right, jump, crouch, throw, catch, shield, aimUp, aimDown }
+    // Set by Game in online mode for the remote player.
+    const ni = this._netInput || null;
+    const wasP = ni
+      ? (a => !!ni[a])                              // already edge-detected by NetworkManager
+      : (a => Input.wasPressed(a));
+    const isD  = ni
+      ? (a => !!ni[a])
+      : (a => Input.isDown(a));
+
     // Tick timers
     if (this.stunTimer > 0) this.stunTimer -= dt;
     if (this.catchCooldown > 0) this.catchCooldown -= dt;
@@ -62,18 +78,19 @@ class Player {
     }
     if (this.justCaughtFlash > 0) this.justCaughtFlash -= dt;
 
-    // Superpower passive charge; randomly assign power when bar first fills
+    // Superpower passive charge; use signature power if set, else random
     if (this.spCharge < C.SP_CHARGE_MAX) {
       this.spCharge += C.SP_CHARGE_RATE * (this.hordeMode ? 3.5 : 1);
     } else if (!this._powerAssigned) {
-      this.currentPower = C.POWERS[Math.floor(Math.random() * C.POWERS.length)];
+      this.currentPower = this.signaturePower
+        || C.POWERS[Math.floor(Math.random() * C.POWERS.length)];
       this._powerAssigned = true;
     }
 
     const stunned = this.stunTimer > 0;
 
     // Shield toggle (not while holding ball)
-    if (!stunned && Input.wasPressed(k.shield) && this.shieldAvailable && !this.hasBall) {
+    if (!stunned && wasP(ni ? 'shield' : k.shield) && this.shieldAvailable && !this.hasBall) {
       this.shieldActive = !this.shieldActive;
     }
     if (this.shieldActive && this.hasBall) this.shieldActive = false;
@@ -85,7 +102,7 @@ class Player {
       return;
     }
 
-    const isThrowing = Input.isDown(k.throw);
+    const isThrowing = isD(ni ? 'throw' : k.throw);
     const prevThrowing = this.throwing;
 
     // === Throwing ===
@@ -95,13 +112,11 @@ class Player {
         this.throwCharge = Math.min(C.THROW_CHARGE_TIME, this.throwCharge + dt);
         this.state = 'throwing';
 
-        // Aim with jump/crouch keys while holding throw button
         const aimSpeed = 0.035;
-        if (Input.isDown(k.jump))   this.aimAngle += aimSpeed;
-        if (Input.isDown(k.crouch)) this.aimAngle -= aimSpeed;
+        if (isD(ni ? 'aimUp'   : k.jump))   this.aimAngle += aimSpeed;
+        if (isD(ni ? 'aimDown' : k.crouch)) this.aimAngle -= aimSpeed;
         this.aimAngle = Math.max(-Math.PI / 5, Math.min(Math.PI * 0.52, this.aimAngle));
       } else if (prevThrowing) {
-        // Released throw button - launch!
         this._doThrow(ball);
       }
     } else {
@@ -110,11 +125,10 @@ class Player {
     }
 
     // === Catching ===
-    if (Input.wasPressed(k.catch) && this.catchCooldown <= 0) {
+    if (wasP(ni ? 'catch' : k.catch) && this.catchCooldown <= 0) {
       if (ball.canBeCaught(this.x, this.y, this.catchRadius) && ball.lastThrower !== this.index) {
         this._doCatch(ball);
       } else {
-        // Whiff
         this.stunTimer = 180;
         this.vx += this.dir * -1.5;
         this.catchCooldown = 350;
@@ -124,17 +138,16 @@ class Player {
     // === Movement (blocked while aiming) ===
     const blockMove = this.throwing && this.hasBall;
     if (!blockMove) {
-      const left  = Input.isDown(k.left);
-      const right = Input.isDown(k.right);
-      this.crouching = Input.isDown(k.crouch) && this.onGround && !isThrowing;
+      const left  = isD(ni ? 'left'  : k.left);
+      const right = isD(ni ? 'right' : k.right);
+      this.crouching = isD(ni ? 'crouch' : k.crouch) && this.onGround && !isThrowing;
 
       if (!this.crouching) {
         if (left && !right)  { this.vx -= C.WALK_SPEED * speedMult; this.dir = -1; }
         if (right && !left)  { this.vx += C.WALK_SPEED * speedMult; this.dir =  1; }
       }
 
-      if (Input.wasPressed(k.jump) && this.onGround && !this.crouching) {
-        // Inverted: jump pushes downward (away from ceiling)
+      if (wasP(ni ? 'jump' : k.jump) && this.onGround && !this.crouching) {
         this.vy = (this.invertGravity ? 1 : -1) * Math.abs(C.JUMP_FORCE) * this.jumpForceMult;
         this.onGround = false;
       }
@@ -331,10 +344,10 @@ class Player {
       Sprites.drawThrowPower(ctx, this.x, this.y, this.throwCharge, this.dir);
     }
 
-    const drawFn = this.isGirl
-      ? Sprites.drawGirl.bind(Sprites)
-      : Sprites.drawBoy.bind(Sprites);
-    drawFn(ctx, this.x, this.y, this.state, this.dir, this.aimAngle, this.hasBall);
+    // charType overrides isGirl when a character has been selected
+    const useGirl = this.charType ? (this.charType === 'girl') : this.isGirl;
+    const drawFn  = useGirl ? Sprites.drawGirl.bind(Sprites) : Sprites.drawBoy.bind(Sprites);
+    drawFn(ctx, this.x, this.y, this.state, this.dir, this.aimAngle, this.hasBall, this.charColors);
 
     if (this.justCaughtFlash > 0) {
       ctx.fillStyle = 'rgba(80,255,120,0.3)';

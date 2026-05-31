@@ -5,6 +5,7 @@ class Game {
     this.ctx.imageSmoothingEnabled = false;
 
     Controls.load();
+    reloadCustomArenas();
 
     this.state = C.STATE.MENU;
     this.arenaIndex = 0;
@@ -74,6 +75,26 @@ class Game {
           this.state = C.STATE.MENU;
         }
         break;
+      case C.STATE.ARENA_BUILDER:
+        this._builder.update(dt);
+        if (this._builder.returnToMenu) {
+          this._builder = null;
+          this.state = C.STATE.MENU;
+        }
+        break;
+      case C.STATE.CHAR_SELECT:
+        this._updateCharSelect(dt);
+        break;
+      case C.STATE.WORMS:
+        this._wormsGame.update(dt);
+        if (this._wormsGame.returnToMenu) { this._wormsGame = null; this.state = C.STATE.MENU; }
+        break;
+      case C.STATE.HOW_TO_PLAY:
+        this._updateHowToPlay();
+        break;
+      case C.STATE.ONLINE_LOBBY:
+        this._updateOnlineLobby(dt);
+        break;
     }
     Input.flush();
   }
@@ -89,20 +110,33 @@ class Game {
       case C.STATE.ROUND_END:    this._drawGame(ctx); break;
       case C.STATE.GAME_OVER:    this._drawGame(ctx); this._drawGameOver(ctx); break;
       case C.STATE.HORDE:        if (this._hordeGame) this._hordeGame.draw(); break;
+      case C.STATE.ARENA_BUILDER: if (this._builder) this._builder.draw(); break;
+      case C.STATE.CHAR_SELECT:   this._drawCharSelect(this.ctx); break;
+      case C.STATE.WORMS:         if (this._wormsGame) this._wormsGame.draw(); break;
+      case C.STATE.HOW_TO_PLAY:   this._drawHowToPlay(ctx); break;
+      case C.STATE.ONLINE_LOBBY:  this._drawOnlineLobby(ctx); break;
     }
   }
 
   // ---- Menu ----
   _updateMenu() {
-    if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor + 2) % 3;
-    if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % 3;
+    const N = 7;
+    if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor - 1 + N) % N;
+    if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % N;
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
-      if      (this.menuCursor === 0) { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; }
-      else if (this.menuCursor === 1) { this._startHorde(); }
-      else                            { this.state = C.STATE.CONTROLS; }
+      switch (this.menuCursor) {
+        case 0: this._startCharSelect('classic');     break;
+        case 1: this._startCharSelect('horde');       break;
+        case 2: this._startCharSelect('worms');       break;
+        case 3: this._startOnlineLobby();             break;
+        case 4: this.state = C.STATE.HOW_TO_PLAY;    break;
+        case 5: this.state = C.STATE.CONTROLS;        break;
+        case 6: this._startBuilder();                 break;
+      }
     }
-    if (Input.wasPressed('KeyH')) this._startHorde();
+    if (Input.wasPressed('KeyH')) this._startCharSelect('horde');
     if (Input.wasPressed('KeyC')) this.state = C.STATE.CONTROLS;
+    if (Input.wasPressed('KeyB')) this._startBuilder();
   }
 
   _drawMenu(ctx) {
@@ -110,118 +144,83 @@ class Game {
     g.addColorStop(0, '#1a1a2e'); g.addColorStop(1, '#0f3460');
     ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);
 
+    // Stars
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
     for (let i = 0; i < 70; i++) {
       ctx.beginPath();
-      ctx.arc((i * 137.5) % C.W, (i * 71.3) % (C.H * 0.8), 0.5 + (i % 3) * 0.5, 0, Math.PI * 2);
+      ctx.arc((i*137.5)%C.W, (i*71.3)%(C.H*0.8), 0.5+(i%3)*0.5, 0, Math.PI*2);
       ctx.fill();
     }
 
     // Title
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,80,0,0.45)';
-    ctx.font = 'bold 62px "Courier New"';
-    ctx.fillText('DODGXEL', C.W / 2 + 3, 103);
+    ctx.font = 'bold 54px "Courier New"';
+    ctx.fillText('DODGXEL', C.W/2+3, 58);
     ctx.fillStyle = '#FFD700';
-    ctx.fillText('DODGXEL', C.W / 2, 100);
-    ctx.fillStyle = '#666';
-    ctx.font = '12px "Courier New"';
-    ctx.fillText('Catch · Shield · Superpowers · First to 11', C.W / 2, 120);
+    ctx.fillText('DODGXEL', C.W/2, 55);
+    ctx.fillStyle = '#555';
+    ctx.font = '10px "Courier New"';
+    ctx.fillText('🏐 Catch  ·  🛡️ Shield  ·  ⚡ Superpowers  ·  First to 11', C.W/2, 70);
 
-    // Buttons
-    const btns = [
-      { label: 'CLASSIC MATCH', sub: '1v1 arena battle · pick your stage', col: C.COL.P1_HUD },
-      { label: 'HORDE MODE',    sub: 'co-op wave survival · 10 waves',      col: '#FF6600'    },
-      { label: 'CONTROLS',      sub: 'remap keys for both players',          col: '#888888'    },
+    // 7 menu buttons in two visual groups
+    const BTNS = [
+      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',   col: C.COL.P1_HUD, bh:42 },
+      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',        col:'#FF6600',     bh:42 },
+      { label:'🪱 WORMS MODE',    sub:'turn-based · action points · 2 maps',   col:'#88CC44',     bh:42 },
+      { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',col:'#00CCFF',     bh:42 },
+      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',          col:'#AAAAAA',     bh:30 },
+      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',            col:'#888888',     bh:30 },
+      { label:'🔨 ARENA BUILDER', sub:'design & save your own stages',          col:'#00CC88',     bh:30 },
     ];
-    const bw = 310, bh = 50, gap = 8, bx = C.W / 2 - bw / 2, by0 = 138;
+    const bw = 320, bx = C.W/2 - bw/2;
+    let by = 82;
+    const pulse = 0.65 + 0.35*Math.sin(Date.now()/280);
 
-    for (let i = 0; i < btns.length; i++) {
-      const b = btns[i];
-      const by = by0 + i * (bh + gap);
+    for (let i = 0; i < BTNS.length; i++) {
+      const b = BTNS[i];
       const sel = i === this.menuCursor;
-      const pulse = 0.65 + 0.35 * Math.sin(Date.now() / 280);
+      const gap = 5;
+      // Separator before utilities group
+      if (i === 4) {
+        ctx.fillStyle = '#2a2a3a';
+        ctx.fillRect(bx, by, bw, 1);
+        by += 5;
+      }
 
-      // Background
       ctx.fillStyle = sel ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.45)';
-      ctx.fillRect(bx, by, bw, bh);
-
-      // Left accent bar
+      ctx.fillRect(bx, by, bw, b.bh);
       ctx.fillStyle = sel ? b.col : '#333';
-      ctx.fillRect(bx, by, 4, bh);
-
-      // Border
+      ctx.fillRect(bx, by, 4, b.bh);
       ctx.strokeStyle = sel ? b.col : '#2a2a2a';
       ctx.lineWidth = sel ? 1.5 : 1;
       if (sel) ctx.globalAlpha = pulse;
-      ctx.strokeRect(bx, by, bw, bh);
+      ctx.strokeRect(bx, by, bw, b.bh);
       ctx.globalAlpha = 1;
 
-      // Label
       ctx.textAlign = 'left';
       ctx.fillStyle = sel ? '#fff' : '#888';
-      ctx.font = `bold 15px "Courier New"`;
-      ctx.fillText(b.label, bx + 18, by + 20);
-
-      // Sub-label
-      ctx.fillStyle = sel ? b.col : '#444';
-      ctx.font = '10px "Courier New"';
-      ctx.fillText(b.sub, bx + 18, by + 36);
-
-      // Arrow indicator
+      ctx.font = `bold ${b.bh > 36 ? 13 : 11}px "Courier New"`;
+      ctx.fillText(b.label, bx+14, by + (b.bh > 36 ? 17 : 13));
+      if (b.bh > 36) {
+        ctx.fillStyle = sel ? b.col : '#444';
+        ctx.font = '9px "Courier New"';
+        ctx.fillText(b.sub, bx+14, by+30);
+      }
       if (sel) {
         ctx.fillStyle = b.col;
-        ctx.font = 'bold 13px "Courier New"';
+        ctx.font = 'bold 11px "Courier New"';
         ctx.textAlign = 'right';
-        ctx.fillText('▶  ENTER', bx + bw - 8, by + bh / 2 + 5);
+        ctx.fillText('▶ ENTER', bx+bw-8, by+b.bh/2+4);
       }
+
+      by += b.bh + gap;
     }
 
-    // Nav hint
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#383838';
-    ctx.font = '11px "Courier New"';
-    ctx.fillText('↑ ↓  navigate', C.W / 2, by0 + btns.length * (bh + gap) + 4);
-
-    // Animated characters: hold ball → wind up → throw → arc → catch → hold
-    const boyX = C.W / 2 - 105, girlX = C.W / 2 + 105, charY = C.H - 44;
-    const cycleDur = 2600;
-    const cyclePos = Date.now() % (cycleDur * 2);
-    const boyThrows = cyclePos < cycleDur; // which half of the loop
-    const p = (cyclePos % cycleDur) / cycleDur; // 0→1 per half
-
-    // Ball is in the air between p=0.20 and p=0.80
-    const inFlight = p > 0.20 && p < 0.80;
-    const fp = inFlight ? (p - 0.20) / 0.60 : 0; // 0→1 during flight
-
-    const fromX = boyThrows ? boyX : girlX;
-    const toX   = boyThrows ? girlX : boyX;
-
-    let boyHasBall, girlHasBall, boyState, girlState;
-    if (inFlight) {
-      // Ball in the air — both hands empty
-      boyHasBall = girlHasBall = false;
-      boyState  = boyThrows && fp < 0.25 ? 'throwing' : 'idle';
-      girlState = !boyThrows && fp < 0.25 ? 'throwing' : 'idle';
-      const bx = fromX + (toX - fromX) * fp;
-      const by = charY - 44 - Math.sin(fp * Math.PI) * 68;
-      Sprites.drawBall(ctx, bx, by, true, false);
-    } else if (p <= 0.20) {
-      // Holder winds up with ball in hand
-      boyHasBall  =  boyThrows;
-      girlHasBall = !boyThrows;
-      boyState  = boyThrows  && p > 0.08 ? 'throwing' : 'idle';
-      girlState = !boyThrows && p > 0.08 ? 'throwing' : 'idle';
-    } else {
-      // Receiver just caught — holds the ball briefly
-      boyHasBall  = !boyThrows;
-      girlHasBall =  boyThrows;
-      boyState = girlState = 'idle';
-    }
-
-    Sprites.drawBoy( ctx, boyX,  charY, boyState,  1, Math.PI / 5, boyHasBall);
-    Sprites.drawGirl(ctx, girlX, charY, girlState, -1, Math.PI / 5, girlHasBall);
-
+    ctx.fillStyle = '#303040';
+    ctx.font = '9px "Courier New"';
+    ctx.fillText('↑ ↓  navigate', C.W/2, by + 6);
     ctx.textAlign = 'left';
   }
 
@@ -433,10 +432,628 @@ class Game {
     ctx.textAlign = 'left';
   }
 
+  // ---- Char Select ----
+  // dest: 'classic' (→ arena select) | 'horde' (→ horde game)
+  _startCharSelect(dest = 'classic') {
+    this._cs = {
+      dest,
+      p1: { idx: 0, confirmed: false, customSub: false, customShirt: 0, customHair: 0, customPower: 0, customName: 'P1', customType: 0 },
+      p2: { idx: 0, confirmed: false, customSub: false, customShirt: 0, customHair: 0, customPower: 0, customName: 'P2', customType: 1 },
+      bothTimer: 0,
+    };
+    this.state = C.STATE.CHAR_SELECT;
+  }
+
+  _updateCharSelect(dt) {
+    const cs = this._cs;
+    const N  = CHARACTERS.length;
+
+    // ESC: exit custom sub if open, else back to menu
+    if (Input.wasPressed('Escape')) {
+      if (cs.p1.customSub) { cs.p1.customSub = false; return; }
+      if (cs.p2.customSub) { cs.p2.customSub = false; return; }
+      this.state = C.STATE.MENU; return;
+    }
+
+    const updateSide = (ps, leftKey, rightKey, upKey, downKey, confirmKey) => {
+      const ch = CHARACTERS[ps.idx];
+
+      if (ps.confirmed) return; // locked in
+
+      if (ps.customSub) {
+        if (!ps._customRow) ps._customRow = 0;
+        if (Input.wasPressed(upKey))   ps._customRow = (ps._customRow - 1 + 5) % 5;
+        if (Input.wasPressed(downKey)) ps._customRow = (ps._customRow + 1) % 5;
+        if (Input.wasPressed(leftKey)) {
+          if (ps._customRow === 0) ps.customType  = (ps.customType - 1 + 2) % 2;
+          if (ps._customRow === 1) ps.customShirt = (ps.customShirt - 1 + CUSTOM_SHIRT_PRESETS.length) % CUSTOM_SHIRT_PRESETS.length;
+          if (ps._customRow === 2) ps.customHair  = (ps.customHair  - 1 + CUSTOM_HAIR_PRESETS.length)  % CUSTOM_HAIR_PRESETS.length;
+          if (ps._customRow === 3) ps.customPower = (ps.customPower - 1 + C.POWERS.length) % C.POWERS.length;
+          if (ps._customRow === 4) { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); }
+        }
+        if (Input.wasPressed(rightKey)) {
+          if (ps._customRow === 0) ps.customType  = (ps.customType  + 1) % 2;
+          if (ps._customRow === 1) ps.customShirt = (ps.customShirt + 1) % CUSTOM_SHIRT_PRESETS.length;
+          if (ps._customRow === 2) ps.customHair  = (ps.customHair  + 1) % CUSTOM_HAIR_PRESETS.length;
+          if (ps._customRow === 3) ps.customPower = (ps.customPower + 1) % C.POWERS.length;
+          if (ps._customRow === 4) { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); }
+        }
+        if (Input.wasPressed(confirmKey)) { ps.confirmed = true; ps.customSub = false; }
+        return;
+      }
+
+      if (Input.wasPressed(leftKey))  ps.idx = (ps.idx - 1 + N) % N;
+      if (Input.wasPressed(rightKey)) ps.idx = (ps.idx + 1) % N;
+      if (Input.wasPressed(confirmKey) || Input.wasPressed('Enter')) {
+        if (ch.id === 'custom') { ps.customSub = true; ps._customRow = 0; }
+        else                     ps.confirmed = true;
+      }
+    };
+
+    updateSide(cs.p1, 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyG');
+    updateSide(cs.p2, 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyL');
+
+    if (cs.p1.confirmed && cs.p2.confirmed) {
+      cs.bothTimer += dt;
+      if (cs.bothTimer >= 600) {
+        this._applyCharSelections();
+        if      (cs.dest === 'horde')  { this._startHorde(); }
+        else if (cs.dest === 'worms')  { this._startWorms(); }
+        else if (cs.dest === 'online') { this._startOnlineGame(); }
+        else { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; }
+      }
+    }
+  }
+
+  _applyCharSelections() {
+    const apply = (player, ps) => {
+      const ch = CHARACTERS[ps.idx];
+      if (ch.id === 'custom') {
+        const shirt = CUSTOM_SHIRT_PRESETS[ps.customShirt];
+        // Derive pants by darkening shirt a bit
+        player.signaturePower = C.POWERS[ps.customPower];
+        player.charColors = {
+          shirt,
+          pants: this._darken(shirt),
+          hair: CUSTOM_HAIR_PRESETS[ps.customHair],
+          hairDark: this._darken(CUSTOM_HAIR_PRESETS[ps.customHair]),
+        };
+        player.charType   = ps.customType === 0 ? 'boy' : 'girl';
+        player.charName   = ps.customName;
+      } else {
+        player.signaturePower = ch.power;
+        player.charColors     = ch.colors;
+        player.charType       = ch.type;
+        player.charName       = ch.name;
+      }
+    };
+    apply(this.p1, this._cs.p1);
+    apply(this.p2, this._cs.p2);
+  }
+
+  _darken(hex) {
+    // Simple hex darkener — multiply each channel by 0.65
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const d = v => Math.max(0, Math.round(v * 0.65)).toString(16).padStart(2,'0');
+    return `#${d(r)}${d(g)}${d(b)}`;
+  }
+
+  _drawCharSelect(ctx) {
+    const cs = this._cs;
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, C.H);
+    bg.addColorStop(0, '#0d0d1a'); bg.addColorStop(1, '#1a0d2e');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, C.W, C.H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 22px "Courier New"';
+    ctx.fillText('SELECT YOUR FIGHTER', C.W / 2, 36);
+
+    const modeLabel = cs.dest === 'horde' ? '— HORDE MODE —' : '— CLASSIC MATCH —';
+    ctx.fillStyle = cs.dest === 'horde' ? '#FF6600' : C.COL.P1_HUD;
+    ctx.font = 'bold 10px "Courier New"';
+    ctx.fillText(modeLabel, C.W / 2, 50);
+
+    ctx.fillStyle = '#444';
+    ctx.font = '10px "Courier New"';
+    ctx.fillText('P1: A/D choose  G confirm     P2: ←/→ choose  L confirm     ESC back', C.W / 2, 62);
+
+    const panelW = 360, panelH = 340, gap = 20;
+    const p1x = (C.W / 2) - panelW - gap / 2;
+    const p2x = (C.W / 2) + gap / 2;
+
+    this._drawCharPanel(ctx, cs.p1, p1x, 74, panelW, panelH, C.COL.P1_HUD, 'P1');
+    this._drawCharPanel(ctx, cs.p2, p2x, 74, panelW, panelH, C.COL.P2_HUD, 'P2');
+
+    // Both confirmed — countdown
+    if (cs.p1.confirmed && cs.p2.confirmed) {
+      const t = Math.min(1, cs.bothTimer / 600);
+      ctx.globalAlpha = t;
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 20px "Courier New"';
+      const nextLabel = cs.dest === 'horde' ? '▶  ENTERING HORDE…' : cs.dest === 'worms' ? '▶  ENTERING WORMS…' : cs.dest === 'online' ? '▶  STARTING ONLINE…' : '▶  SELECTING ARENA…';
+      ctx.fillText(nextLabel, C.W / 2, C.H - 18);
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = 'left';
+  }
+
+  _drawCharPanel(ctx, ps, px, py, pw, ph, accentCol, label) {
+    const ch = CHARACTERS[ps.idx];
+
+    // Panel bg
+    ctx.fillStyle = ps.confirmed ? 'rgba(40,60,40,0.95)' : 'rgba(20,20,35,0.95)';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = ps.confirmed ? '#44FF88' : accentCol;
+    ctx.lineWidth = ps.confirmed ? 2.5 : 1.5;
+    ctx.strokeRect(px, py, pw, ph);
+
+    // Player label
+    ctx.fillStyle = accentCol;
+    ctx.font = 'bold 11px "Courier New"';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, px + 10, py + 16);
+
+    if (ps.confirmed) {
+      ctx.fillStyle = '#44FF88';
+      ctx.font = 'bold 11px "Courier New"';
+      ctx.textAlign = 'right';
+      ctx.fillText('✔ READY', px + pw - 10, py + 16);
+    }
+
+    ctx.textAlign = 'center';
+    const cx = px + pw / 2;
+
+    if (ps.customSub) {
+      // Custom builder sub-panel
+      this._drawCustomSub(ctx, ps, px, py, pw, ph, accentCol);
+      return;
+    }
+
+    // Character name
+    ctx.fillStyle = ps.confirmed ? '#44FF88' : '#fff';
+    ctx.font = `bold 20px "Courier New"`;
+    ctx.fillText(ch.name, cx, py + 38);
+
+    // Large character preview
+    const previewY = py + 170;
+    const previewScale = 2.2;
+    ctx.save();
+    ctx.translate(cx, previewY);
+    ctx.scale(previewScale, previewScale);
+    ctx.translate(-cx, -previewY);
+    const cols = ch.id === 'custom' ? null : ch.colors;
+    const type = ch.type || 'boy';
+    if (type === 'girl') Sprites.drawGirl(ctx, cx, previewY, 'idle', 1, Math.PI / 8, false, cols);
+    else                 Sprites.drawBoy (ctx, cx, previewY, 'idle', 1, Math.PI / 8, false, cols);
+    ctx.restore();
+
+    if (ch.id === 'custom') {
+      ctx.fillStyle = '#888';
+      ctx.font = '10px "Courier New"';
+      ctx.fillText('Press G / L to customise', cx, py + 185);
+    }
+
+    // Power badge
+    if (ch.power) {
+      const pCol = { rocket: C.COL.SP_ROCKET, curve: C.COL.SP_CURVE, shadow: C.COL.SP_SHADOW, double: C.COL.SP_DOUBLE }[ch.power];
+      ctx.fillStyle = pCol;
+      ctx.fillRect(cx - 60, py + 215, 120, 22);
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 11px "Courier New"';
+      ctx.fillText(`★  ${C.POWER_NAMES[ch.power]}`, cx, py + 231);
+    } else {
+      ctx.fillStyle = '#444';
+      ctx.fillRect(cx - 60, py + 215, 120, 22);
+      ctx.fillStyle = '#aaa';
+      ctx.font = '10px "Courier New"';
+      ctx.fillText('choose in builder ▼', cx, py + 231);
+    }
+
+    // Bio
+    ctx.fillStyle = '#888';
+    ctx.font = '9px "Courier New"';
+    ctx.fillText(ch.bio, cx, py + 255);
+
+    // Nav arrows
+    const pulse = ps.confirmed ? 1 : 0.5 + 0.5 * Math.sin(Date.now() / 250);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = accentCol;
+    ctx.font = '18px serif';
+    ctx.fillText('◀', px + 18, py + 180);
+    ctx.fillText('▶', px + pw - 18, py + 180);
+    ctx.globalAlpha = 1;
+
+    // Dots for character position
+    for (let i = 0; i < CHARACTERS.length; i++) {
+      ctx.fillStyle = i === ps.idx ? accentCol : '#333';
+      ctx.beginPath();
+      ctx.arc(px + 14 + i * (pw - 28) / (CHARACTERS.length - 1), py + ph - 18, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.textAlign = 'left';
+  }
+
+  _drawCustomSub(ctx, ps, px, py, pw, ph, accentCol) {
+    const cx = px + pw / 2;
+    if (!ps._customRow) ps._customRow = 0;
+
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 14px "Courier New"';
+    ctx.textAlign = 'center';
+    ctx.fillText('CUSTOM FIGHTER', cx, py + 38);
+
+    const rows = [
+      { label: 'BODY',   value: ps.customType === 0 ? 'BOY' : 'GIRL' },
+      { label: 'SHIRT',  value: null, color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
+      { label: 'HAIR',   value: null, color: CUSTOM_HAIR_PRESETS[ps.customHair] },
+      { label: 'POWER',  value: C.POWER_NAMES[C.POWERS[ps.customPower]] },
+      { label: 'NAME',   value: ps.customName },
+    ];
+
+    rows.forEach((row, i) => {
+      const ry = py + 68 + i * 42;
+      const sel = ps._customRow === i;
+      ctx.fillStyle = sel ? 'rgba(255,255,255,0.08)' : 'transparent';
+      ctx.fillRect(px + 8, ry - 2, pw - 16, 36);
+      ctx.strokeStyle = sel ? accentCol : '#333';
+      ctx.lineWidth = sel ? 1.5 : 0.5;
+      ctx.strokeRect(px + 8, ry - 2, pw - 16, 36);
+
+      ctx.fillStyle = sel ? '#fff' : '#777';
+      ctx.font = `${sel ? 'bold ' : ''}9px "Courier New"`;
+      ctx.textAlign = 'left';
+      ctx.fillText(row.label, px + 18, ry + 10);
+
+      if (row.color) {
+        ctx.fillStyle = row.color;
+        ctx.fillRect(cx - 20, ry + 2, 40, 18);
+        ctx.strokeStyle = sel ? '#fff' : '#555';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx - 20, ry + 2, 40, 18);
+      } else {
+        ctx.fillStyle = sel ? accentCol : '#aaa';
+        ctx.font = `bold 11px "Courier New"`;
+        ctx.textAlign = 'center';
+        ctx.fillText(row.value, cx, ry + 16);
+      }
+
+      if (sel) {
+        ctx.fillStyle = accentCol;
+        ctx.font = '11px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('◄  ►', cx + 70, ry + 16);
+      }
+    });
+
+    // Live preview
+    const shirt = CUSTOM_SHIRT_PRESETS[ps.customShirt];
+    const hair  = CUSTOM_HAIR_PRESETS[ps.customHair];
+    const cols  = { shirt, pants: this._darken(shirt), hair, hairDark: this._darken(hair) };
+    ctx.save();
+    ctx.translate(cx, py + ph - 50);
+    ctx.scale(1.4, 1.4);
+    ctx.translate(-cx, -(py + ph - 50));
+    if (ps.customType === 0) Sprites.drawBoy (ctx, cx, py + ph - 50, 'idle', 1, 0, false, cols);
+    else                     Sprites.drawGirl(ctx, cx, py + ph - 50, 'idle', 1, 0, false, cols);
+    ctx.restore();
+
+    ctx.fillStyle = '#555';
+    ctx.font = '8px "Courier New"';
+    ctx.textAlign = 'center';
+    ctx.fillText('ESC back  ·  confirm to lock in', cx, py + ph - 8);
+    ctx.textAlign = 'left';
+  }
+
   // ---- Horde ----
   _startHorde() {
     this._hordeGame = new HordeGame(this.canvas);
     this.state = C.STATE.HORDE;
+  }
+
+  // ---- Worms ----
+  _startWorms() {
+    const mapIdx = Math.floor(Math.random() * 2); // random of 2 maps for now
+    const p1d = { signaturePower:this.p1.signaturePower, charColors:this.p1.charColors, charType:this.p1.charType, charName:this.p1.charName };
+    const p2d = { signaturePower:this.p2.signaturePower, charColors:this.p2.charColors, charType:this.p2.charType, charName:this.p2.charName };
+    this._wormsGame = new WormsGame(this.canvas, mapIdx, p1d, p2d);
+    this.state = C.STATE.WORMS;
+  }
+
+  _startOnlineGame() {
+    // P2's player gets network input; P1 uses keyboard normally.
+    // NetworkManager.sendInput() is called every frame in _updatePlaying.
+    if (NetworkManager.playerIndex === 1) {
+      // We are P2 — our local keyboard drives P2; P1 is remote
+      this.p2._netInput = null;          // P2 = us, use keyboard
+      this.p1._netInput = NetworkManager.remoteInput;
+    } else {
+      // We are P1 (host) — P2 is remote
+      this.p1._netInput = null;
+      this.p2._netInput = NetworkManager.remoteInput;
+    }
+    this.state = C.STATE.ARENA_SELECT;
+    this.menuCursor = 0;
+    this._onlineMode = true;
+  }
+
+  // ---- Online ----
+  _startOnlineLobby() {
+    this._ol = {
+      phase:       'connect',   // connect | create_or_join | waiting | joining | in_lobby | error
+      serverUrl:   'ws://localhost:8080',
+      code:        '',
+      inputCode:   '',
+      errorMsg:    '',
+      isHost:      false,
+    };
+    NetworkManager.onConnected      = () => { this._ol.phase = 'create_or_join'; };
+    NetworkManager.onRoomCreated    = c  => { this._ol.code = c; this._ol.phase = 'waiting'; this._ol.isHost = true; };
+    NetworkManager.onRoomJoined     = c  => { this._ol.code = c; this._ol.phase = 'in_lobby'; };
+    NetworkManager.onOpponentJoined = () => { this._ol.phase = 'in_lobby'; };
+    NetworkManager.onOpponentLeft   = () => { this._ol.phase = 'create_or_join'; this._ol.errorMsg = 'Opponent disconnected.'; };
+    NetworkManager.onError          = m  => { this._ol.phase = 'error'; this._ol.errorMsg = m; };
+    NetworkManager.connect(this._ol.serverUrl);
+    this.state = C.STATE.ONLINE_LOBBY;
+  }
+
+  _updateOnlineLobby(dt) {
+    if (Input.wasPressed('Escape')) {
+      NetworkManager.disconnect();
+      this.state = C.STATE.MENU;
+      return;
+    }
+    const ol = this._ol;
+    if (ol.phase === 'connect' && !NetworkManager.connecting && !NetworkManager.connected) {
+      // Connection attempt failed — try localhost fallback
+      ol.phase = 'error';
+      ol.errorMsg = 'Cannot reach server. Start server.js first.';
+    }
+    if (ol.phase === 'create_or_join') {
+      if (Input.wasPressed('KeyC')) { NetworkManager.createRoom(); ol.phase = 'waiting'; }
+    }
+    if (ol.phase === 'joining') {
+      // Key input for room code
+      for (const code of Object.keys(Input.justPressed)) {
+        if (code === 'Backspace') { ol.inputCode = ol.inputCode.slice(0,-1); }
+        else if (ol.inputCode.length < 4) {
+          const ch = code.startsWith('Key') ? code[3] : code.startsWith('Digit') ? code[5] : null;
+          if (ch) ol.inputCode += ch.toUpperCase();
+        }
+        if (code === 'Enter' && ol.inputCode.length === 4) {
+          NetworkManager.joinRoom(ol.inputCode);
+          ol.phase = 'connecting_join';
+        }
+      }
+    }
+    if (ol.phase === 'create_or_join' && Input.wasPressed('KeyJ')) { ol.phase = 'joining'; ol.inputCode = ''; }
+    if (ol.phase === 'in_lobby') {
+      if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
+        // Both in lobby: go to character select, then online game
+        this._startCharSelect('online');
+      }
+    }
+  }
+
+  _drawOnlineLobby(ctx) {
+    const ol = this._ol;
+    ctx.fillStyle = '#0d0d1a'; ctx.fillRect(0,0,C.W,C.H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#00CCFF';
+    ctx.font = 'bold 22px "Courier New"';
+    ctx.fillText('🌐 ONLINE MATCH', C.W/2, 44);
+    ctx.fillStyle = '#444'; ctx.font = '10px "Courier New"';
+    ctx.fillText(`Server: ${ol.serverUrl}`, C.W/2, 60);
+
+    const cy = C.H/2;
+    switch(ol.phase) {
+      case 'connect':
+        ctx.fillStyle = '#888'; ctx.font = '14px "Courier New"';
+        ctx.fillText('🔌 Connecting to server…', C.W/2, cy);
+        break;
+      case 'create_or_join':
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 15px "Courier New"';
+        ctx.fillText('Connected! 🎉', C.W/2, cy-30);
+        ctx.fillStyle = '#00CCFF'; ctx.font = '12px "Courier New"';
+        ctx.fillText('Press  C  to CREATE a room', C.W/2, cy+10);
+        ctx.fillStyle = '#88EEFF';
+        ctx.fillText('Press  J  to JOIN a room', C.W/2, cy+35);
+        break;
+      case 'waiting':
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 26px "Courier New"';
+        ctx.fillText(ol.code, C.W/2, cy-10);
+        ctx.fillStyle = '#aaa'; ctx.font = '11px "Courier New"';
+        ctx.fillText('Share this code with your friend 📋', C.W/2, cy+18);
+        ctx.fillText('Waiting for them to join…', C.W/2, cy+36);
+        break;
+      case 'joining':
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px "Courier New"';
+        ctx.fillText('Enter room code:', C.W/2, cy-20);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 40px "Courier New"';
+        ctx.fillText(ol.inputCode.padEnd(4,'_'), C.W/2, cy+20);
+        ctx.fillStyle = '#666'; ctx.font = '10px "Courier New"';
+        ctx.fillText('type the 4-letter code  ·  ENTER to join', C.W/2, cy+48);
+        break;
+      case 'connecting_join':
+        ctx.fillStyle = '#888'; ctx.font = '14px "Courier New"';
+        ctx.fillText(`Joining room ${ol.inputCode}…`, C.W/2, cy);
+        break;
+      case 'in_lobby': {
+        const ready = NetworkManager.opponentReady || !ol.isHost;
+        ctx.fillStyle = '#44FF88'; ctx.font = 'bold 14px "Courier New"';
+        ctx.fillText('✅ Both players connected!', C.W/2, cy-20);
+        ctx.fillStyle = '#fff'; ctx.font = '12px "Courier New"';
+        ctx.fillText(`Room: ${ol.code}  ·  You are P${NetworkManager.playerIndex+1}`, C.W/2, cy+8);
+        const pulse = 0.5+0.5*Math.sin(Date.now()/350);
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 13px "Courier New"';
+        ctx.fillText('ENTER to select characters & start!', C.W/2, cy+36);
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'error':
+        ctx.fillStyle = '#FF4444'; ctx.font = 'bold 14px "Courier New"';
+        ctx.fillText(`⚠️ ${ol.errorMsg}`, C.W/2, cy-10);
+        ctx.fillStyle = '#888'; ctx.font = '11px "Courier New"';
+        ctx.fillText('ESC to go back', C.W/2, cy+20);
+        break;
+    }
+
+    ctx.fillStyle = '#333'; ctx.font = '10px "Courier New"';
+    ctx.fillText('ESC back', C.W/2, C.H-12);
+    ctx.textAlign = 'left';
+  }
+
+  // ---- How To Play ----
+  _updateHowToPlay() {
+    const N = 5;
+    if (Input.wasPressed('ArrowLeft')  || Input.wasPressed('KeyA')) this._htpPage = (this._htpPage - 1 + N) % N;
+    if (Input.wasPressed('ArrowRight') || Input.wasPressed('KeyD')) this._htpPage = (this._htpPage + 1) % N;
+    if (Input.wasPressed('Escape') || Input.wasPressed('Enter'))    this.state = C.STATE.MENU;
+  }
+
+  _drawHowToPlay(ctx) {
+    if (this._htpPage === undefined) this._htpPage = 0;
+    const page = this._htpPage;
+
+    ctx.fillStyle = '#0d0d1a'; ctx.fillRect(0,0,C.W,C.H);
+
+    const PAGES = [
+      {
+        title: '🏐 CLASSIC MATCH', col: C.COL.P1_HUD,
+        lines: [
+          '  First player to score 11 points wins.',
+          '',
+          '  ⚡ POWER BAR — charges by catching & hitting.',
+          '  When full, your next throw uses your signature',
+          '  superpower (Rocket, Curve, Double or Shadow).',
+          '',
+          '  🛡️ SHIELD — block one incoming ball.',
+          '  30-second recharge after use.',
+          '',
+          '  🎯 CATCH — press catch just before impact.',
+          '  Missed catch = brief stun.',
+          '',
+          '  Wall & ceiling bounces keep attribution.',
+          '  Only a ground bounce resets the thrower.',
+        ],
+      },
+      {
+        title: '💀 HORDE MODE', col: '#FF6600',
+        lines: [
+          '  Co-op wave survival — both players vs AI.',
+          '',
+          '  🌊 10 waves of enemies, each harder than last.',
+          '  Ninja 🥷  |  Brute 👹  |  Ghost 👻',
+          '',
+          '  💰 Score per kill: 10 × wave number.',
+          '  Catch a thrown ball for bonus AP.',
+          '',
+          '  ❤️  Restore 1 HP on wave clear.',
+          '',
+          '  🔥 Wave 10 boss: THE OVERLORD',
+          '  15 HP, spread shots, charge attacks.',
+          '  Defeat him to achieve total victory.',
+        ],
+      },
+      {
+        title: '🪱 WORMS MODE', col: '#88CC44',
+        lines: [
+          '  Turn-based strategy — inspired by Worms.',
+          '',
+          '  ⚡ 3 ACTION POINTS per turn:',
+          '     • Walk uses movement budget (bar below AP)',
+          '     • Jump costs 1 AP',
+          '     • Throwing ENDS your turn',
+          '',
+          '  ❤️ Each player starts with 3 HP.',
+          '  A direct hit deals 1 damage.',
+          '',
+          '  🗺️  Two maps:',
+          '  🏚️  Underground Bunker — industrial cover',
+          '  🌲  Forest Canopy — branch platforms',
+        ],
+      },
+      {
+        title: '🌐 ONLINE MATCH', col: '#00CCFF',
+        lines: [
+          '  Play against a friend over LAN or internet.',
+          '',
+          '  1. Run:  node server.js  (in game folder)',
+          '  2. Both open the game at http://localhost:8080',
+          '',
+          '  HOST: press C → share the 4-letter room code.',
+          '  GUEST: press J → type the code → ENTER.',
+          '',
+          '  Once both connected → select characters',
+          '  → pick arena → play Classic Match rules.',
+          '',
+          '  🔌 LAN: share your machine\'s local IP.',
+          '  🌍 Internet: use a tunnel (e.g. ngrok, Tailscale).',
+        ],
+      },
+      {
+        title: '⚙️ CONTROLS', col: '#AAAAAA',
+        lines: [
+          '  JACO (P1)         LUCY (P2)',
+          '  ──────────────────────────',
+          '  A/D  move         ← / →',
+          '  W    jump         ↑',
+          '  S    crouch       ↓',
+          '  Hold F  throw     Hold K',
+          '  W/S  aim while    ↑/↓',
+          '  G    catch        L',
+          '  H    shield       O',
+          '',
+          '  ★  Superpower fires automatically on throw',
+          '     when the power bar is full.',
+          '  ⚙️  Remap any key in CONTROLS menu.',
+        ],
+      },
+    ];
+
+    const pg = PAGES[page];
+
+    // Header
+    ctx.textAlign = 'center';
+    ctx.fillStyle = pg.col;
+    ctx.font = 'bold 20px "Courier New"';
+    ctx.fillText(pg.title, C.W/2, 42);
+
+    // Separator
+    ctx.fillStyle = pg.col;
+    ctx.fillRect(C.W/2 - 200, 52, 400, 2);
+
+    // Content
+    ctx.fillStyle = '#ccc'; ctx.font = '12px "Courier New"'; ctx.textAlign = 'left';
+    pg.lines.forEach((line, i) => {
+      if (line.startsWith('  ──')) ctx.fillStyle = '#444';
+      else if (line === '') ctx.fillStyle = '#ccc';
+      else ctx.fillStyle = '#ccc';
+      ctx.fillText(line, 80, 78 + i * 22);
+    });
+
+    // Page dots
+    const N = PAGES.length;
+    for (let i = 0; i < N; i++) {
+      ctx.fillStyle = i === page ? pg.col : '#333';
+      ctx.beginPath();
+      ctx.arc(C.W/2 - (N-1)*14 + i*28, C.H-28, 5, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#444'; ctx.font = '10px "Courier New"';
+    ctx.fillText('← → to browse pages  ·  ESC / ENTER back', C.W/2, C.H-10);
+    ctx.textAlign = 'left';
+  }
+
+  // ---- Arena Builder ----
+  _startBuilder() {
+    this._builder = new ArenaBuilder(this.canvas);
+    this.state = C.STATE.ARENA_BUILDER;
   }
 
   // ---- Game ----
@@ -496,6 +1113,8 @@ class Game {
 
   _updatePlaying(dt) {
     if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); return; }
+    // Online: send our input and tick the remote input edge-detector
+    if (this._onlineMode) { NetworkManager.sendInput(); NetworkManager.tick(); }
     Particles.update(dt);
     if (this._p1ScoreFlash > 0) this._p1ScoreFlash -= dt;
     if (this._p2ScoreFlash > 0) this._p2ScoreFlash -= dt;
@@ -627,7 +1246,8 @@ class Game {
       ctx.textAlign = 'center';
       ctx.fillStyle = wCol;
       ctx.font = 'bold 28px "Courier New"';
-      const wName = this.roundWinner === 0 ? C.P1_NAME : C.P2_NAME;
+      const wp    = this.roundWinner === 0 ? this.p1 : this.p2;
+      const wName = wp.charName || (this.roundWinner === 0 ? C.P1_NAME : C.P2_NAME);
       ctx.fillText(`${wName} SCORES!`, C.W / 2, C.H / 2 + 7);
       ctx.textAlign = 'left';
     }
@@ -663,7 +1283,7 @@ class Game {
     ctx.fillRect(0, 0, C.W, C.H);
 
     const winner = this.p1.score >= C.WIN_SCORE ? this.p1 : this.p2;
-    const wName  = winner.index === 0 ? C.P1_NAME : C.P2_NAME;
+    const wName  = winner.charName || (winner.index === 0 ? C.P1_NAME : C.P2_NAME);
     const wCol   = winner.index === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
 
     ctx.textAlign = 'center';
