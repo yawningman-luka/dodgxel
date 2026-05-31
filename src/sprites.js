@@ -202,33 +202,26 @@ const Sprites = {
     ctx.restore();
   },
 
-  drawBall(ctx, x, y, spinning, ghostMode) {
+  drawBall(ctx, x, y, spinning, ghostMode, radius = C.BALL_R) {
+    const R = radius;
     const t = Date.now() / 80;
-    const spinOffset = spinning ? Math.sin(t) * C.BALL_R : 0;
+    const spinOffset = spinning ? Math.sin(t) * R : 0;
 
     if (ghostMode) ctx.globalAlpha = 0.5;
 
-    // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.beginPath();
-    ctx.ellipse(x, y + C.BALL_R + 2, C.BALL_R * 0.8, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + R + 2, R * 0.8, Math.max(2, R * 0.38), 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ball
     ctx.fillStyle = C.COL.BALL;
-    ctx.beginPath();
-    ctx.arc(x, y, C.BALL_R, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
 
-    // Stripe
     ctx.fillStyle = C.COL.BALL_STRIPE;
-    ctx.fillRect(x - C.BALL_R + 2, y + spinOffset - 2, (C.BALL_R - 2) * 2, 3);
+    ctx.fillRect(x - R + 2, y + spinOffset - Math.max(1, R * 0.18), (R - 2) * 2, Math.max(2, R * 0.28));
 
-    // Shine
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.beginPath();
-    ctx.arc(x - 3, y - 3, C.BALL_R * 0.4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x - R * 0.3, y - R * 0.3, R * 0.4, 0, Math.PI * 2); ctx.fill();
 
     ctx.globalAlpha = 1;
   },
@@ -405,7 +398,8 @@ const Sprites = {
     const py = 28;
     const spPct = player.spCharge / C.SP_CHARGE_MAX;
     const ready = spPct >= 1;
-    const pColors = { rocket: C.COL.SP_ROCKET, double: C.COL.SP_DOUBLE, shadow: C.COL.SP_SHADOW, curve: C.COL.SP_CURVE };
+    const pColors = { rocket:C.COL.SP_ROCKET, double:C.COL.SP_DOUBLE, shadow:C.COL.SP_SHADOW, curve:C.COL.SP_CURVE,
+                       boomerang:C.COL.SP_BOOMERANG, blaze:C.COL.SP_BLAZE, heavy:C.COL.SP_HEAVY, seeker:C.COL.SP_SEEKER, split:C.COL.SP_SPLIT };
     const pCol = pColors[player.currentPower] || '#FFD700';
     const pfx = dir > 0 ? x + IW : x, pfw = BW - IW;
 
@@ -494,8 +488,51 @@ const Sprites = {
       ctx.beginPath();
       ctx.arc(x + w - 2, y + Math.round(h / 2) + Math.sin(12 * Math.PI * 0.55) * Math.round(h * 0.33), 2, 0, Math.PI * 2);
       ctx.fill();
+    } else if (type === 'boomerang') {
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + 1, y + Math.round(h*0.7));
+      ctx.quadraticCurveTo(x + Math.round(w*0.5), y, x + w - 1, y + Math.round(h*0.7));
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + 1, y + Math.round(h*0.7), 2, 0, Math.PI*2); ctx.fill();
+    } else if (type === 'blaze') {
+      // Flame shape
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(mx, y);
+      ctx.bezierCurveTo(x+w, y+Math.round(h*0.4), x+w, y+h, mx, y+h);
+      ctx.bezierCurveTo(x, y+h, x, y+Math.round(h*0.4), mx, y);
+      ctx.fill();
+      ctx.fillStyle = '#FFCC00';
+      ctx.beginPath();
+      ctx.moveTo(mx, y+Math.round(h*0.25));
+      ctx.bezierCurveTo(x+Math.round(w*0.75),y+Math.round(h*0.55),x+Math.round(w*0.75),y+h,mx,y+h);
+      ctx.bezierCurveTo(x+Math.round(w*0.25),y+h,x+Math.round(w*0.25),y+Math.round(h*0.55),mx,y+Math.round(h*0.25));
+      ctx.fill();
+    } else if (type === 'heavy') {
+      // Big solid circle
+      ctx.beginPath(); ctx.arc(mx, y+Math.round(h/2), Math.round(w*0.44), 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.arc(mx-2, y+Math.round(h/2)-2, Math.round(w*0.2), 0, Math.PI*2); ctx.fill();
+    } else if (type === 'seeker') {
+      // Target / crosshair
+      ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      const r = Math.round(w*0.38), cy2 = y+Math.round(h/2);
+      ctx.beginPath(); ctx.arc(mx, cy2, r, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx-r-2, cy2); ctx.lineTo(mx+r+2, cy2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx, cy2-r-2); ctx.lineTo(mx, cy2+r+2); ctx.stroke();
+    } else if (type === 'split') {
+      // Three small dots fanning out
+      const positions = [[mx, y+Math.round(h*0.2)], [x+Math.round(w*0.15), y+h-4], [x+w-Math.round(w*0.15), y+h-4]];
+      for (const [px2,py2] of positions) {
+        ctx.beginPath(); ctx.arc(px2, py2, Math.round(w*0.18), 0, Math.PI*2); ctx.fill();
+      }
+      ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+      for (const [px2,py2] of positions) {
+        ctx.beginPath(); ctx.moveTo(mx, y+Math.round(h*0.55)); ctx.lineTo(px2,py2); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     } else {
-      // Fallback: filled rect
       ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
     }
   },

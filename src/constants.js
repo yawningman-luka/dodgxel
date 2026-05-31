@@ -56,10 +56,15 @@ const C = {
     CATCH_RING: 'rgba(80,255,120,0.35)',
     P1_HUD: '#4169E1',
     P2_HUD: '#E14169',
-    SP_ROCKET: '#FF6B35',
-    SP_DOUBLE: '#FFD700',
-    SP_SHADOW: '#9B59B6',
-    SP_CURVE:  '#00E5FF',
+    SP_ROCKET:    '#FF6B35',
+    SP_DOUBLE:    '#FFD700',
+    SP_SHADOW:    '#9B59B6',
+    SP_CURVE:     '#00E5FF',
+    SP_BOOMERANG: '#E8A020',
+    SP_BLAZE:     '#FF4400',
+    SP_HEAVY:     '#A08060',
+    SP_SEEKER:    '#FF00CC',
+    SP_SPLIT:     '#44FF88',
   },
 
   // Game states
@@ -96,8 +101,9 @@ const C = {
   },
 
   // Superpowers — all shoot-based, randomly assigned when bar fills
-  POWERS: ['rocket', 'double', 'shadow', 'curve'],
-  POWER_NAMES: { rocket: 'ROCKET', double: 'DOUBLE', shadow: 'SHADOW', curve: 'CURVE' },
+  POWERS: ['rocket', 'double', 'shadow', 'curve', 'boomerang', 'blaze', 'heavy', 'seeker', 'split'],
+  POWER_NAMES: { rocket:'ROCKET', double:'DOUBLE', shadow:'SHADOW', curve:'CURVE',
+                 boomerang:'BOOMERANG', blaze:'BLAZE', heavy:'HEAVY', seeker:'SEEKER', split:'SPLIT' },
 
   // Controls screen action list and labels
   CTRL_ACTIONS: ['left','right','jump','crouch','throw','catch','shield'],

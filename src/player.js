@@ -193,18 +193,29 @@ class Player {
     const armX = this.x + this.dir * 26;
     const armY = this.invertGravity ? this.y + 34 : this.y - 34;
 
-    const usePower = this._powerAssigned && this.spCharge >= C.SP_CHARGE_MAX;
-    const useRocket = usePower && this.currentPower === 'rocket';
-    const useShadow = usePower && this.currentPower === 'shadow';
-    const useDouble = usePower && this.currentPower === 'double';
-    const useCurve  = usePower && this.currentPower === 'curve';
+    const usePower    = this._powerAssigned && this.spCharge >= C.SP_CHARGE_MAX;
+    const useRocket   = usePower && this.currentPower === 'rocket';
+    const useShadow   = usePower && this.currentPower === 'shadow';
+    const useDouble   = usePower && this.currentPower === 'double';
+    const useCurve    = usePower && this.currentPower === 'curve';
+    const useBoomerang= usePower && this.currentPower === 'boomerang';
+    const useBlaze    = usePower && this.currentPower === 'blaze';
+    const useHeavy    = usePower && this.currentPower === 'heavy';
+    const useSeeker   = usePower && this.currentPower === 'seeker';
+    const useSplit    = usePower && this.currentPower === 'split';
 
-    ball.throw(armX, armY, vx * (useRocket ? 2.2 : 1), vy, useRocket, useShadow);
+    const heavySpeedMult = useHeavy ? 0.52 : 1;
+    ball.throw(armX, armY, vx * (useRocket ? 2.2 : heavySpeedMult), vy * (useRocket ? 1 : heavySpeedMult), useRocket, useShadow);
     ball.lastThrower = this.index;
-    if (useCurve) { ball.curve = true; ball._curveT = 0; }
+
+    if (useCurve)     { ball.curve = true; ball._curveT = 0; }
+    if (useBoomerang) { ball.boomerang = true; ball._boomDist = 0; ball._boomFlipped = false; }
+    if (useBlaze)     { ball.blaze = true; ball._blazeTimer = 0; }
+    if (useHeavy)     { ball.heavy = true; ball.radius = C.BALL_R * 3; }
+    if (useSeeker)    { ball.seeker = true; }
+    if (useSplit)     { ball.split = true; ball._splitT = 0; ball._splitDone = false; }
 
     if (useDouble && this.extraThrowCallback) {
-      // Second ball at a slightly offset angle
       const vx2 = this.dir * Math.cos(this.aimAngle - 0.22) * speed;
       const vy2 = (this.invertGravity ? 1 : -1) * Math.sin(this.aimAngle - 0.22) * speed;
       const armYOff = this.invertGravity ? -10 : 10;

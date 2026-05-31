@@ -28,6 +28,8 @@ class Game {
     this.menuCursor = 0;
     this._p1ScoreFlash = 0;
     this._p2ScoreFlash = 0;
+    this._splitBalls = [];
+    this._blazeHazards = [];
 
     // Controls screen state
     this._ctrlCursor = { col: 0, row: 0 };
@@ -1131,6 +1133,8 @@ class Game {
     this._p1ScoreFlash = 0;
     this._p2ScoreFlash = 0;
     this.ball2 = null;
+    this._splitBalls = [];
+    this._blazeHazards = [];
     if (ballHolder === 0) this.p1.hasBall = true;
     else                  this.p2.hasBall = true;
     this.roundOver  = false;
@@ -1143,6 +1147,21 @@ class Game {
     this.ball2 = new Ball();
     this.ball2.throw(x, y, vx, vy, false, false);
     this.ball2.lastThrower = throwerIndex;
+  }
+
+  _spawnSplitBalls(x, y, vx, vy, throwerIndex) {
+    // 3 small balls fanning out from the split point
+    const angles = [-0.32, 0, 0.32];
+    const spd = Math.sqrt(vx*vx + vy*vy) * 1.1;
+    const baseAngle = Math.atan2(vy, vx);
+    for (const offset of angles) {
+      const b = new Ball();
+      b.throw(x, y, Math.cos(baseAngle+offset)*spd, Math.sin(baseAngle+offset)*spd, false, false);
+      b.lastThrower = throwerIndex;
+      b.mini = true;
+      b.radius = C.BALL_R * 0.45;
+      this._splitBalls.push(b);
+    }
   }
 
   _updatePlaying(dt) {
@@ -1158,6 +1177,19 @@ class Game {
     this.p1.update(dt, this.ball, obs, this.p2, speedMult);
     this.p2.update(dt, this.ball, obs, this.p1, speedMult);
     const bGravMult = this.arena.ballGravityMult ?? 1;
+
+    // Wire seeker target + blaze/split callbacks before update
+    if (this.ball.seeker && !this.ball._seekerTargetFn) {
+      const opp = this.ball.lastThrower === 0 ? this.p2 : this.p1;
+      this.ball._seekerTargetFn = () => opp.x;
+    }
+    if (this.ball.blaze && !this.ball.blazeDeathCb) {
+      this.ball.blazeDeathCb = (x, y) => this._blazeHazards.push({ x, y, timer: 2200 });
+    }
+    if (this.ball.split && !this.ball.splitCb) {
+      this.ball.splitCb = (x, y, vx, vy, thr) => this._spawnSplitBalls(x, y, vx, vy, thr);
+    }
+
     this.ball.update(dt, obs, bGravMult);
     if (this.arena.checkTeleport) this.arena.checkTeleport(this.ball);
 
@@ -1191,6 +1223,39 @@ class Game {
         }
       }
       if (this.ball2 && this.ball2.dead) this.ball2 = null;
+    }
+
+    // Split mini-balls
+    for (let i = this._splitBalls.length - 1; i >= 0; i--) {
+      const sb = this._splitBalls[i];
+      if (sb.seeker && !sb._seekerTargetFn) {
+        const opp = sb.lastThrower === 0 ? this.p2 : this.p1;
+        sb._seekerTargetFn = () => opp.x;
+      }
+      sb.update(dt, obs, bGravMult);
+      if (!this.roundOver) {
+        for (const [player, other] of [[this.p1, this.p2],[this.p2, this.p1]]) {
+          if (!sb.checkHit(player)) continue;
+          if (player.shieldActive) { sb.vx = -sb.vx*1.15; sb.vy *= -0.5; player.shieldActive=false; player.shieldAvailable=false; player.shieldCooldown=C.SHIELD_RECHARGE; }
+          else player._getHit(sb, other);
+          break;
+        }
+      }
+      if (sb.dead) this._splitBalls.splice(i, 1);
+    }
+
+    // Blaze hazards — tick and check player contact
+    for (let i = this._blazeHazards.length - 1; i >= 0; i--) {
+      const h = this._blazeHazards[i];
+      h.timer -= dt;
+      if (h.timer <= 0) { this._blazeHazards.splice(i, 1); continue; }
+      Particles.emit(h.x, h.y, 1, ['#FF4400','#FF8800'], { upBias:1.5, minSpeed:0.4, maxSpeed:1.5, gravity:0.04 });
+      if (!this.roundOver) {
+        for (const [player, other] of [[this.p1,this.p2],[this.p2,this.p1]]) {
+          const dx = player.x - h.x, dy = player.y - h.y;
+          if (Math.sqrt(dx*dx+dy*dy) < 22) { this._onHit(player, other); break; }
+        }
+      }
     }
 
     // Track who threw — capture lastThrower at the moment of launch,
@@ -1266,6 +1331,18 @@ class Game {
     this.p2.draw(ctx, this.ball);
     this.ball.draw(ctx);
     if (this.ball2) this.ball2.draw(ctx);
+    for (const sb of this._splitBalls) sb.draw(ctx);
+    // Blaze hazards — fire pool on the ground
+    for (const h of this._blazeHazards) {
+      const alpha = Math.min(1, h.timer / 400) * 0.75;
+      const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 120);
+      ctx.globalAlpha = alpha * pulse;
+      ctx.fillStyle = '#FF4400';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, 22, 8, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#FF8800';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, 12, 5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
     if (this.state === C.STATE.ROUND_END && this.roundWinner >= 0) {
       const t = Math.max(0, this.roundDelay / C.ROUND_DELAY);
