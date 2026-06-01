@@ -34,6 +34,7 @@ class Ball {
     this._splitDone    = false;
     this.splitCb       = null;   // set by game: (x,y,vx,vy,thr) => spawn minis
     this.mini          = false;  // true for split fragments
+    this.worldW        = C.W;    // override for wide arenas (e.g. Salvo)
   }
 
   throw(fromX, fromY, vx, vy, isRocket, isShadow) {
@@ -46,7 +47,7 @@ class Ball {
     this.blaze = false; this._blazeTimer = 0; this.blazeDeathCb = null;
     this.heavy = false; this.seeker = false; this._seekerTargetFn = null;
     this.split = false; this._splitT = 0; this._splitDone = false; this.splitCb = null;
-    this.mini = false; this.radius = C.BALL_R;
+    this.mini = false; this.radius = C.BALL_R; this.worldW = C.W;
   }
 
   update(dt, obstacles, gravityMult = 1) {
@@ -99,9 +100,9 @@ class Ball {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Wall bounce
-    if (this.x - R < 0)      { this.x = R;       this.vx =  Math.abs(this.vx) * 0.8; }
-    if (this.x + R > C.W)    { this.x = C.W - R; this.vx = -Math.abs(this.vx) * 0.8; }
+    // Wall bounce (respects worldW for wide arenas)
+    if (this.x - R < 0)            { this.x = R;              this.vx =  Math.abs(this.vx) * 0.8; }
+    if (this.x + R > this.worldW)  { this.x = this.worldW - R; this.vx = -Math.abs(this.vx) * 0.8; }
 
     if (gravityMult >= 0) {
       if (this.y - R < 42) { this.y = R + 42; this.vy = Math.abs(this.vy) * 0.65; }

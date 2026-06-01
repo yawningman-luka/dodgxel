@@ -1,11 +1,12 @@
 // ── Salvo — turn-based dodgeball mode ────────────────────────────────────────
-// Action points per turn: AP_MAX (3). Movement depletes a pixel budget.
-// Jump costs 1 AP. Throwing ends the turn immediately.
+// 3 actions per turn. Movement = preview → commit. Jump = 1 AP instant.
+// Throw = free, always ends the turn.
+// World is 3× canvas width with horizontal camera scroll.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AP_MAX   = 3;
-const MOVE_BUDGET = 220;   // pixels of walking per turn
-const JUMP_AP     = 1;     // AP cost of a jump
+const WORMS_WORLD_W = C.W * 3;   // 2400px
+const AP_MAX        = 3;
+const STEP_DIST     = 100;        // pixels per committed step
 
 // ── Platform draw helpers ─────────────────────────────────────────────────────
 
@@ -17,9 +18,7 @@ function _drawBunkerPlatform(ctx, obs) {
   ctx.fillStyle = '#1E1E2A';
   ctx.fillRect(obs.x, obs.y + obs.h - 4, obs.w, 4);
   ctx.fillStyle = '#55557A';
-  for (let i = 8; i < obs.w - 4; i += 22) {
-    ctx.fillRect(obs.x + i, obs.y + 7, 5, 5);
-  }
+  for (let i = 8; i < obs.w - 4; i += 22) ctx.fillRect(obs.x + i, obs.y + 7, 5, 5);
 }
 
 function _drawForestBranch(ctx, obs) {
@@ -41,50 +40,57 @@ function _drawForestBranch(ctx, obs) {
   }
 }
 
-// ── Map definitions ───────────────────────────────────────────────────────────
+// ── Map definitions (2400px wide) ─────────────────────────────────────────────
 
 function _makeBunkerMap() {
-  const mkP = (x, y, w) => new Obstacle(x, y, w, 18, _drawBunkerPlatform);
+  const mk = (x, y, w) => new Obstacle(x, y, w, 18, _drawBunkerPlatform);
+  const W = WORMS_WORLD_W;
   return {
     name: '🏚️ UNDERGROUND BUNKER',
     skyTop: '#0A0A18', skyBot: '#1A1A30',
     groundColor: '#1A1A2E', groundLine: '#2A2A4A',
-    p1Start: [80,  150],
-    p2Start: [680, 150],
+    p1Start: [90,  148],
+    p2Start: [W - 90, 148],
     obstacles: [
-      mkP(0,   148, 180),   // P1 start ledge
-      mkP(620, 148, 180),   // P2 start ledge
-      mkP(280, 148, 240),   // centre top
-      mkP(80,  228,  130),  // mid-left
-      mkP(590, 228,  130),  // mid-right
-      mkP(330, 228,  140),  // mid-centre
-      mkP(160, 308,  160),  // lower-left
-      mkP(480, 308,  160),  // lower-right
-      mkP(340, 295,  120),  // lower-centre (slightly higher)
+      // Left flank
+      mk(0,    148, 200),   mk(250, 220, 150),  mk(120, 300, 170),
+      mk(420,  148, 140),   mk(390, 240, 160),
+      // Centre-left
+      mk(620,  175, 160),   mk(750, 268, 140),  mk(880, 140, 120),
+      // Centre
+      mk(1050, 200, 300),   mk(1100,300, 170),
+      // Centre-right (mirror)
+      mk(W-1040, 140, 120), mk(W-890, 268, 140), mk(W-780, 175, 160),
+      // Right flank (mirror of left)
+      mk(W-560, 240, 160),  mk(W-560, 148, 140),
+      mk(W-290, 300, 170),  mk(W-400, 220, 150),
+      mk(W-200, 148, 200),
     ],
   };
 }
 
 function _makeForestMap() {
-  const mkB = (x, y, w) => new Obstacle(x, y, w, 18, _drawForestBranch);
+  const mk = (x, y, w) => new Obstacle(x, y, w, 18, _drawForestBranch);
+  const W = WORMS_WORLD_W;
   return {
     name: '🌲 FOREST CANOPY',
     skyTop: '#0D2A0D', skyBot: '#1A5A1A',
     groundColor: '#3A5A1A', groundLine: '#4A6A2A',
-    p1Start: [60,  118],
-    p2Start: [686, 118],
+    p1Start: [70,  118],
+    p2Start: [W - 70, 118],
     obstacles: [
-      mkB(0,   116, 160),   // P1 start (left tree)
-      mkB(640, 116, 160),   // P2 start (right tree)
-      mkB(310, 126, 180),   // centre top
-      mkB(110, 208, 130),   // left mid
-      mkB(560, 208, 130),   // right mid
-      mkB(290, 196, 220),   // centre mid
-      mkB(0,   284,  90),   // far left
-      mkB(170, 278, 140),   // left-lower
-      mkB(490, 278, 140),   // right-lower
-      mkB(710, 284,  90),   // far right
-      mkB(330, 308, 140),   // centre low
+      // Left
+      mk(0,   116, 180),  mk(220, 190, 130),  mk(70,  265, 140),
+      mk(420, 130, 120),  mk(360, 218, 150),  mk(560, 168, 130),
+      // Centre-left
+      mk(720, 142, 160),  mk(670, 245, 140),  mk(870, 192, 120),
+      // Centre
+      mk(1050, 160, 300), mk(1100, 275, 180),
+      // Centre-right
+      mk(W-990, 192, 120), mk(W-810, 245, 140), mk(W-880, 142, 160),
+      // Right (mirror)
+      mk(W-690, 168, 130), mk(W-510, 218, 150), mk(W-540, 130, 120),
+      mk(W-210, 265, 140), mk(W-350, 190, 130), mk(W-180, 116, 180),
     ],
   };
 }
@@ -95,14 +101,13 @@ const WORMS_MAPS = [ _makeBunkerMap(), _makeForestMap() ];
 
 class WormsGame {
   constructor(canvas, mapIndex, p1Data, p2Data) {
-    this.canvas  = canvas;
-    this.ctx     = canvas.getContext('2d');
+    this.canvas = canvas;
+    this.ctx    = canvas.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
 
     const map = WORMS_MAPS[mapIndex % WORMS_MAPS.length];
     this._map = map;
 
-    // Build a lightweight Arena-like object for physics
     this._arena = new Arena({
       name: map.name,
       skyTop: map.skyTop, skyBot: map.skyBot,
@@ -115,38 +120,37 @@ class WormsGame {
     this.p2 = new Player(1, map.p2Start[0], Controls.p2);
     this.p1.y = map.p1Start[1];
     this.p2.y = map.p2Start[1];
-    this.p1.noMidline = true;
-    this.p2.noMidline = true;
-    this.p1.hordeMode = false;
-    this.p2.hordeMode = false;
+    this.p1.noMidline = true; this.p2.noMidline = true;
+    this.p1.hordeMode = false; this.p2.hordeMode = false;
 
-    // Apply character data if provided
-    if (p1Data) { this.p1.signaturePower = p1Data.signaturePower; this.p1.charColors = p1Data.charColors; this.p1.charType = p1Data.charType; this.p1.charName = p1Data.charName; }
-    if (p2Data) { this.p2.signaturePower = p2Data.signaturePower; this.p2.charColors = p2Data.charColors; this.p2.charType = p2Data.charType; this.p2.charName = p2Data.charName; }
+    if (p1Data) { this.p1.signaturePower=p1Data.signaturePower; this.p1.charColors=p1Data.charColors; this.p1.charType=p1Data.charType; this.p1.charName=p1Data.charName; }
+    if (p2Data) { this.p2.signaturePower=p2Data.signaturePower; this.p2.charColors=p2Data.charColors; this.p2.charType=p2Data.charType; this.p2.charName=p2Data.charName; }
 
-    this.p1.hitCallback = (victim) => this._onHit(victim);
-    this.p2.hitCallback = (victim) => this._onHit(victim);
+    this.p1.hitCallback = (v) => this._onHit(v);
+    this.p2.hitCallback = (v) => this._onHit(v);
 
-    // HP
     this.p1.hp = 3; this.p2.hp = 3;
 
-    // Ball
     this.ball  = new Ball();
     this.ball2 = null;
 
-    // Turn state machine
-    this.turn      = 0;           // 0 = P1's turn, 1 = P2's turn
-    this._phase    = 'intro';     // intro | active | flight | turn_end | end
-    this._introTimer  = 2200;
-    this._endTimer    = 0;
-    this._apLeft      = AP_MAX;
-    this._moveBudget  = MOVE_BUDGET;
-    this._prevActiveX = 0;
+    // Camera
+    this.camX  = 0;
+    this._camTarget = 0;
+
+    // Turn state
+    this.turn      = 0;
+    this._phase    = 'intro';
+    this._introTimer = 2200;
+    this._endTimer   = 0;
+    this._apLeft     = AP_MAX;
+    this._preview    = null; // { dir, destX } or null
 
     this._winner = -1;
     this.returnToMenu = false;
 
     this._giveActiveBall();
+    this._snapCamera();
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -154,38 +158,37 @@ class WormsGame {
   get _active()   { return this.turn === 0 ? this.p1 : this.p2; }
   get _inactive() { return this.turn === 0 ? this.p2 : this.p1; }
 
+  _snapCamera() {
+    this.camX = this._clampCam(this._active.x - C.W / 2);
+    this._camTarget = this.camX;
+  }
+
+  _clampCam(x) { return Math.max(0, Math.min(WORMS_WORLD_W - C.W, x)); }
+
   _giveActiveBall() {
     this.ball.reset(this.turn);
+    this.ball.worldW = WORMS_WORLD_W;
     const p = this._active;
-    p.hasBall = true;
-    this._inactive.hasBall = false;
-    this.ball2 = null;
-    Particles.clear();
+    p.hasBall = true; this._inactive.hasBall = false;
+    this.ball2 = null; Particles.clear();
   }
 
   _onHit(victim) {
     victim.hp = Math.max(0, victim.hp - 1);
     Particles.emit(victim.x, victim.y - 22, 20,
       ['#FF4444','#FF8888','#FFD700','#fff'], { upBias:2, maxSpeed:4 });
-    if (victim.hp <= 0) {
-      this._phase = 'end';
-      this._winner = victim.index === 0 ? 1 : 0;
-      this._endTimer = 4000;
-    } else {
-      this._phase = 'turn_end';
-      this._endTimer = 1400;
-    }
+    this._phase = victim.hp <= 0 ? 'end' : 'turn_end';
+    this._endTimer = victim.hp <= 0 ? 4000 : 1400;
+    if (victim.hp <= 0) this._winner = victim.index === 0 ? 1 : 0;
   }
 
   _nextTurn() {
     this.turn = 1 - this.turn;
-    this._phase      = 'intro';
-    this._introTimer = 2000;
-    this._apLeft     = AP_MAX;
-    this._moveBudget = MOVE_BUDGET;
-    // Partial reset active player movement
+    this._phase = 'intro'; this._introTimer = 2000;
+    this._apLeft = AP_MAX; this._preview = null;
     this._active.vx = 0;
     this._giveActiveBall();
+    this._snapCamera();
   }
 
   // ── Update ────────────────────────────────────────────────────────────────
@@ -197,15 +200,18 @@ class WormsGame {
 
     Particles.update(dt);
     this._arena.update(dt);
+
+    // Smooth camera toward active player
+    this._camTarget = this._clampCam(this._active.x - C.W / 2);
+    this.camX += (this._camTarget - this.camX) * Math.min(1, dt * 0.008);
+
     const obs = this._arena.getObstacles();
 
     switch (this._phase) {
       case 'intro':
         this._introTimer -= dt;
-        // Both players do passive physics during intro
-        this._physicsOnly(this.p1, obs);
-        this._physicsOnly(this.p2, obs);
-        if (this._introTimer <= 0) { this._phase = 'active'; this._prevActiveX = this._active.x; }
+        this._physicsOnly(this.p1, obs); this._physicsOnly(this.p2, obs);
+        if (this._introTimer <= 0) this._phase = 'active';
         break;
 
       case 'active':
@@ -215,33 +221,11 @@ class WormsGame {
         break;
 
       case 'flight':
-        this._physicsOnly(this.p1, obs);
-        this._physicsOnly(this.p2, obs);
+        this._physicsOnly(this.p1, obs); this._physicsOnly(this.p2, obs);
         this.ball.update(dt, obs);
-        if (this.ball2) { this.ball2.update(dt, obs); }
-
-        // Hit detection
-        if (!this.ball.dead) {
-          for (const [p, other] of [[this.p1,this.p2],[this.p2,this.p1]]) {
-            if (this.ball.checkHit(p)) {
-              if (p.shieldActive) {
-                this.ball.vx *= -1.15; this.ball.vy *= -0.5;
-                p.shieldActive = false; p.shieldAvailable = false; p.shieldCooldown = C.SHIELD_RECHARGE;
-              } else { p._getHit(this.ball, other); }
-              break;
-            }
-          }
-        }
-        if (this.ball2 && !this.ball2.dead) {
-          for (const [p, other] of [[this.p1,this.p2],[this.p2,this.p1]]) {
-            if (this.ball2.checkHit(p)) {
-              if (!p.shieldActive) p._getHit(this.ball2, other);
-              break;
-            }
-          }
-        }
+        if (this.ball2) this.ball2.update(dt, obs);
+        if (!this.ball.dead) this._checkBallHits();
         if (this.ball2 && this.ball2.dead) this.ball2 = null;
-
         if (this.ball.dead && this._phase === 'flight') {
           this._phase = 'turn_end'; this._endTimer = 1200;
         }
@@ -249,100 +233,120 @@ class WormsGame {
 
       case 'turn_end':
         this._endTimer -= dt;
-        this._physicsOnly(this.p1, obs);
-        this._physicsOnly(this.p2, obs);
+        this._physicsOnly(this.p1, obs); this._physicsOnly(this.p2, obs);
         if (this._endTimer <= 0) this._nextTurn();
         break;
 
       case 'end':
         this._endTimer -= dt;
-        this._physicsOnly(this.p1, obs);
-        this._physicsOnly(this.p2, obs);
-        if (this._endTimer <= 0 || Input.wasPressed('Enter') || Input.wasPressed('Space')) {
+        this._physicsOnly(this.p1, obs); this._physicsOnly(this.p2, obs);
+        if (this._endTimer <= 0 || Input.wasPressed('Enter') || Input.wasPressed('Space'))
           this.returnToMenu = true;
-        }
         break;
     }
 
     Input.flush();
   }
 
-  // Player gets physics tick but no input
-  _physicsOnly(player, obs) {
-    // Apply gravity + obstacle collision manually (call player's private method)
-    if (!player.onGround) player.vy += C.GRAVITY * (player.gravityMult || 1);
-    player.x += player.vx;
-    player.y += player.vy;
-    player.vx *= C.FRICTION;
-    if (Math.abs(player.vx) < 0.1) player.vx = 0;
-    if (player.y >= C.GROUND) { player.y = C.GROUND; player.vy = 0; player.onGround = true; }
-    else player.onGround = false;
-    if (player.y < 92) { player.y = 92; player.vy = Math.max(0, player.vy); }
-    if (player.x < C.P_W/2)       { player.x = C.P_W/2;       player.vx = 0; }
-    if (player.x > C.W - C.P_W/2) { player.x = C.W - C.P_W/2; player.vx = 0; }
-    const ph = player.crouching ? C.CROUCH_H : C.P_H;
-    for (const obs_ of obs) {
-      if (!obs_.ballOnly) player._collideObstacle(obs_.rect, ph);
-    }
+  // ── Physics helper (no input) ─────────────────────────────────────────────
+
+  _physicsOnly(p, obs) {
+    if (!p.onGround) p.vy += C.GRAVITY * (p.gravityMult || 1);
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= C.FRICTION;
+    if (Math.abs(p.vx) < 0.1) p.vx = 0;
+    if (p.y >= C.GROUND)  { p.y = C.GROUND; p.vy = 0; p.onGround = true; }
+    else p.onGround = false;
+    if (p.y < 92)          { p.y = 92; p.vy = Math.max(0, p.vy); }
+    // World bounds (3× wide)
+    if (p.x < C.P_W / 2)                 { p.x = C.P_W / 2;                 p.vx = 0; }
+    if (p.x > WORMS_WORLD_W - C.P_W / 2) { p.x = WORMS_WORLD_W - C.P_W / 2; p.vx = 0; }
+    const ph = p.crouching ? C.CROUCH_H : C.P_H;
+    for (const o of obs) if (!o.ballOnly) p._collideObstacle(o.rect, ph);
   }
 
-  _updateActive(dt, obs) {
-    const p = this._active;
-    const k = p.keys;
-    const canMove   = this._moveBudget > 0;
-    const canJump   = this._apLeft >= JUMP_AP && p.onGround;
+  // ── Active player input ───────────────────────────────────────────────────
 
-    // Aim when holding throw
+  _updateActive(dt, obs) {
+    const p    = this._active;
+    const k    = p.keys;
+    const canAct = this._apLeft > 0;
+
+    // ── Throwing (free — ends turn) ───────────────────────────────────────
     const isThrowing = Input.isDown(k.throw);
     if (p.hasBall && isThrowing) {
+      this._preview = null;   // cancel any move preview while charging
       p.throwing = true; p.state = 'throwing';
       p.throwCharge = Math.min(C.THROW_CHARGE_TIME, p.throwCharge + dt);
-      if (Input.isDown(k.jump))   { p.aimAngle = Math.min(p.aimAngle + 0.035, Math.PI*0.52); }
-      if (Input.isDown(k.crouch)) { p.aimAngle = Math.max(p.aimAngle - 0.035, -Math.PI/5); }
+      const aimSpeed = 0.035;
+      if (Input.isDown(k.jump))   p.aimAngle = Math.min(p.aimAngle + aimSpeed, Math.PI * 0.52);
+      if (Input.isDown(k.crouch)) p.aimAngle = Math.max(p.aimAngle - aimSpeed, -Math.PI / 5);
     } else if (p.throwing && !isThrowing && p.hasBall) {
-      // Released throw — fire
+      p.extraThrowCallback = null;
       p._doThrow(this.ball);
-      // Check double power
-      if (this.ball2 === null) {
-        p.extraThrowCallback = (x, y, vx, vy, ti) => {
-          this.ball2 = new Ball();
-          this.ball2.throw(x, y, vx, vy, false, false);
-          this.ball2.lastThrower = ti;
-        };
-      }
+      this.ball.worldW = WORMS_WORLD_W;
+      if (this.ball.seeker) this.ball._seekerTargetFn = () => this._inactive.x;
       this._phase = 'flight';
       return;
     } else {
       p.throwing = false; p.throwCharge = 0;
     }
 
-    // Movement (only if not throwing)
-    if (!p.throwing) {
-      const left  = Input.isDown(k.left);
-      const right = Input.isDown(k.right);
-      p.crouching = Input.isDown(k.crouch) && p.onGround;
+    // ── Movement preview & commit ─────────────────────────────────────────
+    if (!p.throwing && !p.hasBall) { /* no movement without ball */ }
 
-      if (canMove && !p.crouching) {
-        if (left  && !right) { p.vx -= C.WALK_SPEED; p.dir = -1; }
-        if (right && !left)  { p.vx += C.WALK_SPEED; p.dir =  1; }
+    if (!p.throwing) {
+      const pressLeft  = Input.wasPressed(k.left);
+      const pressRight = Input.wasPressed(k.right);
+
+      if (canAct && (pressLeft || pressRight)) {
+        const dir = pressLeft ? -1 : 1;
+        // If we already have a preview in the same direction → COMMIT
+        if (this._preview && this._preview.dir === dir) {
+          p.x = this._preview.destX;
+          p.vx = 0;
+          this._apLeft--;
+          this._preview = null;
+          if (this._apLeft === 0) this._setStatus('No AP left — aim and throw!');
+        } else {
+          // New direction → set preview
+          const destX = Math.max(C.P_W / 2, Math.min(WORMS_WORLD_W - C.P_W / 2, p.x + dir * STEP_DIST));
+          this._preview = { dir, destX };
+          p.dir = dir;
+        }
       }
-      if (canJump && Input.wasPressed(k.jump) && !p.crouching) {
+
+      // Confirm preview with Enter/Space
+      if (this._preview && (Input.wasPressed('Enter') || Input.wasPressed('Space'))) {
+        p.x = this._preview.destX;
+        p.vx = 0;
+        this._apLeft--;
+        this._preview = null;
+        if (this._apLeft === 0) this._setStatus('No AP left — aim and throw!');
+      }
+
+      // Cancel preview
+      if (this._preview && Input.wasPressed('Escape')) {
+        // ESC while preview: cancel preview (not exit game)
+        this._preview = null;
+        Input.justPressed['Escape'] = false; // consume so we don't exit
+      }
+
+      // Jump (1 AP, instant, no preview)
+      if (canAct && Input.wasPressed(k.jump) && p.onGround && !p.crouching) {
         p.vy = C.JUMP_FORCE * p.jumpForceMult;
         p.onGround = false;
-        this._apLeft = Math.max(0, this._apLeft - JUMP_AP);
+        this._apLeft--;
+        this._preview = null;
       }
+
+      // Crouch (free)
+      p.crouching = Input.isDown(k.crouch) && p.onGround;
     }
 
-    // Shield
-    if (Input.wasPressed(k.shield) && p.shieldAvailable && !p.hasBall) p.shieldActive = !p.shieldActive;
-
-    // Deplete move budget based on distance moved
-    const dx = Math.abs(p.x - this._prevActiveX);
-    if (dx > 0) {
-      this._moveBudget = Math.max(0, this._moveBudget - dx);
-      if (this._moveBudget <= 0) { p.vx = 0; }
-    }
-    this._prevActiveX = p.x;
+    // Shield (free)
+    if (Input.wasPressed(k.shield) && p.shieldAvailable && !p.hasBall)
+      p.shieldActive = !p.shieldActive;
 
     // Tick timers
     if (p.stunTimer > 0) p.stunTimer -= dt;
@@ -351,13 +355,22 @@ class WormsGame {
       if (p.shieldCooldown <= 0) { p.shieldAvailable = true; p.shieldCooldown = 0; }
     }
 
-    // Physics
-    this._physicsOnly(p, this._arena.getObstacles());
+    this._physicsOnly(p, obs);
 
-    // State string
-    if (!p.throwing) {
-      p.state = p.crouching ? 'crouch' : !p.onGround ? 'jumping' : Math.abs(p.vx) > 0.3 ? 'running' : 'idle';
+    // Update facing based on inactive player position
+    if (!p.throwing && this._preview === null) {
+      p.dir = this._inactive.x > p.x ? 1 : -1;
     }
+
+    p.state = p.throwing ? 'throwing'
+            : p.crouching ? 'crouch'
+            : !p.onGround ? 'jumping'
+            : Math.abs(p.vx) > 0.3 ? 'running'
+            : 'idle';
+  }
+
+  _setStatus(msg) {
+    this._statusMsg = msg; this._statusTimer = 1800;
   }
 
   _updateBallHeld() {
@@ -368,137 +381,200 @@ class WormsGame {
     }
   }
 
+  _checkBallHits() {
+    for (const [player, other] of [[this.p1, this.p2], [this.p2, this.p1]]) {
+      if (!this.ball.checkHit(player)) continue;
+      if (player.shieldActive) {
+        this.ball.vx = -this.ball.vx * 1.15; this.ball.vy *= -0.5;
+        player.shieldActive = false; player.shieldAvailable = false;
+        player.shieldCooldown = C.SHIELD_RECHARGE;
+      } else {
+        player._getHit(this.ball, other);
+      }
+      break;
+    }
+    if (this.ball2 && !this.ball2.dead) {
+      for (const [player, other] of [[this.p1, this.p2], [this.p2, this.p1]]) {
+        if (this.ball2.checkHit(player)) { player._getHit(this.ball2, other); break; }
+      }
+    }
+  }
+
   // ── Draw ──────────────────────────────────────────────────────────────────
 
   draw() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, C.W, C.H);
 
-    // Arena background
-    this._arena.draw(ctx);
+    // Apply camera offset for world drawing
+    ctx.save();
+    ctx.translate(-Math.round(this.camX), 0);
 
-    // Players
+    this._drawBg(ctx);
+    for (const obs of this._arena.getObstacles()) obs.drawFn(ctx, obs);
+
+    // Preview ghost
+    if (this._preview && this._phase === 'active') {
+      const p = this._active;
+      ctx.globalAlpha = 0.35;
+      const drawFn = (p.charType === 'girl' || (!p.charType && p.isGirl))
+        ? Sprites.drawGirl.bind(Sprites) : Sprites.drawBoy.bind(Sprites);
+      drawFn(ctx, this._preview.destX, p.y, 'idle', this._preview.dir, Math.PI/8, false, p.charColors);
+      ctx.globalAlpha = 1;
+      // Cost label above ghost
+      const lx = this._preview.destX;
+      const ly = p.y - C.P_H - 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(lx - 28, ly - 12, 56, 18);
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 10px "Courier New"';
+      ctx.textAlign = 'center';
+      ctx.fillText('-1 AP  · ENTER', lx, ly);
+      ctx.textAlign = 'left';
+    }
+
     this.p1.draw(ctx, this.ball);
     this.p2.draw(ctx, this.ball);
-
-    // Ball
     this.ball.draw(ctx);
     if (this.ball2) this.ball2.draw(ctx);
-
-    // Particles
     Particles.draw(ctx);
 
-    // HUD
-    this._drawHUD(ctx);
+    ctx.restore(); // end camera offset
 
-    // Overlays
-    if (this._phase === 'intro') this._drawIntro(ctx);
-    if (this._phase === 'end')   this._drawEnd(ctx);
+    // HUD and overlays drawn in screen space
+    this._drawHUD(ctx);
+    if (this._phase === 'intro')    this._drawIntro(ctx);
     if (this._phase === 'turn_end') this._drawTurnEnd(ctx);
+    if (this._phase === 'end')      this._drawEnd(ctx);
+
+    // Status message (screen space, bottom)
+    if (this._statusTimer > 0) {
+      this._statusTimer -= 16;
+      ctx.globalAlpha = Math.min(1, this._statusTimer / 300);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(C.W/2-140, C.H-30, 280, 20);
+      ctx.fillStyle = '#FFD700'; ctx.font = '9px "Courier New"'; ctx.textAlign = 'center';
+      ctx.fillText(this._statusMsg || '', C.W/2, C.H-17);
+      ctx.globalAlpha = 1; ctx.textAlign = 'left';
+    }
+  }
+
+  _drawBg(ctx) {
+    const map = this._map;
+    // Sky gradient across the visible strip + a bit extra
+    const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
+    g.addColorStop(0, map.skyTop); g.addColorStop(1, map.skyBot);
+    ctx.fillStyle = g;
+    ctx.fillRect(this.camX, 0, C.W, C.GROUND);
+    // Ground
+    ctx.fillStyle = map.groundColor;
+    ctx.fillRect(this.camX, C.GROUND, C.W, C.H - C.GROUND);
+    ctx.fillStyle = map.groundLine;
+    ctx.fillRect(this.camX, C.GROUND, C.W, 6);
   }
 
   _drawHUD(ctx) {
-    // Top strip
     const strip = ctx.createLinearGradient(0,0,0,68);
     strip.addColorStop(0,'rgba(0,0,0,0.92)'); strip.addColorStop(1,'rgba(0,0,0,0.55)');
     ctx.fillStyle = strip; ctx.fillRect(0,0,C.W,68);
     ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0,67,C.W,1);
 
-    // HP hearts
-    ctx.font = '22px serif';
     const p1Name = this.p1.charName || C.P1_NAME;
     const p2Name = this.p2.charName || C.P2_NAME;
 
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px "Courier New"';
-    ctx.fillText(p1Name, 10, 16);
-    ctx.font = '20px serif';
-    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p1.hp ? '❤️' : '🖤', 10 + i*28, 50);
+    // P1 HP (left)
+    ctx.textAlign = 'left'; ctx.fillStyle = C.COL.P1_HUD; ctx.font = 'bold 9px "Courier New"';
+    ctx.fillText(p1Name, 10, 14);
+    ctx.font = '18px serif';
+    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p1.hp ? '❤️' : '🖤', 10 + i*24, 44);
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px "Courier New"';
-    ctx.fillText(p2Name, C.W-10, 16);
-    ctx.font = '20px serif';
-    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p2.hp ? '❤️' : '🖤', C.W-10-(2-i)*28, 50);
+    // P2 HP (right)
+    ctx.textAlign = 'right'; ctx.fillStyle = C.COL.P2_HUD; ctx.font = 'bold 9px "Courier New"';
+    ctx.fillText(p2Name, C.W-10, 14);
+    ctx.font = '18px serif';
+    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p2.hp ? '❤️' : '🖤', C.W-10-(2-i)*24, 44);
 
-    // Whose turn + AP bar
-    const ap = this._active;
+    // Whose turn + AP pips (centre)
     const turnCol = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    const turnName = (this.turn === 0 ? p1Name : p2Name) + "'s turn";
+    const tName   = (this.turn === 0 ? p1Name : p2Name);
     ctx.textAlign = 'center';
-    ctx.fillStyle = turnCol;
-    ctx.font = 'bold 11px "Courier New"';
-    ctx.fillText(turnName, C.W/2, 18);
+    ctx.fillStyle = turnCol; ctx.font = 'bold 10px "Courier New"';
+    ctx.fillText(tName + "'s turn", C.W/2, 14);
 
     // AP pips
-    const pipW = 18, pipH = 10, pipGap = 5;
-    const pipsW = AP_MAX * (pipW + pipGap) - pipGap;
-    const pipX0 = C.W/2 - pipsW/2;
+    const PW = 22, PH = 12, PG = 6;
+    const px0 = C.W/2 - (AP_MAX*(PW+PG) - PG)/2;
     for (let i = 0; i < AP_MAX; i++) {
-      ctx.fillStyle = i < this._apLeft ? turnCol : '#333';
-      ctx.fillRect(pipX0 + i*(pipW+pipGap), 28, pipW, pipH);
+      const lit = i < this._apLeft;
+      ctx.fillStyle = lit ? turnCol : '#2a2a2a';
+      ctx.fillRect(px0 + i*(PW+PG), 22, PW, PH);
+      if (lit) {
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(px0 + i*(PW+PG), 22, PW, 4);
+      }
+      // AP number
+      ctx.fillStyle = lit ? '#fff' : '#555'; ctx.font = 'bold 8px "Courier New"';
+      ctx.fillText(i+1, px0 + i*(PW+PG) + PW/2, 22 + PH - 2);
     }
 
-    // Move budget bar
-    const barW = 120, barH = 6;
-    const barX = C.W/2 - barW/2;
-    ctx.fillStyle = '#222'; ctx.fillRect(barX, 44, barW, barH);
-    ctx.fillStyle = turnCol;
-    ctx.fillRect(barX, 44, Math.max(0, barW * this._moveBudget / MOVE_BUDGET), barH);
-    ctx.fillStyle = '#888'; ctx.font = '8px "Courier New"';
-    ctx.fillText('MOVE', C.W/2, 58);
+    // Action hints
+    ctx.fillStyle = this._apLeft > 0 ? '#aaa' : '#444';
+    ctx.font = '8px "Courier New"';
+    const hint = this._preview
+      ? '← → same dir = commit  ·  ENTER commit  ·  ESC cancel'
+      : this._apLeft > 0
+        ? `← → move preview (-1 AP)  ·  ${Controls.p1.jump.slice(-1)} jump (-1 AP)  ·  hold throw`
+        : 'No AP — hold throw to end turn';
+    ctx.fillText(hint, C.W/2 - ctx.measureText(hint).width/2, 50);
 
-    // Phase label
-    const phaseLabel = { active: '🎮 Your move', flight: '🏐 Ball in flight!', turn_end: '⏳ Switching…', intro: '' }[this._phase] || '';
-    if (phaseLabel) {
-      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '9px "Courier New"';
-      ctx.fillText(phaseLabel, C.W/2, C.H - 8);
-    }
+    // Minimap position indicator
+    const mmW = 120, mmH = 5, mmX = C.W/2 - mmW/2, mmY = 60;
+    ctx.fillStyle = '#1a1a2a'; ctx.fillRect(mmX, mmY, mmW, mmH);
+    const p1mm = mmX + (this.p1.x / WORMS_WORLD_W) * mmW;
+    const p2mm = mmX + (this.p2.x / WORMS_WORLD_W) * mmW;
+    ctx.fillStyle = C.COL.P1_HUD; ctx.fillRect(p1mm-2, mmY-1, 4, mmH+2);
+    ctx.fillStyle = C.COL.P2_HUD; ctx.fillRect(p2mm-2, mmY-1, 4, mmH+2);
+    // Camera view indicator
+    const camPct  = this.camX / WORMS_WORLD_W;
+    const viewPct = C.W / WORMS_WORLD_W;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
+    ctx.strokeRect(mmX + camPct*mmW, mmY, viewPct*mmW, mmH);
 
     ctx.textAlign = 'left';
   }
 
   _drawIntro(ctx) {
-    const t = Math.max(0, this._introTimer / 2000);
-    ctx.globalAlpha = Math.min(1, t * 5) * 0.7;
+    const t = Math.max(0, this._introTimer / 2200);
+    ctx.globalAlpha = Math.min(1, t * 5) * 0.5;
     ctx.fillStyle = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    ctx.fillRect(0, 0, C.W, C.H);
+    ctx.fillRect(0,0,C.W,C.H);
     ctx.globalAlpha = 1;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(C.W/2 - 200, C.H/2 - 44, 400, 72);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(C.W/2-210, C.H/2-52, 420, 86);
     ctx.textAlign = 'center';
     ctx.fillStyle = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    ctx.font = 'bold 30px "Courier New"';
-    const name = (this.turn === 0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME));
-    ctx.fillText(`${name}'S TURN`, C.W/2, C.H/2 + 12);
-    ctx.fillStyle = '#aaa'; ctx.font = '11px "Courier New"';
-    ctx.fillText(`${AP_MAX} AP  ·  move, jump & throw`, C.W/2, C.H/2 + 30);
+    ctx.font = 'bold 28px "Courier New"';
+    const nm = this.turn === 0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME);
+    ctx.fillText(`${nm}'S TURN 💣`, C.W/2, C.H/2 + 4);
+    ctx.fillStyle = '#aaa'; ctx.font = '10px "Courier New"';
+    ctx.fillText(`${AP_MAX} AP  ·  move ×2 or jump then throw`, C.W/2, C.H/2 + 24);
     ctx.textAlign = 'left';
   }
 
   _drawTurnEnd(ctx) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, C.H/2 - 26, C.W, 44);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 18px "Courier New"';
-    ctx.fillText('⏳ Turn ending…', C.W/2, C.H/2 + 8);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, C.H/2-28, C.W, 48);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#FFD700'; ctx.font = 'bold 16px "Courier New"';
+    ctx.fillText('⏳ Turn ending…', C.W/2, C.H/2+8); ctx.textAlign = 'left';
   }
 
   _drawEnd(ctx) {
-    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0,0,C.W,C.H);
+    ctx.fillStyle = 'rgba(0,0,0,0.78)'; ctx.fillRect(0,0,C.W,C.H);
     ctx.textAlign = 'center';
-    const wName = this._winner === 0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME);
-    const wCol  = this._winner === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    ctx.fillStyle = wCol;
-    ctx.font = 'bold 40px "Courier New"';
-    ctx.fillText(`${wName} WINS! 🏆`, C.W/2, C.H/2 - 20);
+    const wN = this._winner===0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME);
+    ctx.fillStyle = this._winner===0 ? C.COL.P1_HUD : C.COL.P2_HUD;
+    ctx.font = 'bold 38px "Courier New"';
+    ctx.fillText(`${wN} WINS! 🏆`, C.W/2, C.H/2-16);
     ctx.fillStyle = '#888'; ctx.font = '13px "Courier New"';
-    ctx.fillText('ENTER / SPACE to return', C.W/2, C.H/2 + 30);
+    ctx.fillText('ENTER / SPACE to return', C.W/2, C.H/2+28);
     ctx.textAlign = 'left';
   }
 }
