@@ -56,6 +56,15 @@ const Sprites = {
     // Torso
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
+    // Shirt symbol
+    const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
+    if (shirtSymbol && shirtSymbol !== 'none') {
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.font = '11px serif'; ctx.textAlign = 'center';
+      ctx.fillText(shirtSymbol, 1, bodyTop + Math.round(bodyH * 0.68));
+      ctx.textAlign = 'left';
+    }
+
     // Throwing arm (back arm)
     const backArmY = bodyTop + 6;
     this.px(ctx, shirt, -14, backArmY, 6, 14);
@@ -164,6 +173,15 @@ const Sprites = {
 
     // Torso
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
+
+    // Shirt symbol
+    const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
+    if (shirtSymbol && shirtSymbol !== 'none') {
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.font = '11px serif'; ctx.textAlign = 'center';
+      ctx.fillText(shirtSymbol, 1, bodyTop + Math.round(bodyH * 0.68));
+      ctx.textAlign = 'left';
+    }
 
     // Back arm
     const backArmY = bodyTop + 6;

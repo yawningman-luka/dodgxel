@@ -474,10 +474,10 @@ class Game {
       dest,
       p1: { idx:0, confirmed:false, customSub:false,
             customShirt:0, customHair:0, customPower:0, customName:'P1',
-            customType:0, customHairStyle:0, customAccessory:0, _customRow:0 },
+            customType:0, customHairStyle:0, customAccessory:0, customSymbol:0, _customRow:0 },
       p2: { idx:0, confirmed:false, customSub:false,
             customShirt:0, customHair:0, customPower:0, customName:'P2',
-            customType:1, customHairStyle:0, customAccessory:0, _customRow:0 },
+            customType:1, customHairStyle:0, customAccessory:0, customSymbol:0, _customRow:0 },
       bothTimer: 0,
     };
     this.state = C.STATE.CHAR_SELECT;
@@ -497,7 +497,7 @@ class Game {
       if (ps.confirmed) return;
 
       if (ps.customSub) {
-        const NROWS = 7;
+        const NROWS = 8;
         if (Input.wasPressed(upKey))   ps._customRow = (ps._customRow - 1 + NROWS) % NROWS;
         if (Input.wasPressed(downKey)) ps._customRow = (ps._customRow + 1) % NROWS;
 
@@ -509,12 +509,13 @@ class Game {
           const d = left ? -1 : 1;
           switch (ps._customRow) {
             case 0: ps.customType      = (ps.customType + d + 2) % 2; ps.customHairStyle = 0; break;
-            case 1: ps.customShirt     = cycle(ps.customShirt,     CUSTOM_SHIRT_PRESETS, d);  break;
-            case 2: ps.customHair      = cycle(ps.customHair,      CUSTOM_HAIR_PRESETS,  d);  break;
-            case 3: ps.customHairStyle = cycle(ps.customHairStyle, hairStyles,           d);  break;
-            case 4: ps.customAccessory = cycle(ps.customAccessory, CUSTOM_ACCESSORIES,   d);  break;
-            case 5: ps.customPower     = cycle(ps.customPower,     C.POWERS,             d);  break;
-            case 6: { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); } break;
+            case 1: ps.customShirt     = cycle(ps.customShirt,     CUSTOM_SHIRT_PRESETS,  d); break;
+            case 2: ps.customSymbol    = cycle(ps.customSymbol,    CUSTOM_SHIRT_SYMBOLS,  d); break;
+            case 3: ps.customHair      = cycle(ps.customHair,      CUSTOM_HAIR_PRESETS,   d); break;
+            case 4: ps.customHairStyle = cycle(ps.customHairStyle, hairStyles,            d); break;
+            case 5: ps.customAccessory = cycle(ps.customAccessory, CUSTOM_ACCESSORIES,    d); break;
+            case 6: ps.customPower     = cycle(ps.customPower,     C.POWERS,              d); break;
+            case 7: { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); } break;
           }
         }
         if (Input.wasPressed(confirmKey)) { ps.confirmed = true; ps.customSub = false; }
@@ -523,6 +524,7 @@ class Game {
 
       if (Input.wasPressed(leftKey))  ps.idx = (ps.idx - 1 + N) % N;
       if (Input.wasPressed(rightKey)) ps.idx = (ps.idx + 1) % N;
+      const ch = CHARACTERS[ps.idx];
       if (Input.wasPressed(confirmKey) || Input.wasPressed('Enter')) {
         if (ch.id === 'custom') { ps.customSub = true; ps._customRow = 0; }
         else                     ps.confirmed = true;
@@ -555,8 +557,9 @@ class Game {
         player.charColors = {
           shirt, pants: this._darken(shirt),
           hair,  hairDark: this._darken(hair),
-          hairType:  hairStyles[ps.customHairStyle]  || hairStyles[0],
-          accessory: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none',
+          hairType:    hairStyles[ps.customHairStyle]    || hairStyles[0],
+          accessory:   CUSTOM_ACCESSORIES[ps.customAccessory]  || 'none',
+          shirtSymbol: CUSTOM_SHIRT_SYMBOLS[ps.customSymbol]   || 'none',
         };
         player.charType = ps.customType === 0 ? 'boy' : 'girl';
         player.charName = ps.customName;
@@ -653,11 +656,20 @@ class Game {
 
     // Character name
     ctx.fillStyle = ps.confirmed ? '#44FF88' : '#fff';
-    ctx.font = `bold 20px "Courier New"`;
-    ctx.fillText(ch.name, cx, py + 38);
+    ctx.font = `bold 18px "Courier New"`;
+    ctx.fillText(ch.name, cx, py + 34);
 
-    // Large character preview
-    const previewY = py + 155;
+    // Nav arrows at mid-height so they clear the preview
+    const pulse = ps.confirmed ? 1 : 0.5 + 0.5 * Math.sin(Date.now() / 250);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = accentCol;
+    ctx.font = '18px serif';
+    ctx.fillText('◀', px + 14, py + 200);
+    ctx.fillText('▶', px + pw - 14, py + 200);
+    ctx.globalAlpha = 1;
+
+    // Large character preview — feet at py+210, giving clearance above name
+    const previewY = py + 210;
     const previewScale = 1.7;
     ctx.save();
     ctx.translate(cx, previewY);
@@ -670,46 +682,31 @@ class Game {
     ctx.restore();
 
     if (ch.id === 'custom') {
-      // Prominent key hint
-      const kCol = accentCol;
       const kKey = label === 'P1' ? Controls.keyName(Controls.p1.catch) : Controls.keyName(Controls.p2.catch);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(cx - 80, py + 175, 160, 26);
-      ctx.strokeStyle = kCol; ctx.lineWidth = 1.5;
-      ctx.strokeRect(cx - 80, py + 175, 160, 26);
-      ctx.fillStyle = kCol; ctx.font = 'bold 13px "Courier New"';
-      ctx.fillText(`[ ${kKey} ] to customise`, cx, py + 193);
+      ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(cx-88, py+216, 176, 28);
+      ctx.strokeStyle = accentCol; ctx.lineWidth = 1.5; ctx.strokeRect(cx-88, py+216, 176, 28);
+      ctx.fillStyle = accentCol; ctx.font = 'bold 13px "Courier New"';
+      ctx.fillText(`[ ${kKey} ]  CUSTOMISE`, cx, py + 234);
     }
 
     // Power badge
+    const pColors = { rocket:C.COL.SP_ROCKET, curve:C.COL.SP_CURVE, shadow:C.COL.SP_SHADOW,
+                      double:C.COL.SP_DOUBLE, boomerang:C.COL.SP_BOOMERANG, blaze:C.COL.SP_BLAZE,
+                      heavy:C.COL.SP_HEAVY, seeker:C.COL.SP_SEEKER, split:C.COL.SP_SPLIT };
     if (ch.power) {
-      const pCol = { rocket: C.COL.SP_ROCKET, curve: C.COL.SP_CURVE, shadow: C.COL.SP_SHADOW, double: C.COL.SP_DOUBLE }[ch.power];
-      ctx.fillStyle = pCol;
-      ctx.fillRect(cx - 60, py + 215, 120, 22);
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 11px "Courier New"';
-      ctx.fillText(`★  ${C.POWER_NAMES[ch.power]}`, cx, py + 231);
+      ctx.fillStyle = pColors[ch.power] || '#FFD700';
+      ctx.fillRect(cx - 62, py + 252, 124, 22);
+      ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Courier New"';
+      ctx.fillText(`★  ${C.POWER_NAMES[ch.power]}`, cx, py + 268);
     } else {
-      ctx.fillStyle = '#444';
-      ctx.fillRect(cx - 60, py + 215, 120, 22);
-      ctx.fillStyle = '#aaa';
-      ctx.font = '10px "Courier New"';
-      ctx.fillText('choose in builder ▼', cx, py + 231);
+      ctx.fillStyle = '#333'; ctx.fillRect(cx - 62, py + 252, 124, 22);
+      ctx.fillStyle = '#888'; ctx.font = '10px "Courier New"';
+      ctx.fillText('choose in builder ▼', cx, py + 268);
     }
 
     // Bio
-    ctx.fillStyle = '#888';
-    ctx.font = '9px "Courier New"';
-    ctx.fillText(ch.bio, cx, py + 255);
-
-    // Nav arrows
-    const pulse = ps.confirmed ? 1 : 0.5 + 0.5 * Math.sin(Date.now() / 250);
-    ctx.globalAlpha = pulse;
-    ctx.fillStyle = accentCol;
-    ctx.font = '18px serif';
-    ctx.fillText('◀', px + 18, py + 180);
-    ctx.fillText('▶', px + pw - 18, py + 180);
-    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#666'; ctx.font = '9px "Courier New"';
+    ctx.fillText(ch.bio, cx, py + 288);
 
     // Dots for character position
     for (let i = 0; i < CHARACTERS.length; i++) {
@@ -738,14 +735,16 @@ class Game {
     ctx.fillRect(px + colSplit, py + 36, 1, ph - 44);
 
     const hairStyles = ps.customType === 0 ? CUSTOM_BOY_HAIR_STYLES : CUSTOM_GIRL_HAIR_STYLES;
+    const symVal = CUSTOM_SHIRT_SYMBOLS[ps.customSymbol] || 'none';
     const rows = [
-      { label:'BODY',       value: ps.customType === 0 ? '👦 BOY' : '👧 GIRL' },
-      { label:'SHIRT',      color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
-      { label:'HAIR COL',   color: CUSTOM_HAIR_PRESETS[ps.customHair] },
-      { label:'HAIR STYLE', value: hairStyles[ps.customHairStyle] || hairStyles[0] },
-      { label:'ACCESSORY',  value: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none' },
-      { label:'POWER',      value: '⚡ ' + (C.POWER_NAMES[C.POWERS[ps.customPower]] || '') },
-      { label:'NAME',       value: ps.customName + ' ✏️' },
+      { label:'BODY',        value: ps.customType === 0 ? '👦 BOY' : '👧 GIRL' },
+      { label:'SHIRT',       color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
+      { label:'SYMBOL',      value: symVal === 'none' ? '— none —' : symVal },
+      { label:'HAIR COL',    color: CUSTOM_HAIR_PRESETS[ps.customHair] },
+      { label:'HAIR STYLE',  value: hairStyles[ps.customHairStyle] || hairStyles[0] },
+      { label:'ACCESSORY',   value: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none' },
+      { label:'POWER',       value: '⚡ ' + (C.POWER_NAMES[C.POWERS[ps.customPower]] || '') },
+      { label:'NAME',        value: ps.customName + ' ✏️' },
     ];
 
     const rowH = 32, rowStart = py + 42;

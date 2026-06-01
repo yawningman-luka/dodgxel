@@ -152,6 +152,7 @@ const CUSTOM_HAIR_PRESETS      = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B
 const CUSTOM_BOY_HAIR_STYLES   = ['straight','spiky','buzz'];
 const CUSTOM_GIRL_HAIR_STYLES  = ['ponytail','bun','long'];
 const CUSTOM_ACCESSORIES       = ['none','hat','glasses','headband','mask'];
+const CUSTOM_SHIRT_SYMBOLS     = ['none','★','♥','⚡','◆','✦','☯','✿'];
 
 // Mutable control bindings — loaded from localStorage, used at runtime
 const Controls = {
