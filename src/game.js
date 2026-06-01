@@ -817,9 +817,13 @@ class Game {
 
   // ---- Online ----
   _startOnlineLobby() {
+    // Auto-pick ws:// for local dev, wss:// for the live GitHub Pages build
+    const defaultServer = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+      ? 'ws://localhost:8080'
+      : 'wss://YOUR-SERVER.up.railway.app';   // ← replace after Railway deploy
     this._ol = {
-      phase:       'connect',   // connect | create_or_join | waiting | joining | in_lobby | error
-      serverUrl:   'ws://localhost:8080',
+      phase:       'connect',
+      serverUrl:   defaultServer,
       code:        '',
       inputCode:   '',
       errorMsg:    '',
