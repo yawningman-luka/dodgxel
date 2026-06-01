@@ -474,11 +474,11 @@ class Game {
       dest,
       p1: { idx:0, confirmed:false, customSub:false,
             customShirt:0, customHair:0, customPower:0, customName:'P1',
-            customHairStyle:0, customAccessory:0, customSymbol:0, _customRow:0 },
+            customHairStyle:0, customAccessory:0, customSymbol:0, customBallStyle:0, _customRow:0 },
       p2: { idx:0, confirmed:false, customSub:false,
             customShirt:0, customHair:0, customPower:0, customName:'P2',
-            customHairStyle:0, customAccessory:0, customSymbol:0, _customRow:0 },
-      bothTimer: 0,
+            customHairStyle:0, customAccessory:0, customSymbol:0, customBallStyle:0, _customRow:0 },
+      bothTimer: 0, soloHorde: false,
     };
     this.state = C.STATE.CHAR_SELECT;
   }
@@ -497,7 +497,7 @@ class Game {
       if (ps.confirmed) return;
 
       if (ps.customSub) {
-        const NROWS = 7;
+        const NROWS = 8;
         if (Input.wasPressed(upKey))   ps._customRow = (ps._customRow - 1 + NROWS) % NROWS;
         if (Input.wasPressed(downKey)) ps._customRow = (ps._customRow + 1) % NROWS;
 
@@ -508,11 +508,12 @@ class Game {
           switch (ps._customRow) {
             case 0: ps.customShirt     = cycle(ps.customShirt,     CUSTOM_SHIRT_PRESETS, d); break;
             case 1: ps.customSymbol    = cycle(ps.customSymbol,    CUSTOM_SHIRT_SYMBOLS, d); break;
-            case 2: ps.customHair      = cycle(ps.customHair,      CUSTOM_HAIR_PRESETS,  d); break;
-            case 3: ps.customHairStyle = cycle(ps.customHairStyle, CUSTOM_HAIR_STYLES,   d); break;
-            case 4: ps.customAccessory = cycle(ps.customAccessory, CUSTOM_ACCESSORIES,   d); break;
-            case 5: ps.customPower     = cycle(ps.customPower,     C.POWERS,             d); break;
-            case 6: { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); } break;
+            case 2: ps.customBallStyle = cycle(ps.customBallStyle, BALL_STYLES,          d); break;
+            case 3: ps.customHair      = cycle(ps.customHair,      CUSTOM_HAIR_PRESETS,  d); break;
+            case 4: ps.customHairStyle = cycle(ps.customHairStyle, CUSTOM_HAIR_STYLES,   d); break;
+            case 5: ps.customAccessory = cycle(ps.customAccessory, CUSTOM_ACCESSORIES,   d); break;
+            case 6: ps.customPower     = cycle(ps.customPower,     C.POWERS,             d); break;
+            case 7: { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); } break;
           }
         }
         if (Input.wasPressed(confirmKey)) { ps.confirmed = true; ps.customSub = false; }
@@ -531,11 +532,17 @@ class Game {
     updateSide(cs.p1, 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyG');
     updateSide(cs.p2, 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyL');
 
+    // Horde solo: P1 presses Space → skip P2, go solo
+    if ((cs.dest === 'horde') && !cs.p1.customSub && !cs.p2.customSub
+        && Input.wasPressed('Space') && !cs.p1.confirmed) {
+      cs.p1.confirmed = true; cs.p2.confirmed = true; cs.soloHorde = true;
+    }
+
     if (cs.p1.confirmed && cs.p2.confirmed) {
       cs.bothTimer += dt;
       if (cs.bothTimer >= 600) {
         this._applyCharSelections();
-        if      (cs.dest === 'horde')  { this._startHorde(); }
+        if      (cs.dest === 'horde')  { this._startHorde(cs.soloHorde); }
         else if (cs.dest === 'worms')  { this._startWorms(); }
         else if (cs.dest === 'online') { this._startOnlineGame(); }
         else { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; }
@@ -557,6 +564,7 @@ class Game {
           hairType:    hairStyle,
           accessory:   CUSTOM_ACCESSORIES[ps.customAccessory]  || 'none',
           shirtSymbol: CUSTOM_SHIRT_SYMBOLS[ps.customSymbol]   || 'none',
+          ballStyle:   BALL_STYLES[ps.customBallStyle]         || 'default',
         };
         // Body type derived from hair style — no manual body selector needed
         player.charType = HAIR_STYLE_TO_BODY[hairStyle] || 'boy';
@@ -599,6 +607,10 @@ class Game {
     ctx.fillStyle = '#444';
     ctx.font = '10px "Courier New"';
     ctx.fillText('P1: A/D choose  G confirm     P2: ←/→ choose  L confirm     ESC back', C.W / 2, 62);
+    if (cs.dest === 'horde') {
+      ctx.fillStyle = '#FF6600'; ctx.font = 'bold 10px "Courier New"';
+      ctx.fillText('💀 HORDE: SPACE = start solo (P1 only)  ·  both confirm = co-op', C.W / 2, 74);
+    }
 
     const panelW = 360, panelH = 340, gap = 20;
     const p1x = (C.W / 2) - panelW - gap / 2;
@@ -732,18 +744,19 @@ class Game {
     ctx.fillStyle = '#2a2a3a';
     ctx.fillRect(px + colSplit, py + 36, 1, ph - 44);
 
-    const symVal      = CUSTOM_SHIRT_SYMBOLS[ps.customSymbol] || 'none';
-    const hairStyle   = CUSTOM_HAIR_STYLES[ps.customHairStyle] || CUSTOM_HAIR_STYLES[0];
-    const curPower    = C.POWERS[ps.customPower];
-    const powerDesc   = POWER_DESCRIPTIONS[curPower] || '';
+    const symVal    = CUSTOM_SHIRT_SYMBOLS[ps.customSymbol] || 'none';
+    const hairStyle = CUSTOM_HAIR_STYLES[ps.customHairStyle] || CUSTOM_HAIR_STYLES[0];
+    const curPower  = C.POWERS[ps.customPower];
+    const curBall   = BALL_STYLES[ps.customBallStyle] || 'default';
     const rows = [
-      { label:'SHIRT',       color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
-      { label:'SYMBOL',      value: symVal === 'none' ? '— none —' : symVal },
-      { label:'HAIR COL',    color: CUSTOM_HAIR_PRESETS[ps.customHair] },
-      { label:'HAIR STYLE',  value: hairStyle },
-      { label:'ACCESSORY',   value: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none' },
-      { label:'POWER',       value: '⚡ ' + (C.POWER_NAMES[curPower] || ''), desc: powerDesc },
-      { label:'NAME',        value: ps.customName + ' ✏️' },
+      { label:'SHIRT',      color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
+      { label:'SYMBOL',     value: symVal === 'none' ? '— none —' : symVal },
+      { label:'BALL STYLE', value: BALL_STYLE_LABELS[curBall] || curBall, ballStyle: curBall },
+      { label:'HAIR COL',   color: CUSTOM_HAIR_PRESETS[ps.customHair] },
+      { label:'HAIR STYLE', value: hairStyle },
+      { label:'ACCESSORY',  value: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none' },
+      { label:'POWER',      value: '⚡ ' + (C.POWER_NAMES[curPower] || ''), desc: POWER_DESCRIPTIONS[curPower] || '' },
+      { label:'NAME',       value: ps.customName + ' ✏️' },
     ];
 
     const rowH = 32, rowStart = py + 42;
@@ -769,6 +782,13 @@ class Game {
         ctx.fillStyle = row.color;
         ctx.fillRect(rx + 6, ry + 14, rw - 12, 12);
         if (sel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(rx + 6, ry + 14, rw - 12, 12); }
+      } else if (row.ballStyle) {
+        const bdata = BALL_STYLE_DATA[row.ballStyle] || BALL_STYLE_DATA.default;
+        const bc = bdata.color || '#E84040';
+        ctx.fillStyle = bc; ctx.beginPath(); ctx.arc(rx + 14, ry + 20, 6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5; ctx.stroke();
+        ctx.fillStyle = sel ? accentCol : '#aaa'; ctx.font = 'bold 10px "Courier New"'; ctx.textAlign = 'center';
+        ctx.fillText(row.value, rx + rw/2 + 8, ry + 24);
       } else {
         ctx.fillStyle = sel ? accentCol : '#999';
         ctx.font = `bold 10px "Courier New"`;
@@ -812,8 +832,8 @@ class Game {
   }
 
   // ---- Horde ----
-  _startHorde() {
-    this._hordeGame = new HordeGame(this.canvas);
+  _startHorde(solo = false) {
+    this._hordeGame = new HordeGame(this.canvas, solo);
     this.state = C.STATE.HORDE;
   }
 

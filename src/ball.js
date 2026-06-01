@@ -33,8 +33,9 @@ class Ball {
     this._splitT       = 0;
     this._splitDone    = false;
     this.splitCb       = null;   // set by game: (x,y,vx,vy,thr) => spawn minis
-    this.mini          = false;  // true for split fragments
-    this.worldW        = C.W;    // override for wide arenas (e.g. Salvo)
+    this.mini          = false;
+    this.worldW        = C.W;
+    this.styleId       = 'default'; // cosmetic throw style
   }
 
   throw(fromX, fromY, vx, vy, isRocket, isShadow) {
@@ -47,7 +48,7 @@ class Ball {
     this.blaze = false; this._blazeTimer = 0; this.blazeDeathCb = null;
     this.heavy = false; this.seeker = false; this._seekerTargetFn = null;
     this.split = false; this._splitT = 0; this._splitDone = false; this.splitCb = null;
-    this.mini = false; this.radius = C.BALL_R; this.worldW = C.W;
+    this.mini = false; this.radius = C.BALL_R; this.worldW = C.W; this.styleId = 'default';
   }
 
   update(dt, obstacles, gravityMult = 1) {
@@ -181,13 +182,29 @@ class Ball {
     if (!this.inFlight && !this.dead) return;
     const R = this.radius;
 
+    // Resolve ball style colours
+    const sd = BALL_STYLE_DATA[this.styleId] || BALL_STYLE_DATA.default;
+    let ballColor   = sd.color;
+    let stripeColor = sd.stripe;
+    if (this.styleId === 'rainbow') {
+      const hue = (Date.now() / 8) % 360;
+      ballColor = `hsl(${hue},100%,55%)`;
+    }
+    // Glow for special styles
+    if (sd.glow && this.inFlight) {
+      const pulse = 0.15 + 0.12 * Math.sin(Date.now() / 100);
+      ctx.globalAlpha = pulse; ctx.fillStyle = sd.glow;
+      ctx.beginPath(); ctx.arc(this.x, this.y, R + 6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     // Trail
     if (this.inFlight && !this.isRocket && this._trail.length > 1) {
       const trailCol = this.curve ? C.COL.SP_CURVE
                      : this.boomerang ? C.COL.SP_BOOMERANG
                      : this.seeker   ? C.COL.SP_SEEKER
                      : this.split    ? C.COL.SP_SPLIT
-                     : C.COL.BALL;
+                     : (ballColor || C.COL.BALL);
       for (let i = 0; i < this._trail.length - 1; i++) {
         const t = this._trail[i];
         const frac = (i + 1) / this._trail.length;
@@ -226,7 +243,7 @@ class Ball {
       ctx.globalAlpha = 1;
     }
 
-    Sprites.drawBall(ctx, this.x, this.y, this.spinning, false, R);
+    Sprites.drawBall(ctx, this.x, this.y, this.spinning, false, R, ballColor, stripeColor);
 
     // Rocket exhaust
     if (this.isRocket && this.inFlight) {

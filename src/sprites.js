@@ -56,6 +56,9 @@ const Sprites = {
     // Torso
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
+    // Wings (drawn BEHIND body)
+    this._drawAccessoryBack(ctx, (colors && colors.accessory) || 'none', bodyTop);
+
     // Shirt symbol (black outline + white fill so it's visible on any colour)
     const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
     if (shirtSymbol && shirtSymbol !== 'none') {
@@ -63,8 +66,7 @@ const Sprites = {
       ctx.font = '11px serif'; ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
       ctx.strokeText(shirtSymbol, 1, sy);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(shirtSymbol, 1, sy);
+      ctx.fillStyle = '#FFFFFF'; ctx.fillText(shirtSymbol, 1, sy);
       ctx.textAlign = 'left'; ctx.lineWidth = 1;
     }
 
@@ -81,12 +83,8 @@ const Sprites = {
       this.px(ctx, shirt, 0, -3, 18, 7);
       this.px(ctx, C.COL.SKIN, 16, -3, 8, 7);
       if (hasBall) {
-        ctx.fillStyle = C.COL.BALL;
-        ctx.beginPath();
-        ctx.arc(26, 0, C.BALL_R * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = C.COL.BALL_STRIPE;
-        ctx.fillRect(20, -1, 12, 2);
+        ctx.fillStyle = C.COL.BALL; ctx.beginPath(); ctx.arc(26, 0, C.BALL_R * 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = C.COL.BALL_STRIPE; ctx.fillRect(20, -1, 12, 2);
       }
       ctx.restore();
     } else {
@@ -177,15 +175,17 @@ const Sprites = {
     // Torso
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
-    // Shirt symbol (black outline + white fill)
+    // Wings (drawn BEHIND body)
+    this._drawAccessoryBack(ctx, (colors && colors.accessory) || 'none', bodyTop);
+
+    // Shirt symbol
     const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
     if (shirtSymbol && shirtSymbol !== 'none') {
       const sy = bodyTop + Math.round(bodyH * 0.68);
       ctx.font = '11px serif'; ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
       ctx.strokeText(shirtSymbol, 1, sy);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(shirtSymbol, 1, sy);
+      ctx.fillStyle = '#FFFFFF'; ctx.fillText(shirtSymbol, 1, sy);
       ctx.textAlign = 'left'; ctx.lineWidth = 1;
     }
 
@@ -264,39 +264,151 @@ const Sprites = {
     ctx.restore();
   },
 
-  // Shared accessory layer — called inside save/restore with sprite transform active
-  _drawAccessory(ctx, type, headY, hair, hairDark) {
+  // Wings drawn BEHIND body (call before torso)
+  _drawAccessoryBack(ctx, type, bodyTop) {
+    if (!type || !type.startsWith('wings_')) return;
     switch (type) {
-      case 'hat':
-        this.px(ctx, '#1A1A1A', -14, headY - 4,  30,  5); // brim
-        this.px(ctx, '#111111',  -9, headY - 16, 20, 14); // crown
-        this.px(ctx, '#2A2A2A',  -9, headY - 16, 20,  4); // top highlight
-        this.px(ctx, '#333333',  -9, headY - 4,  20,  2); // brim seam
+      case 'wings_butterfly':
+        ctx.fillStyle = 'rgba(255,80,200,0.82)';
+        ctx.beginPath(); ctx.moveTo(-2,bodyTop+6); ctx.bezierCurveTo(-22,bodyTop-10,-30,bodyTop+22,-14,bodyTop+28); ctx.bezierCurveTo(-6,bodyTop+30,-2,bodyTop+18,-2,bodyTop+10); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,160,220,0.65)';
+        ctx.beginPath(); ctx.moveTo(-2,bodyTop+14); ctx.bezierCurveTo(-18,bodyTop+18,-22,bodyTop+36,-10,bodyTop+34); ctx.bezierCurveTo(-4,bodyTop+32,-2,bodyTop+26,-2,bodyTop+20); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,80,200,0.82)';
+        ctx.beginPath(); ctx.moveTo(4,bodyTop+6); ctx.bezierCurveTo(24,bodyTop-10,32,bodyTop+22,16,bodyTop+28); ctx.bezierCurveTo(8,bodyTop+30,4,bodyTop+18,4,bodyTop+10); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,160,220,0.65)';
+        ctx.beginPath(); ctx.moveTo(4,bodyTop+14); ctx.bezierCurveTo(20,bodyTop+18,24,bodyTop+36,12,bodyTop+34); ctx.bezierCurveTo(6,bodyTop+32,4,bodyTop+26,4,bodyTop+20); ctx.closePath(); ctx.fill();
         break;
-      case 'glasses':
-        ctx.strokeStyle = '#AAAAAA'; ctx.lineWidth = 1.5;
-        ctx.strokeRect(-7, headY + 8,  5, 4); // left lens
-        ctx.strokeRect( 1, headY + 8,  5, 4); // right lens
-        ctx.beginPath(); ctx.moveTo(-2, headY + 10); ctx.lineTo(1, headY + 10); ctx.stroke(); // bridge
-        ctx.beginPath(); ctx.moveTo(-12, headY + 9); ctx.lineTo(-7, headY + 9); ctx.stroke(); // arm
+      case 'wings_angel':
+        ctx.fillStyle = 'rgba(255,255,240,0.92)';
+        ctx.beginPath(); ctx.moveTo(-2,bodyTop+4); ctx.bezierCurveTo(-28,bodyTop-14,-34,bodyTop+18,-18,bodyTop+28); ctx.bezierCurveTo(-10,bodyTop+30,-2,bodyTop+20,-2,bodyTop+8); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle='rgba(200,200,180,0.5)'; ctx.lineWidth=1; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,240,0.92)';
+        ctx.beginPath(); ctx.moveTo(4,bodyTop+4); ctx.bezierCurveTo(30,bodyTop-14,36,bodyTop+18,20,bodyTop+28); ctx.bezierCurveTo(12,bodyTop+30,4,bodyTop+20,4,bodyTop+8); ctx.closePath(); ctx.fill();
+        ctx.stroke(); ctx.lineWidth=1;
         break;
-      case 'headband':
-        this.px(ctx, '#FFFFFF', -11, headY + 5, 24, 5);
-        this.px(ctx, '#DDDDDD', -11, headY + 5, 24, 2);
+      case 'wings_demon':
+        ctx.fillStyle = 'rgba(160,0,30,0.88)';
+        ctx.beginPath(); ctx.moveTo(-2,bodyTop+4); ctx.lineTo(-22,bodyTop-10); ctx.lineTo(-18,bodyTop+8); ctx.lineTo(-28,bodyTop+8); ctx.lineTo(-20,bodyTop+22); ctx.lineTo(-10,bodyTop+26); ctx.lineTo(-2,bodyTop+14); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(4,bodyTop+4);  ctx.lineTo(24,bodyTop-10);  ctx.lineTo(20,bodyTop+8);  ctx.lineTo(30,bodyTop+8);  ctx.lineTo(22,bodyTop+22);  ctx.lineTo(12,bodyTop+26);  ctx.lineTo(4,bodyTop+14);  ctx.closePath(); ctx.fill();
         break;
-      case 'mask':
-        this.px(ctx, '#1A1A1A', -10, headY + 12, 22, 10);
-        this.px(ctx, '#2A2A2A', -10, headY + 12, 22,  3); // top edge
-        // Mesh dots
-        ctx.fillStyle = '#333333';
-        for (let i = -6; i <= 6; i += 5) ctx.fillRect(i, headY + 16, 3, 3);
+      case 'wings_eagle':
+        ctx.fillStyle = 'rgba(80,50,20,0.9)';
+        ctx.beginPath(); ctx.moveTo(-2,bodyTop+6); ctx.bezierCurveTo(-30,bodyTop+2,-36,bodyTop+20,-20,bodyTop+28); ctx.bezierCurveTo(-12,bodyTop+30,-2,bodyTop+22,-2,bodyTop+10); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(4,bodyTop+6);  ctx.bezierCurveTo(32,bodyTop+2, 38,bodyTop+20, 22,bodyTop+28); ctx.bezierCurveTo(14,bodyTop+30, 4,bodyTop+22, 4,bodyTop+10);  ctx.closePath(); ctx.fill();
+        ctx.strokeStyle='rgba(120,80,30,0.6)'; ctx.lineWidth=1.5;
+        for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-6,bodyTop+12);ctx.lineTo(-12-i*5,bodyTop+26+i*2);ctx.stroke(); ctx.beginPath();ctx.moveTo(8,bodyTop+12);ctx.lineTo(14+i*5,bodyTop+26+i*2);ctx.stroke();}
+        ctx.lineWidth=1;
+        break;
+      case 'wings_robot':
+        this.px(ctx,'#3333AA',-6,bodyTop+2,4,20); this.px(ctx,'#5555CC',-6,bodyTop+2,2,20);
+        this.px(ctx,'#2A2A88',-18,bodyTop+6,14,4); this.px(ctx,'#2A2A88',-20,bodyTop+13,16,4); this.px(ctx,'#2A2A88',-18,bodyTop+20,14,4);
+        this.px(ctx,'#3333AA', 4,bodyTop+2,4,20); this.px(ctx,'#5555CC', 6,bodyTop+2,2,20);
+        this.px(ctx,'#2A2A88', 6,bodyTop+6,14,4); this.px(ctx,'#2A2A88', 6,bodyTop+13,16,4); this.px(ctx,'#2A2A88', 6,bodyTop+20,14,4);
         break;
     }
   },
 
-  drawBall(ctx, x, y, spinning, ghostMode, radius = C.BALL_R) {
-    const R = radius;
-    const t = Date.now() / 80;
+  // Head-level accessories (call after head is drawn)
+  _drawAccessory(ctx, type, headY, hair, hairDark) {
+    if (!type || type === 'none' || type.startsWith('wings_')) return;
+    switch (type) {
+      // ── Hats ──────────────────────────────────────────────────────────────
+      case 'cap': // flat newsboy cap
+        this.px(ctx,'#1A1A1A',-14,headY-4, 30, 5);
+        this.px(ctx,'#111111', -9,headY-16,20,13);
+        this.px(ctx,'#2A2A2A', -9,headY-16,20, 4);
+        break;
+      case 'baseball':
+        this.px(ctx,'#CC2200',-10,headY-14,22,12);
+        this.px(ctx,'#AA1100',-10,headY-14,22, 3);
+        this.px(ctx,'#CC2200',  6,headY-4, 14, 5); // front brim
+        this.px(ctx,'#FFFFFF', -1,headY-13, 4, 3); // button
+        break;
+      case 'cowboy':
+        this.px(ctx,'#8B6914',-18,headY-4, 38, 6);
+        this.px(ctx,'#7A5810', -8,headY-17,18,15);
+        this.px(ctx,'#8B6914', -8,headY-17,18, 4);
+        this.px(ctx,'#5A4010', -3,headY-17, 8, 4); // crown dent
+        this.px(ctx,'#3A2A00', -8,headY-6, 18, 3); // band
+        break;
+      case 'pirate':
+        this.px(ctx,'#111111',-12,headY-14,26,13);
+        this.px(ctx,'#111111',-17,headY-8, 36, 6); // wide brim
+        this.px(ctx,'#FFFFFF', -4,headY-10,10, 5); // skull
+        this.px(ctx,'#111111', -2,headY-9,  3, 3); // left eye socket
+        this.px(ctx,'#111111',  2,headY-9,  3, 3); // right eye socket
+        break;
+      case 'knight':
+        this.px(ctx,'#888888',-11,headY-14,24,22);
+        this.px(ctx,'#999999',-11,headY-14,24, 4);
+        this.px(ctx,'#444444', -9,headY-2, 20, 4); // visor slit
+        this.px(ctx,'#555555', -7,headY+5, 16, 3); // mouth guard
+        this.px(ctx,'#777777',-12,headY+5,  4, 8); // left cheek guard
+        this.px(ctx,'#777777',  9,headY+5,  4, 8);
+        break;
+      case 'football':
+        this.px(ctx,'#003399',-12,headY-14,26,22);
+        this.px(ctx,'#0044BB',-12,headY-14,26, 4);
+        this.px(ctx,'#FFFFFF', -1,headY-11, 4,12); // stripe
+        ctx.strokeStyle='#888'; ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(-9,headY+4);ctx.lineTo(9,headY+4);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-9,headY+9);ctx.lineTo(9,headY+9);ctx.stroke();
+        ctx.lineWidth=1;
+        break;
+      case 'robin':
+        ctx.fillStyle='#2A7A2A';
+        ctx.beginPath();ctx.moveTo(-2,headY-14);ctx.lineTo(-11,headY-1);ctx.lineTo(13,headY-1);ctx.closePath();ctx.fill();
+        this.px(ctx,'#2A7A2A',-10,headY-3,22,6);
+        this.px(ctx,'#1A5A1A',-10,headY-3,22,3);
+        this.px(ctx,'#FFFFFF',  8,headY-14, 3,12); // feather
+        this.px(ctx,'#EEEEEE',  9,headY-14, 2,10);
+        break;
+      case 'devil':
+        ctx.fillStyle='#CC0000';
+        ctx.beginPath();ctx.moveTo(-8,headY-2);ctx.lineTo(-5,headY-16);ctx.lineTo(-2,headY-2);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo( 4,headY-2);ctx.lineTo( 7,headY-16);ctx.lineTo(10,headY-2);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#FF3333';
+        ctx.beginPath();ctx.moveTo(-7,headY-2);ctx.lineTo(-5,headY-10);ctx.lineTo(-3,headY-2);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo( 5,headY-2);ctx.lineTo( 7,headY-10);ctx.lineTo( 9,headY-2);ctx.closePath();ctx.fill();
+        break;
+      // ── Eyewear ────────────────────────────────────────────────────────────
+      case 'glasses':
+        ctx.strokeStyle='#AAAAAA'; ctx.lineWidth=1.5;
+        ctx.strokeRect(-7,headY+9,  7,6); // left lens
+        ctx.strokeRect( 2,headY+9,  7,6); // right lens
+        ctx.beginPath();ctx.moveTo( 0,headY+12);ctx.lineTo(2,headY+12);ctx.stroke(); // bridge
+        ctx.beginPath();ctx.moveTo(-14,headY+11);ctx.lineTo(-7,headY+11);ctx.stroke(); // L arm
+        ctx.beginPath();ctx.moveTo( 9,headY+11);ctx.lineTo(16,headY+11);ctx.stroke(); // R arm
+        ctx.lineWidth=1;
+        break;
+      case 'shades':
+        ctx.fillStyle='rgba(0,0,0,0.88)';
+        ctx.fillRect(-7,headY+9,7,6); ctx.fillRect(2,headY+9,7,6);
+        ctx.strokeStyle='#333'; ctx.lineWidth=1.5;
+        ctx.strokeRect(-7,headY+9,7,6); ctx.strokeRect(2,headY+9,7,6);
+        ctx.strokeStyle='#444';
+        ctx.beginPath();ctx.moveTo(0,headY+12);ctx.lineTo(2,headY+12);ctx.stroke();
+        ctx.lineWidth=1;
+        break;
+      // ── Head ───────────────────────────────────────────────────────────────
+      case 'headband':
+        this.px(ctx,'#FFFFFF',-11,headY+5,24,5);
+        this.px(ctx,'#DDDDDD',-11,headY+5,24,2);
+        break;
+      case 'mask':
+        this.px(ctx,'#1A1A1A',-10,headY+12,22,10);
+        this.px(ctx,'#2A2A2A',-10,headY+12,22, 3);
+        ctx.fillStyle='#333';
+        for(let i=-6;i<=6;i+=5) ctx.fillRect(i,headY+16,3,3);
+        break;
+    }
+  },
+
+  drawBall(ctx, x, y, spinning, ghostMode, radius = C.BALL_R, ballColor = null, stripeColor = null) {
+    const R  = radius;
+    const bc = ballColor   || C.COL.BALL;
+    const sc = stripeColor || C.COL.BALL_STRIPE;
+    const t  = Date.now() / 80;
     const spinOffset = spinning ? Math.sin(t) * R : 0;
 
     if (ghostMode) ctx.globalAlpha = 0.5;
@@ -306,10 +418,10 @@ const Sprites = {
     ctx.ellipse(x, y + R + 2, R * 0.8, Math.max(2, R * 0.38), 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = C.COL.BALL;
+    ctx.fillStyle = bc;
     ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = C.COL.BALL_STRIPE;
+    ctx.fillStyle = sc;
     ctx.fillRect(x - R + 2, y + spinOffset - Math.max(1, R * 0.18), (R - 2) * 2, Math.max(2, R * 0.28));
 
     ctx.fillStyle = 'rgba(255,255,255,0.35)';

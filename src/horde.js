@@ -357,20 +357,32 @@ class BossEnemy {
 
 // ── HordeGame ─────────────────────────────────────────────────────────────────
 class HordeGame {
-  constructor(canvas) {
+  constructor(canvas, solo = false) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
+    this.solo = solo;
 
-    this.p1 = new Player(0, 140, Controls.p1);
-    this.p2 = new Player(1, 260, Controls.p2);
+    this.p1 = new Player(0, solo ? 200 : 140, Controls.p1);
     this.p1.noMidline = true; this.p1.hordeMode = true; this.p1.dir = 1;
-    this.p2.noMidline = true; this.p2.hordeMode = true; this.p2.dir = 1;
+
+    // P2 only exists in co-op
+    if (!solo) {
+      this.p2 = new Player(1, 260, Controls.p2);
+      this.p2.noMidline = true; this.p2.hordeMode = true; this.p2.dir = 1;
+    } else {
+      this.p2 = null;
+    }
 
     // Each player has their own ball
     this.p1Ball = new Ball(); this.p1Ball.reset(0); this.p1.hasBall = true;
-    this.p2Ball = new Ball(); this.p2Ball.reset(1); this.p2.hasBall = true;
-    this._p1BallTimer = 0; this._p2BallTimer = 0;
+    this._p1BallTimer = 0;
+    if (!solo) {
+      this.p2Ball = new Ball(); this.p2Ball.reset(1); this.p2.hasBall = true;
+      this._p2BallTimer = 0;
+    } else {
+      this.p2Ball = null; this._p2BallTimer = 0;
+    }
 
     // Extra balls from double power
     this._extraBalls = [];
@@ -378,12 +390,14 @@ class HordeGame {
     this.p1.extraThrowCallback = (x, y, vx, vy, idx) => {
       const b = new Ball(); b.throw(x, y, vx, vy, false, false); b.lastThrower = idx; this._extraBalls.push(b);
     };
-    this.p2.extraThrowCallback = (x, y, vx, vy, idx) => {
-      const b = new Ball(); b.throw(x, y, vx, vy, false, false); b.lastThrower = idx; this._extraBalls.push(b);
-    };
+    if (!solo) {
+      this.p2.extraThrowCallback = (x, y, vx, vy, idx) => {
+        const b = new Ball(); b.throw(x, y, vx, vy, false, false); b.lastThrower = idx; this._extraBalls.push(b);
+      };
+    }
 
-    this.p1Hp = 3; this.p2Hp = 3;
-    this.p1Fallen = false; this.p2Fallen = false;
+    this.p1Hp = 3; this.p2Hp = solo ? -1 : 3;  // -1 = not applicable in solo
+    this.p1Fallen = false; this.p2Fallen = solo; // P2 treated as already fallen in solo
 
     this.enemies = [];
     this.enemyBalls = [];
@@ -415,19 +429,20 @@ class HordeGame {
 
     // Position held balls before player update
     this._positionHeld(this.p1Ball, this.p1);
-    this._positionHeld(this.p2Ball, this.p2);
+    if (!this.solo) this._positionHeld(this.p2Ball, this.p2);
 
-    // Player updates (each with their own ball)
-    if (!this.p1Fallen) this.p1.update(dt, this.p1Ball, obs, this.p2);
-    if (!this.p2Fallen) this.p2.update(dt, this.p2Ball, obs, this.p1);
+    // Player updates
+    const p2ref = this.solo ? null : this.p2;
+    if (!this.p1Fallen) this.p1.update(dt, this.p1Ball, obs, p2ref);
+    if (!this.solo && !this.p2Fallen) this.p2.update(dt, this.p2Ball, obs, this.p1);
 
     // Ball physics
     this.p1Ball.update(dt, obs);
-    this.p2Ball.update(dt, obs);
+    if (!this.solo) this.p2Ball.update(dt, obs);
 
     // Ball respawn when dead
     this._tickBallRespawn(dt, this.p1Ball, this.p1, '_p1BallTimer', 0);
-    this._tickBallRespawn(dt, this.p2Ball, this.p2, '_p2BallTimer', 1);
+    if (!this.solo) this._tickBallRespawn(dt, this.p2Ball, this.p2, '_p2BallTimer', 1);
 
     // Extra balls (double power)
     for (let i = this._extraBalls.length - 1; i >= 0; i--) {
@@ -439,7 +454,7 @@ class HordeGame {
 
     // Player balls vs enemies
     if (this.p1Ball.inFlight && !this.p1Ball.dead) this._checkBallVsEnemies(this.p1Ball);
-    if (this.p2Ball.inFlight && !this.p2Ball.dead) this._checkBallVsEnemies(this.p2Ball);
+    if (!this.solo && this.p2Ball.inFlight && !this.p2Ball.dead) this._checkBallVsEnemies(this.p2Ball);
 
     // Enemy balls vs players
     for (const eb of this.enemyBalls) {
@@ -450,7 +465,8 @@ class HordeGame {
 
     // Enemy movement + contact damage
     if (this.waveState === 'spawning' || this.waveState === 'fighting') {
-      const alive = [this.p1, this.p2].filter((p, i) => ![this.p1Fallen, this.p2Fallen][i]);
+      const all = this.solo ? [this.p1] : [this.p1, this.p2];
+      const alive = all.filter((p, i) => ![this.p1Fallen, this.p2Fallen][i]);
       for (const e of this.enemies) {
         e.update(dt, alive, this.enemyBalls);
         if (!e.dead) this._checkEnemyContact(e);
@@ -460,11 +476,13 @@ class HordeGame {
 
     // Boss fight
     if (this.boss && !this.boss.dead && this.waveState === 'boss_fight') {
-      const alive = [this.p1, this.p2].filter((p, i) => ![this.p1Fallen, this.p2Fallen][i]);
+      const all = this.solo ? [this.p1] : [this.p1, this.p2];
+      const alive = all.filter((p, i) => ![this.p1Fallen, this.p2Fallen][i]);
       this.boss.update(dt, alive, this.enemyBalls);
 
       // Ball hits boss
-      for (const ball of [this.p1Ball, this.p2Ball, ...this._extraBalls]) {
+      const bossBalls = this.solo ? [this.p1Ball, ...this._extraBalls] : [this.p1Ball, this.p2Ball, ...this._extraBalls];
+      for (const ball of bossBalls) {
         if (!ball.inFlight || ball.dead) continue;
         const r = this.boss.rect;
         if (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
@@ -485,7 +503,8 @@ class HordeGame {
       // Boss contact damage
       if (this.boss.contactCooldown <= 0) {
         const br = this.boss.rect;
-        for (const [player, fallen] of [[this.p1, this.p1Fallen], [this.p2, this.p2Fallen]]) {
+        const bossPlayers = this.solo ? [[this.p1,this.p1Fallen]] : [[this.p1,this.p1Fallen],[this.p2,this.p2Fallen]];
+        for (const [player, fallen] of bossPlayers) {
           if (fallen || player.stunTimer > 0) continue;
           const hitH = player.crouching ? C.CROUCH_H : C.P_H;
           if (br.x < player.x + C.P_W / 2 && br.x + br.w > player.x - C.P_W / 2 &&
@@ -547,7 +566,8 @@ class HordeGame {
   }
 
   _checkEnemyBallVsPlayers(eb) {
-    for (const [player, fallen] of [[this.p1, this.p1Fallen], [this.p2, this.p2Fallen]]) {
+    const pairs = this.solo ? [[this.p1,this.p1Fallen]] : [[this.p1,this.p1Fallen],[this.p2,this.p2Fallen]];
+    for (const [player, fallen] of pairs) {
       if (fallen || player.stunTimer > 0) continue;
       const hitH = player.crouching ? C.CROUCH_H : C.P_H;
       if (eb.x + C.BALL_R > player.x - C.P_W / 2 - 3 && eb.x - C.BALL_R < player.x + C.P_W / 2 + 3 &&
@@ -566,7 +586,8 @@ class HordeGame {
 
   _checkEnemyContact(enemy) {
     if (enemy.contactCooldown > 0) return;
-    for (const [player, fallen] of [[this.p1, this.p1Fallen], [this.p2, this.p2Fallen]]) {
+    const pairs = this.solo ? [[this.p1,this.p1Fallen]] : [[this.p1,this.p1Fallen],[this.p2,this.p2Fallen]];
+    for (const [player, fallen] of pairs) {
       if (fallen || player.stunTimer > 0) continue;
       const er = enemy.rect;
       const hitH = player.crouching ? C.CROUCH_H : C.P_H;
@@ -588,12 +609,12 @@ class HordeGame {
       { upBias: 2, maxSpeed: 4 });
     if (isP1) { this.p1Hp = Math.max(0, this.p1Hp - 1); if (this.p1Hp <= 0) this.p1Fallen = true; }
     else       { this.p2Hp = Math.max(0, this.p2Hp - 1); if (this.p2Hp <= 0) this.p2Fallen = true; }
-    player.stunTimer = this.p1Fallen || this.p2Fallen ? 0 : 900;
+    const allFallen = this.p1Fallen && (this.solo || this.p2Fallen);
+    player.stunTimer = allFallen ? 0 : 900;
     player.vx = 4; player.vy = -5;
-    if (this.p1Fallen && this.p2Fallen) {
+    if (allFallen) {
       this.waveState = 'game_over';
-      // Show which stage they reached
-      this._diedInBoss = this.waveState === 'boss_fight' || this.boss !== null;
+      this._diedInBoss = this.boss !== null;
     }
   }
 
@@ -615,7 +636,7 @@ class HordeGame {
         if (this.enemies.length === 0) {
           // Restore 1 HP to survivors on wave clear
           if (!this.p1Fallen) this.p1Hp = Math.min(3, this.p1Hp + 1);
-          if (!this.p2Fallen) this.p2Hp = Math.min(3, this.p2Hp + 1);
+          if (!this.solo && !this.p2Fallen) this.p2Hp = Math.min(3, this.p2Hp + 1);
           if (this.wave >= HORDE_WAVES.length) {
             this.waveState = 'boss_intro';
             this.waveTimer = 3500;
@@ -670,15 +691,16 @@ class HordeGame {
     }
     this.p1Ball.draw(ctx);
 
-    // P2
-    if (this.p2Fallen) {
-      ctx.save(); ctx.globalAlpha = 0.22;
-      this.p2.draw(ctx, this.p2Ball);
-      ctx.restore();
-    } else {
-      this.p2.draw(ctx, this.p2Ball);
+    // P2 (skip in solo)
+    if (!this.solo) {
+      if (this.p2Fallen) {
+        ctx.save(); ctx.globalAlpha = 0.22;
+        this.p2.draw(ctx, this.p2Ball); ctx.restore();
+      } else {
+        this.p2.draw(ctx, this.p2Ball);
+      }
+      this.p2Ball.draw(ctx);
     }
-    this.p2Ball.draw(ctx);
 
     for (const b of this._extraBalls) b.draw(ctx);
 
@@ -695,8 +717,9 @@ class HordeGame {
     ctx.fillStyle = '#282828';
     ctx.fillRect(290, 2, 1, 48); ctx.fillRect(C.W - 291, 2, 1, 48);
 
-    this._drawPlayerPanel(ctx, this.p1, this.p1Hp, this.p1Fallen, C.COL.P1_HUD, 'JACO', false);
-    this._drawPlayerPanel(ctx, this.p2, this.p2Hp, this.p2Fallen, C.COL.P2_HUD, 'LUCY', true);
+    this._drawPlayerPanel(ctx, this.p1, this.p1Hp, this.p1Fallen, C.COL.P1_HUD, this.p1.charName || 'JACO', false);
+    if (!this.solo)
+      this._drawPlayerPanel(ctx, this.p2, this.p2Hp, this.p2Fallen, C.COL.P2_HUD, this.p2.charName || 'LUCY', true);
 
     // Center: wave + score + enemy count
     const cx = C.W / 2;

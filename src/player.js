@@ -207,6 +207,7 @@ class Player {
     const heavySpeedMult = useHeavy ? 0.52 : 1;
     ball.throw(armX, armY, vx * (useRocket ? 2.2 : heavySpeedMult), vy * (useRocket ? 1 : heavySpeedMult), useRocket, useShadow);
     ball.lastThrower = this.index;
+    if (this.charColors && this.charColors.ballStyle) ball.styleId = this.charColors.ballStyle;
 
     if (useCurve)     { ball.curve = true; ball._curveT = 0; }
     if (useBoomerang) { ball.boomerang = true; ball._boomDist = 0; ball._boomFlipped = false; }

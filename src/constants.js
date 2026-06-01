@@ -152,8 +152,28 @@ const CUSTOM_HAIR_PRESETS      = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B
 // All hair styles in one list; body type is derived from the style chosen
 const CUSTOM_HAIR_STYLES  = ['straight','spiky','buzz','ponytail','bun','long'];
 const HAIR_STYLE_TO_BODY  = { straight:'boy', spiky:'boy', buzz:'boy', ponytail:'girl', bun:'girl', long:'girl' };
-const CUSTOM_ACCESSORIES  = ['none','hat','glasses','headband','mask'];
+// Hats · Eyewear · Head · Wings
+const CUSTOM_ACCESSORIES  = [
+  'none',
+  'cap','baseball','cowboy','pirate','knight','football','robin','devil',
+  'glasses','shades',
+  'headband','mask',
+  'wings_butterfly','wings_angel','wings_demon','wings_eagle','wings_robot',
+];
 const CUSTOM_SHIRT_SYMBOLS= ['none','★','♥','⚡','◆','✦','☯','✿'];
+
+// Ball throw styles
+const BALL_STYLES = ['default','fire','ice','gold','dark','toxic','rainbow'];
+const BALL_STYLE_LABELS = { default:'DEFAULT', fire:'🔥 FIRE', ice:'🧊 ICE', gold:'✨ GOLD', dark:'🌑 DARK', toxic:'☢ TOXIC', rainbow:'🌈 RAINBOW' };
+const BALL_STYLE_DATA   = {
+  default: { color:'#E84040', stripe:'#FFFFFF', glow:null },
+  fire:    { color:'#FF6600', stripe:'#FFCC00', glow:'#FF4400' },
+  ice:     { color:'#44AAFF', stripe:'#AAEEFF', glow:'#88DDFF' },
+  gold:    { color:'#FFD700', stripe:'#FFFFFF', glow:'#FFD700' },
+  dark:    { color:'#6600CC', stripe:'#AA44FF', glow:'#9933CC' },
+  toxic:   { color:'#44FF00', stripe:'#CCFF00', glow:'#44FF00' },
+  rainbow: { color:null,      stripe:'#FFFFFF', glow:null },
+};
 
 // One-line descriptions shown when cycling powers in the custom builder
 const POWER_DESCRIPTIONS  = {
