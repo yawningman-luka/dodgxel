@@ -56,13 +56,16 @@ const Sprites = {
     // Torso
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
-    // Shirt symbol
+    // Shirt symbol (black outline + white fill so it's visible on any colour)
     const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
     if (shirtSymbol && shirtSymbol !== 'none') {
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      const sy = bodyTop + Math.round(bodyH * 0.68);
       ctx.font = '11px serif'; ctx.textAlign = 'center';
-      ctx.fillText(shirtSymbol, 1, bodyTop + Math.round(bodyH * 0.68));
-      ctx.textAlign = 'left';
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+      ctx.strokeText(shirtSymbol, 1, sy);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(shirtSymbol, 1, sy);
+      ctx.textAlign = 'left'; ctx.lineWidth = 1;
     }
 
     // Throwing arm (back arm)
@@ -174,13 +177,16 @@ const Sprites = {
     // Torso
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
 
-    // Shirt symbol
+    // Shirt symbol (black outline + white fill)
     const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
     if (shirtSymbol && shirtSymbol !== 'none') {
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      const sy = bodyTop + Math.round(bodyH * 0.68);
       ctx.font = '11px serif'; ctx.textAlign = 'center';
-      ctx.fillText(shirtSymbol, 1, bodyTop + Math.round(bodyH * 0.68));
-      ctx.textAlign = 'left';
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+      ctx.strokeText(shirtSymbol, 1, sy);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(shirtSymbol, 1, sy);
+      ctx.textAlign = 'left'; ctx.lineWidth = 1;
     }
 
     // Back arm
@@ -275,8 +281,8 @@ const Sprites = {
         ctx.beginPath(); ctx.moveTo(-12, headY + 9); ctx.lineTo(-7, headY + 9); ctx.stroke(); // arm
         break;
       case 'headband':
-        this.px(ctx, hairDark, -11, headY + 5, 24, 5);
-        this.px(ctx, hair,     -11, headY + 5, 24, 2); // highlight stripe
+        this.px(ctx, '#FFFFFF', -11, headY + 5, 24, 5);
+        this.px(ctx, '#DDDDDD', -11, headY + 5, 24, 2);
         break;
       case 'mask':
         this.px(ctx, '#1A1A1A', -10, headY + 12, 22, 10);

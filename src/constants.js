@@ -149,10 +149,24 @@ const CHARACTERS = [
 // Custom builder presets
 const CUSTOM_SHIRT_PRESETS     = ['#4169E1','#E14169','#CC2200','#007755','#CC8800','#6A0DAD','#556677','#CC0088','#00AA44','#AAAAAA'];
 const CUSTOM_HAIR_PRESETS      = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B35','#2C2C2C','#00DDAA','#88FF44','#FFFFFF','#CC4400'];
-const CUSTOM_BOY_HAIR_STYLES   = ['straight','spiky','buzz'];
-const CUSTOM_GIRL_HAIR_STYLES  = ['ponytail','bun','long'];
-const CUSTOM_ACCESSORIES       = ['none','hat','glasses','headband','mask'];
-const CUSTOM_SHIRT_SYMBOLS     = ['none','★','♥','⚡','◆','✦','☯','✿'];
+// All hair styles in one list; body type is derived from the style chosen
+const CUSTOM_HAIR_STYLES  = ['straight','spiky','buzz','ponytail','bun','long'];
+const HAIR_STYLE_TO_BODY  = { straight:'boy', spiky:'boy', buzz:'boy', ponytail:'girl', bun:'girl', long:'girl' };
+const CUSTOM_ACCESSORIES  = ['none','hat','glasses','headband','mask'];
+const CUSTOM_SHIRT_SYMBOLS= ['none','★','♥','⚡','◆','✦','☯','✿'];
+
+// One-line descriptions shown when cycling powers in the custom builder
+const POWER_DESCRIPTIONS  = {
+  rocket:    '2× speed, explosive impact',
+  double:    'Fires two balls at once',
+  shadow:    'Near-invisible ghost ball',
+  curve:     'Bends mid-flight',
+  boomerang: 'Reverses direction mid-air',
+  blaze:     'Fire trail + 2s floor hazard',
+  heavy:     '3× bigger, slow & hard to miss',
+  seeker:    'Homes toward opponent',
+  split:     'Explodes into 3 tiny balls',
+};
 
 // Mutable control bindings — loaded from localStorage, used at runtime
 const Controls = {
