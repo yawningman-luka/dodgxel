@@ -86,24 +86,43 @@ const Sprites = {
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
 
-    // Hair
-    this.px(ctx, hair, -10, headY - 2, 22, 10);
-    this.px(ctx, hair, -10, headY - 2, 4, 22);
-    this.px(ctx, hair, 8, headY - 2, 4, 22);
-    this.px(ctx, hairDark, -10, headY + 8, 22, 3);
+    // Hair — style switch
+    const hairType = (colors && colors.hairType) || 'straight';
+    switch (hairType) {
+      case 'spiky':
+        this.px(ctx, hair,     -10, headY,      22,  6);
+        this.px(ctx, hairDark, -10, headY + 4,  22,  2);
+        this.px(ctx, hair,  -8, headY - 12,  4, 14);
+        this.px(ctx, hair,  -2, headY - 16,  4, 18);
+        this.px(ctx, hair,   4, headY - 14,  4, 16);
+        this.px(ctx, hair,  10, headY - 10,  4, 12);
+        break;
+      case 'buzz':
+        this.px(ctx, hair, -10, headY - 1, 22,  5);
+        this.px(ctx, hair, -10, headY - 1,  3, 14);
+        this.px(ctx, hair,   9, headY - 1,  3, 14);
+        break;
+      default: // straight
+        this.px(ctx, hair,     -10, headY - 2, 22, 10);
+        this.px(ctx, hair,     -10, headY - 2,  4, 22);
+        this.px(ctx, hair,       8, headY - 2,  4, 22);
+        this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        break;
+    }
 
     // Eyes
     if (!blink) {
       this.px(ctx, C.COL.EYE, -3, headY + 10, 4, 5);
-      this.px(ctx, C.COL.EYE, 4, headY + 10, 4, 5);
+      this.px(ctx, C.COL.EYE,  4, headY + 10, 4, 5);
       this.px(ctx, '#fff', -2, headY + 10, 2, 2);
-      this.px(ctx, '#fff', 5, headY + 10, 2, 2);
+      this.px(ctx, '#fff',  5, headY + 10, 2, 2);
     } else {
       this.px(ctx, C.COL.EYE, -3, headY + 13, 4, 2);
-      this.px(ctx, C.COL.EYE, 4, headY + 13, 4, 2);
+      this.px(ctx, C.COL.EYE,  4, headY + 13, 4, 2);
     }
 
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
+    this._drawAccessory(ctx, (colors && colors.accessory) || 'none', headY, hair, hairDark);
     ctx.restore();
   },
 
@@ -176,30 +195,79 @@ const Sprites = {
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
 
-    // Hair
-    this.px(ctx, hair, -10, headY - 2, 22, 10);
-    this.px(ctx, hair, -10, headY - 2, 4, 22);
-    this.px(ctx, hair, 8, headY - 2, 4, 22);
-    this.px(ctx, hairDark, -10, headY + 8, 22, 3);
-
-    // Ponytail
-    this.px(ctx, hair, -22, headY + 2, 14, 8);
-    this.px(ctx, hair, -26, headY + 6, 8, 6);
-    this.px(ctx, hairDark, -14, headY + 4, 4, 4);
+    // Hair — style switch
+    const hairType = (colors && colors.hairType) || 'ponytail';
+    switch (hairType) {
+      case 'bun':
+        this.px(ctx, hair,     -10, headY + 2, 22,  8);
+        this.px(ctx, hair,     -10, headY + 2,  4, 20);
+        this.px(ctx, hair,       8, headY + 2,  4, 20);
+        ctx.fillStyle = hair;
+        ctx.beginPath(); ctx.arc(-1, headY - 8, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = hairDark;
+        ctx.beginPath(); ctx.arc(2, headY - 5,  5, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'long':
+        this.px(ctx, hair,     -10, headY - 2, 22, 10);
+        this.px(ctx, hair,     -14, headY - 2,  6, 34);
+        this.px(ctx, hair,       8, headY - 2,  6, 34);
+        this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        break;
+      default: // ponytail
+        this.px(ctx, hair,     -10, headY - 2, 22, 10);
+        this.px(ctx, hair,     -10, headY - 2,  4, 22);
+        this.px(ctx, hair,       8, headY - 2,  4, 22);
+        this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        this.px(ctx, hair,     -22, headY + 2, 14,  8);
+        this.px(ctx, hair,     -26, headY + 6,  8,  6);
+        this.px(ctx, hairDark, -14, headY + 4,  4,  4);
+        break;
+    }
 
     // Eyes
     if (!blink) {
       this.px(ctx, C.COL.EYE, -3, headY + 10, 4, 5);
-      this.px(ctx, C.COL.EYE, 4, headY + 10, 4, 5);
+      this.px(ctx, C.COL.EYE,  4, headY + 10, 4, 5);
       this.px(ctx, '#fff', -2, headY + 10, 2, 2);
-      this.px(ctx, '#fff', 5, headY + 10, 2, 2);
+      this.px(ctx, '#fff',  5, headY + 10, 2, 2);
     } else {
       this.px(ctx, C.COL.EYE, -3, headY + 13, 4, 2);
-      this.px(ctx, C.COL.EYE, 4, headY + 13, 4, 2);
+      this.px(ctx, C.COL.EYE,  4, headY + 13, 4, 2);
     }
 
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
+    this._drawAccessory(ctx, (colors && colors.accessory) || 'none', headY, hair, hairDark);
     ctx.restore();
+  },
+
+  // Shared accessory layer — called inside save/restore with sprite transform active
+  _drawAccessory(ctx, type, headY, hair, hairDark) {
+    switch (type) {
+      case 'hat':
+        this.px(ctx, '#1A1A1A', -14, headY - 4,  30,  5); // brim
+        this.px(ctx, '#111111',  -9, headY - 16, 20, 14); // crown
+        this.px(ctx, '#2A2A2A',  -9, headY - 16, 20,  4); // top highlight
+        this.px(ctx, '#333333',  -9, headY - 4,  20,  2); // brim seam
+        break;
+      case 'glasses':
+        ctx.strokeStyle = '#AAAAAA'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(-7, headY + 8,  5, 4); // left lens
+        ctx.strokeRect( 1, headY + 8,  5, 4); // right lens
+        ctx.beginPath(); ctx.moveTo(-2, headY + 10); ctx.lineTo(1, headY + 10); ctx.stroke(); // bridge
+        ctx.beginPath(); ctx.moveTo(-12, headY + 9); ctx.lineTo(-7, headY + 9); ctx.stroke(); // arm
+        break;
+      case 'headband':
+        this.px(ctx, hairDark, -11, headY + 5, 24, 5);
+        this.px(ctx, hair,     -11, headY + 5, 24, 2); // highlight stripe
+        break;
+      case 'mask':
+        this.px(ctx, '#1A1A1A', -10, headY + 12, 22, 10);
+        this.px(ctx, '#2A2A2A', -10, headY + 12, 22,  3); // top edge
+        // Mesh dots
+        ctx.fillStyle = '#333333';
+        for (let i = -6; i <= 6; i += 5) ctx.fillRect(i, headY + 16, 3, 3);
+        break;
+    }
   },
 
   drawBall(ctx, x, y, spinning, ghostMode, radius = C.BALL_R) {

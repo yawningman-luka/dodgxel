@@ -113,54 +113,45 @@ const C = {
   },
 };
 
-// ── Character roster ─────────────────────────────────────────────────────────
+// ── Character roster (1 preset per power + custom) ───────────────────────────
 const CHARACTERS = [
-  {
-    id: 'jaco', name: 'JACO', type: 'boy', power: 'rocket',
-    colors: { shirt: '#4169E1', pants: '#1C3A6E', hair: '#A0722A', hairDark: '#6B4A10' },
-    bio: 'Blazing rocket throw. Pure speed, maximum impact.',
-    accentCol: '#FF6B35',
-  },
-  {
-    id: 'lucy', name: 'LUCY', type: 'girl', power: 'curve',
-    colors: { shirt: '#E14169', pants: '#6E1C3A', hair: '#FFD700', hairDark: '#DAA520' },
-    bio: 'Bending throws that follow every dodge.',
-    accentCol: '#00E5FF',
-  },
-  {
-    id: 'rex', name: 'REX', type: 'boy', power: 'shadow',
-    colors: { shirt: '#6A0DAD', pants: '#3D0070', hair: '#2C2C2C', hairDark: '#111111' },
-    bio: 'Ghost throw — barely visible, almost uncatchable.',
-    accentCol: '#9B59B6',
-  },
-  {
-    id: 'nova', name: 'NOVA', type: 'girl', power: 'double',
-    colors: { shirt: '#CC8800', pants: '#885500', hair: '#FF6B35', hairDark: '#CC4400' },
-    bio: 'Fires two balls at once. Twice the chaos.',
-    accentCol: '#FFD700',
-  },
-  {
-    id: 'blaze', name: 'BLAZE', type: 'boy', power: 'rocket',
-    colors: { shirt: '#CC2200', pants: '#881100', hair: '#FF9900', hairDark: '#CC6600' },
-    bio: 'All offence. The rocket is his only move.',
-    accentCol: '#FF6B35',
-  },
-  {
-    id: 'iris', name: 'IRIS', type: 'girl', power: 'curve',
-    colors: { shirt: '#007755', pants: '#004433', hair: '#88DDAA', hairDark: '#66BB88' },
-    bio: 'Reads every move. The curve never misses twice.',
-    accentCol: '#00E5FF',
-  },
-  {
-    id: 'custom', name: 'CUSTOM', type: null, power: null, colors: null,
-    bio: 'Design your own fighter.',
-    accentCol: '#888888',
-  },
+  { id:'jaco',  name:'JACO',   type:'boy',  power:'rocket',
+    colors:{ shirt:'#4169E1', pants:'#1C3A6E', hair:'#A0722A', hairDark:'#6B4A10', hairType:'straight', accessory:'none' },
+    bio:'Blazing rocket throw. Pure speed, max impact.', accentCol:'#FF6B35' },
+  { id:'lucy',  name:'LUCY',   type:'girl', power:'curve',
+    colors:{ shirt:'#E14169', pants:'#6E1C3A', hair:'#FFD700', hairDark:'#DAA520', hairType:'ponytail', accessory:'none' },
+    bio:'Bending throws that follow every dodge.', accentCol:'#00E5FF' },
+  { id:'rex',   name:'REX',    type:'boy',  power:'shadow',
+    colors:{ shirt:'#6A0DAD', pants:'#3D0070', hair:'#2C2C2C', hairDark:'#111111', hairType:'straight', accessory:'mask' },
+    bio:'Ghost throw — barely visible, almost uncatchable.', accentCol:'#9B59B6' },
+  { id:'nova',  name:'NOVA',   type:'girl', power:'double',
+    colors:{ shirt:'#CC8800', pants:'#885500', hair:'#FF6B35', hairDark:'#CC4400', hairType:'bun', accessory:'none' },
+    bio:'Fires two balls at once. Twice the chaos.', accentCol:'#FFD700' },
+  { id:'axe',   name:'AXE',    type:'boy',  power:'boomerang',
+    colors:{ shirt:'#B25A00', pants:'#7A3A00', hair:'#CC4400', hairDark:'#882200', hairType:'spiky', accessory:'none' },
+    bio:'Throw it across — it snaps right back.', accentCol:'#E8A020' },
+  { id:'blaze', name:'BLAZE',  type:'boy',  power:'blaze',
+    colors:{ shirt:'#CC2200', pants:'#881100', hair:'#FF9900', hairDark:'#CC6600', hairType:'spiky', accessory:'none' },
+    bio:'Fire trail on every throw. Burns the floor.', accentCol:'#FF4400' },
+  { id:'tank',  name:'TANK',   type:'boy',  power:'heavy',
+    colors:{ shirt:'#556677', pants:'#334455', hair:'#3A3A3A', hairDark:'#222222', hairType:'buzz', accessory:'none' },
+    bio:'Massive slow ball. Almost undodgeable.', accentCol:'#A08060' },
+  { id:'iris',  name:'IRIS',   type:'girl', power:'seeker',
+    colors:{ shirt:'#CC0088', pants:'#880055', hair:'#00DDAA', hairDark:'#00AA88', hairType:'long', accessory:'glasses' },
+    bio:'Homes in on the opponent. No escape.', accentCol:'#FF00CC' },
+  { id:'zeph',  name:'ZEPH',   type:'girl', power:'split',
+    colors:{ shirt:'#00AA44', pants:'#006622', hair:'#88FF44', hairDark:'#55CC22', hairType:'ponytail', accessory:'headband' },
+    bio:'Ball explodes into 3 — triple the trouble.', accentCol:'#44FF88' },
+  { id:'custom', name:'CUSTOM', type:null, power:null, colors:null,
+    bio:'Design your own fighter.', accentCol:'#888888' },
 ];
 
-// Color presets for the custom slot
-const CUSTOM_SHIRT_PRESETS  = ['#4169E1','#E14169','#CC2200','#007755','#CC8800','#6A0DAD','#AAAAAA'];
-const CUSTOM_HAIR_PRESETS   = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B35','#2C2C2C','#FFFFFF'];
+// Custom builder presets
+const CUSTOM_SHIRT_PRESETS     = ['#4169E1','#E14169','#CC2200','#007755','#CC8800','#6A0DAD','#556677','#CC0088','#00AA44','#AAAAAA'];
+const CUSTOM_HAIR_PRESETS      = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B35','#2C2C2C','#00DDAA','#88FF44','#FFFFFF','#CC4400'];
+const CUSTOM_BOY_HAIR_STYLES   = ['straight','spiky','buzz'];
+const CUSTOM_GIRL_HAIR_STYLES  = ['ponytail','bun','long'];
+const CUSTOM_ACCESSORIES       = ['none','hat','glasses','headband','mask'];
 
 // Mutable control bindings — loaded from localStorage, used at runtime
 const Controls = {

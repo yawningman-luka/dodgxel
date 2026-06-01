@@ -469,12 +469,15 @@ class Game {
   }
 
   // ---- Char Select ----
-  // dest: 'classic' (→ arena select) | 'horde' (→ horde game)
   _startCharSelect(dest = 'classic') {
     this._cs = {
       dest,
-      p1: { idx: 0, confirmed: false, customSub: false, customShirt: 0, customHair: 0, customPower: 0, customName: 'P1', customType: 0 },
-      p2: { idx: 0, confirmed: false, customSub: false, customShirt: 0, customHair: 0, customPower: 0, customName: 'P2', customType: 1 },
+      p1: { idx:0, confirmed:false, customSub:false,
+            customShirt:0, customHair:0, customPower:0, customName:'P1',
+            customType:0, customHairStyle:0, customAccessory:0, _customRow:0 },
+      p2: { idx:0, confirmed:false, customSub:false,
+            customShirt:0, customHair:0, customPower:0, customName:'P2',
+            customType:1, customHairStyle:0, customAccessory:0, _customRow:0 },
       bothTimer: 0,
     };
     this.state = C.STATE.CHAR_SELECT;
@@ -484,7 +487,6 @@ class Game {
     const cs = this._cs;
     const N  = CHARACTERS.length;
 
-    // ESC: exit custom sub if open, else back to menu
     if (Input.wasPressed('Escape')) {
       if (cs.p1.customSub) { cs.p1.customSub = false; return; }
       if (cs.p2.customSub) { cs.p2.customSub = false; return; }
@@ -492,27 +494,28 @@ class Game {
     }
 
     const updateSide = (ps, leftKey, rightKey, upKey, downKey, confirmKey) => {
-      const ch = CHARACTERS[ps.idx];
-
-      if (ps.confirmed) return; // locked in
+      if (ps.confirmed) return;
 
       if (ps.customSub) {
-        if (!ps._customRow) ps._customRow = 0;
-        if (Input.wasPressed(upKey))   ps._customRow = (ps._customRow - 1 + 5) % 5;
-        if (Input.wasPressed(downKey)) ps._customRow = (ps._customRow + 1) % 5;
-        if (Input.wasPressed(leftKey)) {
-          if (ps._customRow === 0) ps.customType  = (ps.customType - 1 + 2) % 2;
-          if (ps._customRow === 1) ps.customShirt = (ps.customShirt - 1 + CUSTOM_SHIRT_PRESETS.length) % CUSTOM_SHIRT_PRESETS.length;
-          if (ps._customRow === 2) ps.customHair  = (ps.customHair  - 1 + CUSTOM_HAIR_PRESETS.length)  % CUSTOM_HAIR_PRESETS.length;
-          if (ps._customRow === 3) ps.customPower = (ps.customPower - 1 + C.POWERS.length) % C.POWERS.length;
-          if (ps._customRow === 4) { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); }
-        }
-        if (Input.wasPressed(rightKey)) {
-          if (ps._customRow === 0) ps.customType  = (ps.customType  + 1) % 2;
-          if (ps._customRow === 1) ps.customShirt = (ps.customShirt + 1) % CUSTOM_SHIRT_PRESETS.length;
-          if (ps._customRow === 2) ps.customHair  = (ps.customHair  + 1) % CUSTOM_HAIR_PRESETS.length;
-          if (ps._customRow === 3) ps.customPower = (ps.customPower + 1) % C.POWERS.length;
-          if (ps._customRow === 4) { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); }
+        const NROWS = 7;
+        if (Input.wasPressed(upKey))   ps._customRow = (ps._customRow - 1 + NROWS) % NROWS;
+        if (Input.wasPressed(downKey)) ps._customRow = (ps._customRow + 1) % NROWS;
+
+        const hairStyles = ps.customType === 0 ? CUSTOM_BOY_HAIR_STYLES : CUSTOM_GIRL_HAIR_STYLES;
+        const cycle = (v, arr, d) => (v + d + arr.length) % arr.length;
+
+        const left = Input.wasPressed(leftKey), right = Input.wasPressed(rightKey);
+        if (left || right) {
+          const d = left ? -1 : 1;
+          switch (ps._customRow) {
+            case 0: ps.customType      = (ps.customType + d + 2) % 2; ps.customHairStyle = 0; break;
+            case 1: ps.customShirt     = cycle(ps.customShirt,     CUSTOM_SHIRT_PRESETS, d);  break;
+            case 2: ps.customHair      = cycle(ps.customHair,      CUSTOM_HAIR_PRESETS,  d);  break;
+            case 3: ps.customHairStyle = cycle(ps.customHairStyle, hairStyles,           d);  break;
+            case 4: ps.customAccessory = cycle(ps.customAccessory, CUSTOM_ACCESSORIES,   d);  break;
+            case 5: ps.customPower     = cycle(ps.customPower,     C.POWERS,             d);  break;
+            case 6: { const n = prompt('Name (max 10):', ps.customName); if (n) ps.customName = n.toUpperCase().slice(0,10); } break;
+          }
         }
         if (Input.wasPressed(confirmKey)) { ps.confirmed = true; ps.customSub = false; }
         return;
@@ -546,16 +549,17 @@ class Game {
       const ch = CHARACTERS[ps.idx];
       if (ch.id === 'custom') {
         const shirt = CUSTOM_SHIRT_PRESETS[ps.customShirt];
-        // Derive pants by darkening shirt a bit
+        const hair  = CUSTOM_HAIR_PRESETS[ps.customHair];
+        const hairStyles = ps.customType === 0 ? CUSTOM_BOY_HAIR_STYLES : CUSTOM_GIRL_HAIR_STYLES;
         player.signaturePower = C.POWERS[ps.customPower];
         player.charColors = {
-          shirt,
-          pants: this._darken(shirt),
-          hair: CUSTOM_HAIR_PRESETS[ps.customHair],
-          hairDark: this._darken(CUSTOM_HAIR_PRESETS[ps.customHair]),
+          shirt, pants: this._darken(shirt),
+          hair,  hairDark: this._darken(hair),
+          hairType:  hairStyles[ps.customHairStyle]  || hairStyles[0],
+          accessory: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none',
         };
-        player.charType   = ps.customType === 0 ? 'boy' : 'girl';
-        player.charName   = ps.customName;
+        player.charType = ps.customType === 0 ? 'boy' : 'girl';
+        player.charName = ps.customName;
       } else {
         player.signaturePower = ch.power;
         player.charColors     = ch.colors;
@@ -666,9 +670,15 @@ class Game {
     ctx.restore();
 
     if (ch.id === 'custom') {
-      ctx.fillStyle = '#888';
-      ctx.font = '10px "Courier New"';
-      ctx.fillText('Press G / L to customise', cx, py + 185);
+      // Prominent key hint
+      const kCol = accentCol;
+      const kKey = label === 'P1' ? Controls.keyName(Controls.p1.catch) : Controls.keyName(Controls.p2.catch);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(cx - 80, py + 175, 160, 26);
+      ctx.strokeStyle = kCol; ctx.lineWidth = 1.5;
+      ctx.strokeRect(cx - 80, py + 175, 160, 26);
+      ctx.fillStyle = kCol; ctx.font = 'bold 13px "Courier New"';
+      ctx.fillText(`[ ${kKey} ] to customise`, cx, py + 193);
     }
 
     // Power badge
@@ -713,73 +723,86 @@ class Game {
   }
 
   _drawCustomSub(ctx, ps, px, py, pw, ph, accentCol) {
-    const cx = px + pw / 2;
-    if (!ps._customRow) ps._customRow = 0;
+    // 2-column: left 55% = form rows, right 45% = live preview
+    const colSplit = Math.round(pw * 0.55);
+    const leftW    = colSplit - 6;
+    const previewX = px + colSplit + (pw - colSplit) / 2;
+    const previewY = py + ph * 0.58;
 
-    ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 14px "Courier New"';
     ctx.textAlign = 'center';
-    ctx.fillText('CUSTOM FIGHTER', cx, py + 38);
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 12px "Courier New"';
+    ctx.fillText('✏️ CUSTOM FIGHTER', px + pw / 2, py + 28);
 
+    // Divider
+    ctx.fillStyle = '#2a2a3a';
+    ctx.fillRect(px + colSplit, py + 36, 1, ph - 44);
+
+    const hairStyles = ps.customType === 0 ? CUSTOM_BOY_HAIR_STYLES : CUSTOM_GIRL_HAIR_STYLES;
     const rows = [
-      { label: 'BODY',   value: ps.customType === 0 ? 'BOY' : 'GIRL' },
-      { label: 'SHIRT',  value: null, color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
-      { label: 'HAIR',   value: null, color: CUSTOM_HAIR_PRESETS[ps.customHair] },
-      { label: 'POWER',  value: C.POWER_NAMES[C.POWERS[ps.customPower]] },
-      { label: 'NAME',   value: ps.customName },
+      { label:'BODY',       value: ps.customType === 0 ? '👦 BOY' : '👧 GIRL' },
+      { label:'SHIRT',      color: CUSTOM_SHIRT_PRESETS[ps.customShirt] },
+      { label:'HAIR COL',   color: CUSTOM_HAIR_PRESETS[ps.customHair] },
+      { label:'HAIR STYLE', value: hairStyles[ps.customHairStyle] || hairStyles[0] },
+      { label:'ACCESSORY',  value: CUSTOM_ACCESSORIES[ps.customAccessory] || 'none' },
+      { label:'POWER',      value: '⚡ ' + (C.POWER_NAMES[C.POWERS[ps.customPower]] || '') },
+      { label:'NAME',       value: ps.customName + ' ✏️' },
     ];
 
+    const rowH = 32, rowStart = py + 42;
     rows.forEach((row, i) => {
-      const ry = py + 68 + i * 42;
+      const ry  = rowStart + i * rowH;
       const sel = ps._customRow === i;
-      ctx.fillStyle = sel ? 'rgba(255,255,255,0.08)' : 'transparent';
-      ctx.fillRect(px + 8, ry - 2, pw - 16, 36);
-      ctx.strokeStyle = sel ? accentCol : '#333';
-      ctx.lineWidth = sel ? 1.5 : 0.5;
-      ctx.strokeRect(px + 8, ry - 2, pw - 16, 36);
+      const rx  = px + 6, rw = leftW;
 
-      ctx.fillStyle = sel ? '#fff' : '#777';
-      ctx.font = `${sel ? 'bold ' : ''}9px "Courier New"`;
-      ctx.textAlign = 'left';
-      ctx.fillText(row.label, px + 18, ry + 10);
+      ctx.fillStyle = sel ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.3)';
+      ctx.fillRect(rx, ry, rw, rowH - 3);
+      if (sel) {
+        ctx.strokeStyle = accentCol; ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx, ry, rw, rowH - 3);
+      }
 
+      // Label
+      ctx.textAlign = 'left'; ctx.fillStyle = sel ? '#aaa' : '#555';
+      ctx.font = '8px "Courier New"';
+      ctx.fillText(row.label, rx + 6, ry + 11);
+
+      // Value
       if (row.color) {
         ctx.fillStyle = row.color;
-        ctx.fillRect(cx - 20, ry + 2, 40, 18);
-        ctx.strokeStyle = sel ? '#fff' : '#555';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(cx - 20, ry + 2, 40, 18);
+        ctx.fillRect(rx + 6, ry + 14, rw - 12, 12);
+        if (sel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(rx + 6, ry + 14, rw - 12, 12); }
       } else {
-        ctx.fillStyle = sel ? accentCol : '#aaa';
-        ctx.font = `bold 11px "Courier New"`;
+        ctx.fillStyle = sel ? accentCol : '#999';
+        ctx.font = `bold 10px "Courier New"`;
         ctx.textAlign = 'center';
-        ctx.fillText(row.value, cx, ry + 16);
+        ctx.fillText(row.value, rx + rw / 2, ry + 24);
       }
 
       if (sel) {
-        ctx.fillStyle = accentCol;
-        ctx.font = '11px serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('◄  ►', cx + 70, ry + 16);
+        ctx.fillStyle = accentCol; ctx.font = '10px serif'; ctx.textAlign = 'center';
+        ctx.fillText('◄  ►', rx + rw - 18, ry + 24);
       }
     });
 
-    // Live preview
+    // Live preview (right column — NO overlap)
     const shirt = CUSTOM_SHIRT_PRESETS[ps.customShirt];
     const hair  = CUSTOM_HAIR_PRESETS[ps.customHair];
-    const cols  = { shirt, pants: this._darken(shirt), hair, hairDark: this._darken(hair) };
+    const cols  = {
+      shirt, pants: this._darken(shirt), hair, hairDark: this._darken(hair),
+      hairType:  (hairStyles[ps.customHairStyle] || hairStyles[0]),
+      accessory: (CUSTOM_ACCESSORIES[ps.customAccessory] || 'none'),
+    };
     ctx.save();
-    ctx.translate(cx, py + ph - 50);
-    ctx.scale(1.4, 1.4);
-    ctx.translate(-cx, -(py + ph - 50));
-    if (ps.customType === 0) Sprites.drawBoy (ctx, cx, py + ph - 50, 'idle', 1, 0, false, cols);
-    else                     Sprites.drawGirl(ctx, cx, py + ph - 50, 'idle', 1, 0, false, cols);
+    ctx.translate(previewX, previewY);
+    ctx.scale(1.55, 1.55);
+    ctx.translate(-previewX, -previewY);
+    if (ps.customType === 0) Sprites.drawBoy (ctx, previewX, previewY, 'idle', 1, Math.PI/8, false, cols);
+    else                     Sprites.drawGirl(ctx, previewX, previewY, 'idle', 1, Math.PI/8, false, cols);
     ctx.restore();
 
-    ctx.fillStyle = '#555';
-    ctx.font = '8px "Courier New"';
-    ctx.textAlign = 'center';
-    ctx.fillText('ESC back  ·  confirm to lock in', cx, py + ph - 8);
+    // Footer hint
+    ctx.fillStyle = '#444'; ctx.font = '8px "Courier New"'; ctx.textAlign = 'center';
+    ctx.fillText('↑↓ row  ·  ←→ change  ·  confirm = lock in', px + pw / 2, py + ph - 6);
     ctx.textAlign = 'left';
   }
 
