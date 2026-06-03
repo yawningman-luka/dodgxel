@@ -779,6 +779,17 @@ class Game {
     ctx.fillStyle = '#666'; ctx.font = '9px "Courier New"';
     ctx.fillText(ch.bio, cx, py + 288);
 
+    // Confirm key hint (pulsing, hidden once confirmed)
+    if (!ps.confirmed) {
+      const confirmHint = label === 'P1' ? '[G]  or  [ENTER]  to ready' : '[L]  or  [R-SHIFT]  to ready';
+      const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 380);
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = accentCol;
+      ctx.font = 'bold 10px "Courier New"';
+      ctx.fillText(confirmHint, cx, py + ph - 32);
+      ctx.globalAlpha = 1;
+    }
+
     // Dots for character position
     for (let i = 0; i < CHARACTERS.length; i++) {
       ctx.fillStyle = i === ps.idx ? accentCol : '#333';
