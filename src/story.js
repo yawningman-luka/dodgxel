@@ -41,7 +41,6 @@ class StoryEnemy {
         this.x = Math.max(40, Math.min(STORY_WORLD_W - 40,
           target.x + side * (90 + Math.random() * 80)));
       }
-      // Still drift toward player while not teleporting
       this.x += Math.sign(target.x - this.x) * this.speed * 0.4;
     } else if (def.floats) {
       this.x += Math.sign(target.x - this.x) * this.speed;
@@ -150,7 +149,6 @@ class StoryEnemy {
     ctx.beginPath();ctx.arc( w*.16,-h*.88,4,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#4A3320';
     ctx.fillRect(-w*.3,-h*.78,w*.6,4);
-    // cracks
     ctx.strokeStyle='#5A4325';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(-w*.2,-h*.6);ctx.lineTo(-w*.05,-h*.45);ctx.stroke();
     ctx.beginPath();ctx.moveTo(w*.1,-h*.65);ctx.lineTo(w*.25,-h*.5);ctx.stroke();
@@ -215,7 +213,6 @@ class StoryEnemy {
     Sprites.px(ctx,'#667788',-w*.44,-h,w*.88,h*.22);
     ctx.fillStyle='#CCDDEE';ctx.fillRect(-w*.25,-h*.92,w*.5,5);
     ctx.fillStyle='#1a2030';ctx.fillRect(-w*.3,-h*.86,w*.6,3);
-    // shield on arm
     ctx.fillStyle='#778899';ctx.fillRect(-w*.75,-h*.75,14,22);
     ctx.fillStyle='#CCDDEE';ctx.fillRect(-w*.72,-h*.72,8,16);
   }
@@ -231,7 +228,7 @@ class StoryEnemy {
     ctx.fillStyle='#FF8844';
     ctx.beginPath();ctx.moveTo(w*.3,-h);ctx.lineTo(w*.52,-h*1.22);ctx.lineTo(w*.36,-h*.85);ctx.fill();
     ctx.strokeStyle='#6B4A10';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(w*.52,- h*.56,13,-Math.PI*.6,Math.PI*.6);ctx.stroke();
+    ctx.beginPath();ctx.arc(w*.52,-h*.56,13,-Math.PI*.6,Math.PI*.6);ctx.stroke();
     ctx.beginPath();ctx.moveTo(w*.52,-h*.69);ctx.lineTo(w*.52,-h*.43);ctx.stroke();
   }
 
@@ -263,6 +260,580 @@ class StoryEnemy {
   }
 }
 
+// ── StoryBoss — one per act, unique vulnerability mechanic ────────────────────
+class StoryBoss extends StoryEnemy {
+  constructor(x, type) {
+    super(x, type);
+    this._bossMsg = '';
+    this._bossMsgTimer = 0;
+
+    if (type === 'stone_guardian') {
+      this._hitReady = false;
+      this._lastHitTime = 0;
+    }
+    if (type === 'mech_fluffkins') {
+      this._shieldOn = true;
+      this._shieldTimer = 2500;
+    }
+    if (type === 'iron_champion') {
+      this._phase = 'walk';
+      this._phaseTimer = 3000;
+      this._origSpeed = this.speed;
+      this._chargeDir = 1;
+    }
+    if (type === 'nexus_core') {
+      this._lastAbsorbTime = 0;
+    }
+  }
+
+  update(dt, players, enemyBalls) {
+    if (this.dead) return;
+    if (this._bossMsgTimer > 0) this._bossMsgTimer -= dt;
+
+    if (this.type === 'mech_fluffkins') {
+      this._shieldTimer -= dt;
+      if (this._shieldTimer <= 0) {
+        this._shieldOn = !this._shieldOn;
+        this._shieldTimer = this._shieldOn ? 2500 : 2000;
+      }
+    }
+
+    if (this.type === 'iron_champion') {
+      this._phaseTimer -= dt;
+      if (this._phaseTimer <= 0) {
+        if (this._phase === 'walk') {
+          this._phase = 'charge';
+          this._phaseTimer = 1500;
+          const target = players[0];
+          this._chargeDir = target ? Math.sign(target.x - this.x) : 1;
+          this.speed = this._origSpeed * 5;
+        } else if (this._phase === 'charge') {
+          this._phase = 'stumble';
+          this._phaseTimer = 1800;
+          this.speed = 0.1;
+        } else {
+          this._phase = 'walk';
+          this._phaseTimer = 3000;
+          this.speed = this._origSpeed;
+        }
+      }
+      if (this._phase === 'charge') {
+        this.x += this._chargeDir * this.speed;
+        this.x = Math.max(30, Math.min(STORY_WORLD_W - 30, this.x));
+      }
+    }
+
+    super.update(dt, players, enemyBalls);
+  }
+
+  takeBall(ball) {
+    switch (this.type) {
+      case 'patient_zero':   return this._takeBallHeadOnly(ball);
+      case 'stone_guardian': return this._takeBallDualHit(ball);
+      case 'mech_fluffkins': return this._takeBallPhaseWindow(ball);
+      case 'iron_champion':  return this._takeBallStunWindow(ball);
+      case 'nexus_core':     return this._takeBallSimultaneous(ball);
+      default: return super.takeBall(ball);
+    }
+  }
+
+  _takeBallHeadOnly(ball) {
+    const headY = this.y - this.h * 0.68;
+    if (ball.y <= headY) {
+      this._bossMsg = 'HEAD SHOT!';
+      this._bossMsgTimer = 900;
+      return super.takeBall(ball);
+    }
+    ball.vx *= -0.7; ball.vy = -Math.abs(ball.vy) * 0.8;
+    this._bossMsg = 'BODY BLOCKED!';
+    this._bossMsgTimer = 1000;
+    this._flashTimer = 80;
+    return false;
+  }
+
+  _takeBallDualHit(ball) {
+    const now = Date.now();
+    if (this._hitReady && (now - this._lastHitTime) <= 400) {
+      this._hitReady = false;
+      this._bossMsg = 'DUAL HIT!';
+      this._bossMsgTimer = 1000;
+      return super.takeBall(ball);
+    }
+    this._hitReady = true;
+    this._lastHitTime = now;
+    ball.vx *= -0.6; ball.vy = -Math.abs(ball.vy) * 0.7;
+    this._bossMsg = 'ABSORBING...';
+    this._bossMsgTimer = 700;
+    this._flashTimer = 80;
+    return false;
+  }
+
+  _takeBallPhaseWindow(ball) {
+    if (this._shieldOn) {
+      ball.vx *= -0.75; ball.vy = -Math.abs(ball.vy) * 0.85;
+      this._bossMsg = 'SHIELD ACTIVE!';
+      this._bossMsgTimer = 900;
+      return false;
+    }
+    this._bossMsg = 'HIT!';
+    this._bossMsgTimer = 500;
+    return super.takeBall(ball);
+  }
+
+  _takeBallStunWindow(ball) {
+    if (this._phase === 'stumble') {
+      this._bossMsg = 'CRITICAL HIT!';
+      this._bossMsgTimer = 800;
+      return super.takeBall(ball);
+    }
+    ball.vx *= -0.6; ball.vy = -Math.abs(ball.vy) * 0.7;
+    this._bossMsg = this._phase === 'charge' ? 'UNSTOPPABLE!' : 'ARMORED!';
+    this._bossMsgTimer = 1000;
+    this._flashTimer = 80;
+    return false;
+  }
+
+  _takeBallSimultaneous(ball) {
+    const now = Date.now();
+    if (ball.exploding) {
+      this._bossMsg = 'OVERLOADED!';
+      this._bossMsgTimer = 1200;
+      this.hp = Math.max(0, this.hp - 3);
+      this._flashTimer = 400;
+      ball.dead = true; ball.inFlight = false; ball.vx = 0; ball.vy = 0; ball.spinning = false;
+      if (this.hp <= 0) { this.dead = true; return true; }
+      return false;
+    }
+    if (this._lastAbsorbTime > 0 && (now - this._lastAbsorbTime) <= 300) {
+      this._bossMsg = 'OVERLOADED!';
+      this._bossMsgTimer = 1000;
+      this._lastAbsorbTime = 0;
+      this.hp = Math.max(0, this.hp - 2);
+      this._flashTimer = 350;
+      ball.dead = true; ball.inFlight = false; ball.vx = 0; ball.vy = 0; ball.spinning = false;
+      if (this.hp <= 0) { this.dead = true; return true; }
+      return false;
+    }
+    this._lastAbsorbTime = now;
+    this._bossMsg = 'ABSORBED! +HP';
+    this._bossMsgTimer = 1000;
+    this.hp = Math.min(this.maxHp, this.hp + 1);
+    ball.dead = true; ball.inFlight = false; ball.vx = 0; ball.vy = 0; ball.spinning = false;
+    this._flashTimer = 60;
+    return false;
+  }
+
+  draw(ctx) {
+    if (this.dead) return;
+    const flash = this._flashTimer > 0 && Math.floor(this._flashTimer / 50) % 2 === 0;
+    ctx.save();
+    ctx.translate(Math.round(this.x), Math.round(this.y));
+    if (flash) ctx.globalAlpha = 0.25;
+
+    switch (this.type) {
+      case 'patient_zero':   this._drawPatientZero(ctx); break;
+      case 'stone_guardian': this._drawStoneGuardian(ctx); break;
+      case 'mech_fluffkins': this._drawMechFluffkins(ctx); break;
+      case 'iron_champion':  this._drawIronChampion(ctx); break;
+      case 'nexus_core':     this._drawNexusCore(ctx); break;
+    }
+
+    if (this._bossMsgTimer > 0 && this._bossMsg) {
+      ctx.globalAlpha = Math.min(1, this._bossMsgTimer / 350);
+      ctx.font = 'bold 9px "Courier New"';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000';
+      ctx.fillText(this._bossMsg, 1, -this.h - 22);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(this._bossMsg, 0, -this.h - 23);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  // ── PATIENT ZERO — diseased colossus (56×88), HEAD ONLY ─────────────────────
+  _drawPatientZero(ctx) {
+    const h = this.h, w = this.w;
+    const leg = Math.sin(this._legAnim) * 5;
+    const t = Date.now() * 0.003;
+
+    // Thick rotting legs
+    Sprites.px(ctx, '#3a2a1a', -w*.42, -h*.36, w*.38, h*.36 + leg);
+    Sprites.px(ctx, '#3a2a1a',  w*.04, -h*.36, w*.38, h*.36 - leg);
+    // Big infected feet
+    Sprites.px(ctx, '#1a0a00', -w*.5,  -h*.08, w*.44, h*.10);
+    Sprites.px(ctx, '#1a0a00',  w*.02, -h*.08, w*.44, h*.10);
+
+    // Massive diseased torso
+    Sprites.px(ctx, '#5a3a2a', -w*.52, -h*.78, w*1.04, h*.46);
+    // Tumor bumps
+    ctx.fillStyle = '#7a5040';
+    ctx.beginPath(); ctx.arc(-w*.3, -h*.55, 8, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w*.25,-h*.62, 6, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-w*.1, -h*.45, 9, 0, Math.PI*2); ctx.fill();
+
+    // Outstretched arms
+    Sprites.px(ctx, '#5a3a2a', -w*.9,  -h*.78, w*.44, h*.2);
+    Sprites.px(ctx, '#5a3a2a',  w*.46, -h*.78, w*.44, h*.2);
+    // Clawed hands
+    ctx.fillStyle = '#3a1a0a';
+    ctx.fillRect(-w*.95,-h*.82, 10, 14);
+    ctx.fillRect(-w*.9, -h*.92, 6,  10);
+    ctx.fillRect( w*.85,-h*.82, 10, 14);
+    ctx.fillRect( w*.82,-h*.92, 6,  10);
+
+    // Neck
+    Sprites.px(ctx, '#4a2a1a', -w*.16, -h*.88, w*.32, h*.12);
+
+    // Big head
+    Sprites.px(ctx, '#5a3a2a', -w*.44, -h, w*.88, h*.26);
+
+    // Barbed wire crown
+    ctx.strokeStyle = '#666'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const cx = -w*.4 + i * w*.11;
+      ctx.moveTo(cx, -h - 2);
+      ctx.lineTo(cx + w*.06, -h - 10);
+      ctx.lineTo(cx + w*.11, -h - 2);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#880000';
+    for (let i = 0; i < 4; i++) ctx.fillRect(-w*.38 + i*w*.25, -h - 7, 3, 3);
+
+    // Glowing infected eyes
+    ctx.shadowColor = '#FF4400'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#FF4400';
+    ctx.beginPath(); ctx.arc(-w*.18,-h*.94, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w*.18,-h*.94, 5, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#FFAA00';
+    ctx.beginPath(); ctx.arc(-w*.18,-h*.94, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w*.18,-h*.94, 2, 0, Math.PI*2); ctx.fill();
+
+    // Rotting mouth
+    ctx.fillStyle = '#1a0000'; ctx.fillRect(-w*.2,-h*.84, w*.4, 5);
+    ctx.fillStyle = '#AA3300';
+    ctx.fillRect(-w*.15,-h*.84, 4, 5);
+    ctx.fillRect(-w*.02,-h*.84, 4, 5);
+    ctx.fillRect( w*.10,-h*.84, 4, 5);
+
+    // Infection aura
+    const pulse = 0.06 + 0.05 * Math.sin(t * 2);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#44FF00';
+    ctx.beginPath(); ctx.arc(0,-h*.5, w*.7, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // ── STONE GUARDIAN — ancient golem (68×100), DUAL HIT ───────────────────────
+  _drawStoneGuardian(ctx) {
+    const h = this.h, w = this.w;
+    const t = Date.now() * 0.001;
+
+    // Column-like legs
+    Sprites.px(ctx, '#5a4a3a', -w*.4,  -h*.38, w*.36, h*.38);
+    Sprites.px(ctx, '#5a4a3a',  w*.04, -h*.38, w*.36, h*.38);
+    // Stone feet
+    Sprites.px(ctx, '#4a3a2a', -w*.48,-h*.10, w*.46, h*.12);
+    Sprites.px(ctx, '#4a3a2a',  w*.02,-h*.10, w*.46, h*.12);
+
+    // Huge stone torso
+    Sprites.px(ctx, '#7a6a4a', -w*.52,-h*.82, w*1.04, h*.48);
+
+    // Stone texture cracks
+    ctx.strokeStyle = '#6a5a3a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-w*.3,-h*.68); ctx.lineTo(-w*.1,-h*.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( w*.1,-h*.72); ctx.lineTo( w*.3,-h*.55); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w*.2,-h*.45); ctx.lineTo( w*.0,-h*.38); ctx.stroke();
+
+    // Giant arms
+    Sprites.px(ctx, '#7a6a4a', -w*.96,-h*.86, w*.5, h*.25);
+    Sprites.px(ctx, '#7a6a4a',  w*.46,-h*.86, w*.5, h*.25);
+    // Massive fists
+    Sprites.px(ctx, '#6a5a3a', -w*1.04,-h*.96, w*.28, h*.32);
+    Sprites.px(ctx, '#6a5a3a',  w*.76,  -h*.96, w*.28, h*.32);
+    // Fist cracks
+    ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-w*.96,-h*.88); ctx.lineTo(-w*.82,-h*.72); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( w*.86,-h*.88); ctx.lineTo( w*.72,-h*.72); ctx.stroke();
+
+    // Boulder head
+    Sprites.px(ctx, '#8a7a5a', -w*.46,-h, w*.92, h*.22);
+    // Mossy top
+    Sprites.px(ctx, '#3a5a2a', -w*.42,-h, w*.84, 6);
+
+    // Molten orange eyes
+    ctx.shadowColor = '#FF8800'; ctx.shadowBlur = 14;
+    ctx.fillStyle = '#FF6600';
+    ctx.beginPath(); ctx.arc(-w*.18,-h*.92, 6, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w*.18,-h*.92, 6, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Stone grimace
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-w*.28,-h*.82, w*.56, 5);
+    ctx.fillStyle = '#aa9a7a';
+    for (let i = 0; i < 5; i++) ctx.fillRect(-w*.24 + i*w*.1,-h*.82, w*.07, 5);
+
+    // Dual-hit ready ring
+    if (this._hitReady) {
+      const pulse = 0.4 + 0.4 * Math.sin(Date.now() * 0.015);
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = '#FF8800'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0,-h*.55, w*.6, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Ground cracks below feet
+    ctx.strokeStyle = 'rgba(100,80,50,0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-w*.6,0); ctx.lineTo(-w*.3,-8); ctx.lineTo( w*.1,0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( w*.3,0); ctx.lineTo( w*.5,-5); ctx.lineTo( w*.8,0); ctx.stroke();
+  }
+
+  // ── MECH FLUFFKINS — robotic cat mech (62×90), PHASE WINDOW ─────────────────
+  _drawMechFluffkins(ctx) {
+    const h = this.h, w = this.w;
+    const t = Date.now() * 0.003 + this._floatOffset;
+    const hov = Math.sin(t) * 4;
+
+    // Jet thrusters
+    ctx.fillStyle = '#223344';
+    ctx.fillRect(-w*.3, hov+2, w*.2, 12);
+    ctx.fillRect( w*.1, hov+2, w*.2, 12);
+    const fh = 4 + 4*Math.sin(Date.now()*0.02);
+    ctx.fillStyle = '#00AAFF';
+    ctx.fillRect(-w*.28, hov+14, w*.16, fh);
+    ctx.fillRect( w*.12, hov+14, w*.16, fh);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-w*.24, hov+14, w*.08, fh*0.5);
+    ctx.fillRect( w*.16, hov+14, w*.08, fh*0.5);
+
+    // Leg pylons
+    Sprites.px(ctx, '#334455', -w*.32,-h*.3+hov, w*.2, h*.3);
+    Sprites.px(ctx, '#334455',  w*.12,-h*.3+hov, w*.2, h*.3);
+
+    // Main mech body
+    Sprites.px(ctx, '#445566', -w*.52,-h*.82+hov, w*1.04, h*.54);
+
+    // Shoulder cannons
+    Sprites.px(ctx, '#336677', -w*.72,-h*.82+hov, w*.26, h*.22);
+    Sprites.px(ctx, '#336677',  w*.46,-h*.82+hov, w*.26, h*.22);
+    ctx.fillStyle = '#223344';
+    ctx.fillRect(-w*.82,-h*.78+hov, 10, 8);
+    ctx.fillRect( w*.72,-h*.78+hov, 10, 8);
+
+    // Chest panel + pulsing heart
+    Sprites.px(ctx, '#556677', -w*.3,-h*.74+hov, w*.6, h*.3);
+    const hp2 = 0.5 + 0.5*Math.sin(Date.now()*0.006);
+    ctx.fillStyle = `rgba(0,200,255,${hp2})`;
+    ctx.beginPath(); ctx.arc(0,-h*.62+hov, 7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#AAEEFF';
+    ctx.beginPath(); ctx.arc(0,-h*.62+hov, 3, 0, Math.PI*2); ctx.fill();
+
+    // Mech cat head
+    Sprites.px(ctx, '#445566', -w*.4,-h+hov, w*.8, h*.22);
+    // Cat ears (triangular)
+    ctx.fillStyle = '#556677';
+    ctx.beginPath(); ctx.moveTo(-w*.38,-h+hov); ctx.lineTo(-w*.28,-h-14+hov); ctx.lineTo(-w*.18,-h+hov); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( w*.18,-h+hov); ctx.lineTo( w*.28,-h-14+hov); ctx.lineTo( w*.38,-h+hov); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FF88CC';
+    ctx.beginPath(); ctx.moveTo(-w*.34,-h+2+hov); ctx.lineTo(-w*.28,-h-8+hov); ctx.lineTo(-w*.22,-h+2+hov); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( w*.22,-h+2+hov); ctx.lineTo( w*.28,-h-8+hov); ctx.lineTo( w*.34,-h+2+hov); ctx.closePath(); ctx.fill();
+
+    // Visor
+    Sprites.px(ctx, '#001122', -w*.3,-h*.96+hov, w*.6, h*.14);
+    ctx.fillStyle = this._shieldOn ? '#00FFFF' : '#FF4488';
+    ctx.shadowColor = this._shieldOn ? '#00FFFF' : '#FF4488';
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(-w*.14,-h*.9+hov, 4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w*.14,-h*.9+hov, 4, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // Whiskers
+    ctx.strokeStyle = 'rgba(200,200,255,0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-w*.3,-h*.87+hov); ctx.lineTo(-w*.48,-h*.84+hov); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w*.3,-h*.84+hov); ctx.lineTo(-w*.48,-h*.81+hov); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( w*.3,-h*.87+hov); ctx.lineTo( w*.48,-h*.84+hov); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( w*.3,-h*.84+hov); ctx.lineTo( w*.48,-h*.81+hov); ctx.stroke();
+
+    // Shield ring when active
+    if (this._shieldOn) {
+      const sp = 0.5 + 0.35*Math.sin(Date.now()*0.008);
+      ctx.globalAlpha = sp;
+      ctx.strokeStyle = '#00AAFF'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0,-h*.55+hov, w*.72, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,200,255,0.4)'; ctx.lineWidth = 12;
+      ctx.beginPath(); ctx.arc(0,-h*.55+hov, w*.72, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── IRON CHAMPION — armored warrior (58×96), STUN WINDOW ────────────────────
+  _drawIronChampion(ctx) {
+    const h = this.h, w = this.w;
+    const leg = this._phase === 'stumble'
+      ? Math.sin(this._legAnim * 3) * 8
+      : this._phase === 'charge'
+        ? Math.sin(this._legAnim * 4) * 6
+        : Math.sin(this._legAnim) * 4;
+
+    // Armored greaves
+    Sprites.px(ctx, '#667788', -w*.44,-h*.38, w*.38, h*.38+leg);
+    Sprites.px(ctx, '#667788',  w*.06,-h*.38, w*.38, h*.38-leg);
+    // Boot plates
+    Sprites.px(ctx, '#778899', -w*.5, -h*.1,  w*.44, h*.12);
+    Sprites.px(ctx, '#778899',  w*.02,-h*.1,  w*.44, h*.12);
+
+    // Red charge aura
+    if (this._phase === 'charge') {
+      const cp = 0.3 + 0.3*Math.sin(Date.now()*0.02);
+      ctx.globalAlpha = cp;
+      ctx.fillStyle = '#FF2200';
+      ctx.beginPath(); ctx.arc(0,-h*.55, w*.7, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Plate body
+    const bodyCol = this._phase === 'charge' ? '#887766' : '#778899';
+    Sprites.px(ctx, bodyCol, -w*.52,-h*.84, w*1.04, h*.5);
+    ctx.fillStyle = '#99AABB'; ctx.fillRect(-w*.28,-h*.8, w*.56, h*.28);
+    ctx.fillStyle = '#CCDDEE'; ctx.fillRect(-w*.2,-h*.76, w*.4, 4);
+
+    // Pauldrons
+    Sprites.px(ctx, '#889AAA', -w*.72,-h*.88, w*.28, h*.26);
+    Sprites.px(ctx, '#889AAA',  w*.44,-h*.88, w*.28, h*.26);
+    // Pauldron spikes
+    ctx.fillStyle = '#CCDDEE';
+    ctx.beginPath(); ctx.moveTo(-w*.76,-h*.88); ctx.lineTo(-w*.82,-h*1.02); ctx.lineTo(-w*.7,-h*.88); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( w*.7, -h*.88); ctx.lineTo( w*.76,-h*1.02); ctx.lineTo( w*.82,-h*.88); ctx.fill();
+
+    // Shield arm
+    Sprites.px(ctx, '#889AAA', -w*.92,-h*.82, w*.22, h*.42);
+    ctx.fillStyle = '#AABBCC'; ctx.fillRect(-w*.96,-h*.88, 18, 36);
+    ctx.fillStyle = '#CCDDEE'; ctx.fillRect(-w*.92,-h*.84, 10, 28);
+    ctx.fillStyle = '#FF4400';
+    ctx.beginPath(); ctx.arc(-w*.88,-h*.72, 4, 0, Math.PI*2); ctx.fill();
+
+    // Sword arm
+    Sprites.px(ctx, '#778899', w*.7,-h*.82, w*.18, h*.35);
+    ctx.fillStyle = '#DDEEFF'; ctx.fillRect(w*.86,-h*1.1, 6, 50);
+    ctx.fillStyle = '#AABBCC'; ctx.fillRect(w*.84,-h*.88, 10, 4);
+
+    // Helmet
+    Sprites.px(ctx, '#889AAA', -w*.44,-h, w*.88, h*.2);
+    ctx.fillStyle = '#1a2030'; ctx.fillRect(-w*.28,-h*.93, w*.56, 5);
+    ctx.fillStyle = '#FF4400'; ctx.fillRect(-4,-h-12, 8, 14);
+
+    // Eyes
+    const eyeCol = this._phase === 'charge' ? '#FF4400' : '#88CCFF';
+    ctx.shadowColor = eyeCol; ctx.shadowBlur = 8;
+    ctx.fillStyle = eyeCol;
+    ctx.fillRect(-w*.2,-h*.93, 8, 5);
+    ctx.fillRect( w*.12,-h*.93, 8, 5);
+    ctx.shadowBlur = 0;
+
+    // Stumble stars
+    if (this._phase === 'stumble') {
+      const st = Date.now() * 0.003;
+      ctx.font = 'bold 11px "Courier New"';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFD700';
+      for (let i = 0; i < 3; i++) {
+        const a = st + (i / 3) * Math.PI * 2;
+        ctx.fillText('*', Math.cos(a) * 18, -h - 10 + Math.sin(a) * 7);
+      }
+    }
+  }
+
+  // ── NEXUS CORE — energy entity (72×80), SIMULTANEOUS ────────────────────────
+  _drawNexusCore(ctx) {
+    const h = this.h, w = this.w;
+    const t = Date.now() * 0.002 + this._floatOffset;
+    const hov = Math.sin(t) * 8;
+
+    // Outer orbital rings
+    for (let ring = 0; ring < 3; ring++) {
+      const r = w * (0.55 + ring * 0.18);
+      const rot = t * (0.5 + ring * 0.3) * (ring % 2 === 0 ? 1 : -1);
+      const alpha = 0.15 + 0.1*Math.sin(t*2+ring);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = ring===0 ? '#00AAFF' : ring===1 ? '#0066CC' : '#004499';
+      ctx.lineWidth = 3 - ring;
+      ctx.beginPath();
+      ctx.ellipse(0,-h*.5+hov, r, r*0.35, rot, 0, Math.PI*2);
+      ctx.stroke();
+      for (let n = 0; n < 4; n++) {
+        const na = rot + n * Math.PI / 2;
+        const nx2 = Math.cos(na) * r;
+        const ny2 = -h*.5+hov + Math.sin(na) * r * 0.35;
+        ctx.fillStyle = '#00FFCC';
+        ctx.globalAlpha = alpha * 2;
+        ctx.beginPath(); ctx.arc(nx2, ny2, 3, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Energy tendrils
+    for (let i = 0; i < 6; i++) {
+      const a = t * 0.7 + (i/6) * Math.PI * 2;
+      const len = w * (0.5 + 0.3*Math.sin(t*1.5+i));
+      ctx.strokeStyle = `rgba(0,150,255,${0.3+0.15*Math.sin(t*3+i)})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0,-h*.5+hov);
+      ctx.lineTo(Math.cos(a)*len, -h*.5+hov+Math.sin(a)*len*0.5);
+      ctx.stroke();
+    }
+
+    // Core body (hexagonal)
+    ctx.fillStyle = '#001833';
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i/6)*Math.PI*2 - Math.PI/6;
+      const r = w * 0.46;
+      const px = Math.cos(a)*r, py = -h*.5+hov+Math.sin(a)*r*0.65;
+      i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#0055AA'; ctx.lineWidth = 3; ctx.stroke();
+
+    // Pulsing inner glow
+    const cp = 0.7 + 0.3*Math.sin(t*4);
+    ctx.shadowColor = '#00AAFF'; ctx.shadowBlur = 24;
+    const cg = ctx.createRadialGradient(0,-h*.5+hov,0, 0,-h*.5+hov, w*0.32);
+    cg.addColorStop(0, `rgba(0,255,255,${cp})`);
+    cg.addColorStop(0.5,`rgba(0,100,255,${cp*0.7})`);
+    cg.addColorStop(1,  'rgba(0,20,80,0)');
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(0,-h*.5+hov, w*0.32, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Data grid pattern
+    ctx.strokeStyle = `rgba(0,200,255,${0.2+0.1*Math.sin(t*5)})`;
+    ctx.lineWidth = 1;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.moveTo(i*8,-h*.82+hov); ctx.lineTo(i*8,-h*.18+hov); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-w*.28,-h*.5+hov+i*8); ctx.lineTo(w*.28,-h*.5+hov+i*8); ctx.stroke();
+    }
+
+    // Vertical slit eye
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowColor = '#00FFFF'; ctx.shadowBlur = 10;
+    ctx.fillRect(-3,-h*.62+hov, 6, 22);
+    ctx.fillStyle = '#00FFFF';
+    ctx.fillRect(-1,-h*.6+hov, 2, 18);
+    ctx.shadowBlur = 0;
+
+    // Absorbed HP gain flash
+    if (this._bossMsgTimer > 0 && this._bossMsg === 'ABSORBED! +HP') {
+      ctx.globalAlpha = (this._bossMsgTimer / 800) * 0.4;
+      ctx.fillStyle = '#00FF88';
+      ctx.beginPath(); ctx.arc(0,-h*.5+hov, w*0.5, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
 // ── StoryGame ─────────────────────────────────────────────────────────────────
 class StoryGame {
   constructor(canvas, coop = false) {
@@ -272,14 +843,20 @@ class StoryGame {
     this.coop = coop;
     this.returnToMenu = false;
 
-    // Persist unlocked acts between retries within the session
     this.subState = 'world_map';
     this.actIndex = 0;
     this.completedActs = new Set();
     this._unlockedActs = new Set([0]);
     this._mapCursor = 0;
 
-    // Runtime state (filled by _startAct)
+    // Dialogue
+    this._dlgPhase = 'intro';
+    this._dlgName = '';
+    this._dlgCol = '#FFF';
+    this._dlgLines = [];
+    this._dlgLine = 0;
+
+    // Runtime state (filled by _startActCombat)
     this.p1 = null; this.p2 = null;
     this.p1Ball = null; this.p2Ball = null;
     this._p1BallTimer = 0; this._p2BallTimer = 0;
@@ -294,16 +871,18 @@ class StoryGame {
     this._waveTimer = 0;
     this._spawnQueue = [];
     this._spawnTimer = 0;
-
-    // Dialogue
-    this._dlgName = '';
-    this._dlgCol = '#FFF';
-    this._dlgLines = [];
-    this._dlgLine = 0;
   }
 
-  // ── Act start ───────────────────────────────────────────────────────────────
+  // ── Act start: show intro dialogue then begin combat ─────────────────────────
   _startAct(idx) {
+    this.actIndex = idx;
+    this._dlgPhase = 'intro';
+    const act = STORY_ACTS[idx];
+    this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
+  }
+
+  // ── Combat setup ─────────────────────────────────────────────────────────────
+  _startActCombat(idx) {
     this.actIndex = idx;
 
     this.p1 = new Player(0, 150, Controls.p1);
@@ -386,9 +965,12 @@ class StoryGame {
     if (this._waveState === 'game_over' || this._waveState === 'act_clear') {
       if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
         if (this._waveState === 'act_clear') {
-          this._startDialogue(STORY_ACTS[this.actIndex].npc);
+          const act = STORY_ACTS[this.actIndex];
+          this._dlgPhase = 'outro';
+          this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.outroLines });
         } else {
-          this._startAct(this.actIndex);
+          // Retry: skip intro, go straight to combat
+          this._startActCombat(this.actIndex);
         }
       }
       return;
@@ -403,7 +985,6 @@ class StoryGame {
     if (!this.p1Fallen) this.p1.update(dt, this.p1Ball, [], p2ref);
     if (this.coop && this.p2 && !this.p2Fallen) this.p2.update(dt, this.p2Ball, [], this.p1);
 
-    // Clamp to world
     this.p1.x = Math.max(16, Math.min(STORY_WORLD_W - 16, this.p1.x));
     if (this.coop && this.p2) this.p2.x = Math.max(16, Math.min(STORY_WORLD_W - 16, this.p2.x));
 
@@ -441,7 +1022,6 @@ class StoryGame {
 
     this._tickWave(dt);
 
-    // Camera follows P1 (or midpoint in coop)
     const cx = this.coop && this.p2
       ? (this.p1.x + this.p2.x) / 2 - C.W / 2
       : this.p1.x - C.W / 2;
@@ -472,8 +1052,10 @@ class StoryGame {
     for (const e of this.enemies) {
       if (e.dead) continue;
       const r = e.rect;
-      if (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
-          ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h) {
+      const hit = (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
+                   ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h);
+
+      if (hit) {
         const killed = e.takeBall(ball);
         if (killed) {
           Particles.emit(e.x, e.y - e.h / 2, 18,
@@ -482,7 +1064,43 @@ class StoryGame {
           const thrower = ball.lastThrower === 0 ? this.p1 : (this.coop ? this.p2 : null);
           if (thrower) thrower.spCharge = Math.min(C.SP_CHARGE_MAX, thrower.spCharge + C.SP_CHARGE_HIT);
         }
+        if (ball.exploding) this._doExplosionSplash(ball, e);
         break;
+      }
+
+      // Exploding ball proximity trigger (no direct collision needed)
+      if (ball.exploding && ball.inFlight && !ball.dead) {
+        const ex = e.x, ey = e.y - e.h * 0.5;
+        const dx = ball.x - ex, dy = ball.y - ey;
+        if (Math.sqrt(dx*dx + dy*dy) <= 70) {
+          this._doExplosionSplash(ball, null);
+          ball.dead = true; ball.inFlight = false; ball.vx = 0; ball.vy = 0;
+          break;
+        }
+      }
+    }
+  }
+
+  _doExplosionSplash(ball, hitEnemy) {
+    const bx = ball.x, by = ball.y;
+    Particles.emit(bx, by, 28,
+      ['#FF6B00','#FF4400','#FFCC00','#FF8800','#FFFFFF'],
+      { upBias: 0, maxSpeed: 8, minSize: 3, maxSize: 6 });
+
+    for (const e of this.enemies) {
+      if (e.dead || e === hitEnemy) continue;
+      const dx = bx - e.x, dy = by - (e.y - e.h * 0.5);
+      if (Math.sqrt(dx*dx + dy*dy) <= 100) {
+        e.hp -= 1;
+        e._flashTimer = 250;
+        if (e.hp <= 0) {
+          e.dead = true;
+          Particles.emit(e.x, e.y - e.h / 2, 14,
+            ['#FF4444','#FF8800','#FFD700'],
+            { upBias: 2, maxSpeed: 4 });
+          const thrower = ball.lastThrower === 0 ? this.p1 : (this.coop ? this.p2 : null);
+          if (thrower) thrower.spCharge = Math.min(C.SP_CHARGE_MAX, thrower.spCharge + C.SP_CHARGE_HIT);
+        }
       }
     }
   }
@@ -568,9 +1186,8 @@ class StoryGame {
           } else {
             this._waveState = 'wave_end';
             this._waveTimer = 2600;
-            // Restore 1 HP on wave clear
             if (!this.p1Fallen) this.p1Hp = Math.min(5, this.p1Hp + 1);
-            if (this.coop && !this.p2Fallen) this.p2Hp = Math.min(5, this.p2Hp + 1);
+            if (this.coop && this.p2 && !this.p2Fallen) this.p2Hp = Math.min(5, this.p2Hp + 1);
           }
         }
         break;
@@ -584,13 +1201,23 @@ class StoryGame {
   _beginWave() {
     this._wave++;
     const waveDef = STORY_ACTS[this.actIndex].waves[this._wave - 1];
-    this._spawnQueue = waveDef.flatMap(g => Array(g.count).fill(g.type));
-    for (let i = this._spawnQueue.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [this._spawnQueue[i], this._spawnQueue[j]] = [this._spawnQueue[j], this._spawnQueue[i]];
+    const allDefs = _ALL_ENEMY_DEFS();
+    const bossGroup = waveDef.find(g => allDefs[g.type] && allDefs[g.type].isBoss);
+
+    if (bossGroup) {
+      const spawnX = Math.min(this._camX + C.W + 160, STORY_WORLD_W - 60);
+      this.enemies.push(new StoryBoss(spawnX, bossGroup.type));
+      this._spawnQueue = [];
+      this._waveState = 'fighting';
+    } else {
+      this._spawnQueue = waveDef.flatMap(g => Array(g.count).fill(g.type));
+      for (let i = this._spawnQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this._spawnQueue[i], this._spawnQueue[j]] = [this._spawnQueue[j], this._spawnQueue[i]];
+      }
+      this._spawnTimer = 500;
+      this._waveState = 'spawning';
     }
-    this._spawnTimer = 500;
-    this._waveState = 'spawning';
   }
 
   _updateDialogue() {
@@ -598,7 +1225,13 @@ class StoryGame {
                     Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
     if (confirm) {
       this._dlgLine++;
-      if (this._dlgLine >= this._dlgLines.length) this.subState = 'world_map';
+      if (this._dlgLine >= this._dlgLines.length) {
+        if (this._dlgPhase === 'intro') {
+          this._startActCombat(this.actIndex);
+        } else {
+          this.subState = 'world_map';
+        }
+      }
     }
   }
 
@@ -630,9 +1263,8 @@ class StoryGame {
     ctx.fillStyle = '#FFD700'; ctx.font = 'bold 15px "Courier New"';
     ctx.fillText('STORY MODE', C.W/2, 24);
     ctx.fillStyle = '#555'; ctx.font = '9px "Courier New"';
-    ctx.fillText('← → select zone   ENTER enter   ESC menu', C.W/2, 38);
+    ctx.fillText('ARROWS select zone   ENTER enter   ESC menu', C.W/2, 38);
 
-    // Connecting path
     ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=2;ctx.setLineDash([6,6]);
     ctx.beginPath();
     STORY_ACTS.forEach((a,i)=>{ i===0?ctx.moveTo(a.mapPos.x,a.mapPos.y):ctx.lineTo(a.mapPos.x,a.mapPos.y); });
@@ -659,7 +1291,7 @@ class StoryGame {
       ctx.textAlign = 'center';
       ctx.font = `${sel?14:12}px "Courier New"`;
       ctx.fillStyle = done ? '#44FF88' : unlocked ? '#eee' : '#333';
-      ctx.fillText(done ? '★' : unlocked ? String(i+1) : '🔒', x, y+5);
+      ctx.fillText(done ? 'X' : unlocked ? String(i+1) : '?', x, y+5);
 
       ctx.font = '8px "Courier New"';
       ctx.fillStyle = sel ? '#FFD700' : unlocked ? '#888' : '#2a2a2a';
@@ -668,7 +1300,6 @@ class StoryGame {
       ctx.fillText(act.zone, x, y+r+21);
     }
 
-    // Info panel for selected act
     const sa = STORY_ACTS[this._mapCursor];
     const done = this.completedActs.has(this._mapCursor);
     const unlocked = this._unlockedActs.has(this._mapCursor);
@@ -681,11 +1312,11 @@ class StoryGame {
     ctx.font = 'bold 11px "Courier New"';
     ctx.fillText(`${sa.title} — ${sa.zone}`, px, py+16);
     ctx.fillStyle='#555'; ctx.font='9px "Courier New"';
-    ctx.fillText(`Category: ${sa.enemyCategory}`, px, py+30);
+    ctx.fillText(`Enemies: ${sa.enemyCategory}`, px, py+30);
     ctx.fillStyle = done ? '#44FF88' : unlocked ? '#aaa' : '#333';
     ctx.font = done ? 'bold 10px "Courier New"' : '10px "Courier New"';
     ctx.fillText(
-      done ? '★ COMPLETED — ENTER to replay' : unlocked ? 'ENTER to begin' : '🔒 Complete previous act first',
+      done ? 'COMPLETED — ENTER to replay' : unlocked ? 'ENTER to begin' : 'Complete previous act first',
       px, py+50
     );
   }
@@ -694,7 +1325,6 @@ class StoryGame {
   _drawSidescroll(ctx) {
     const act = STORY_ACTS[this.actIndex];
 
-    // Sky
     const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
     g.addColorStop(0, act.bg.sky); g.addColorStop(1, act.bg.mid);
     ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);
@@ -702,7 +1332,6 @@ class StoryGame {
     ctx.save();
     ctx.translate(-this._camX, 0);
 
-    // Ground
     ctx.fillStyle = act.bg.ground;
     ctx.fillRect(0, C.GROUND, STORY_WORLD_W, C.H - C.GROUND);
     ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
@@ -728,7 +1357,7 @@ class StoryGame {
     for (const b of this._extraBalls) b.draw(ctx);
     Particles.draw(ctx);
 
-    ctx.restore(); // end camera
+    ctx.restore();
 
     this._drawSidescrollHUD(ctx);
     this._drawSidescrollOverlay(ctx);
@@ -739,13 +1368,11 @@ class StoryGame {
       case 'city': {
         const cols = ['#1e1e2e','#242434','#2a2a3e'];
         for (let i = 0; i < 7; i++) {
-          const bx = 80 + i * 330, bh = 70 + (i*53)%110, bw = 55+(i*19)%35;
-          ctx.fillStyle = cols[i%3];
-          ctx.fillRect(bx, C.GROUND-bh, bw, bh);
+          const bx = 80 + i*330, bh = 70+(i*53)%110, bw = 55+(i*19)%35;
+          ctx.fillStyle = cols[i%3]; ctx.fillRect(bx, C.GROUND-bh, bw, bh);
           ctx.fillStyle='rgba(255,220,80,0.25)';
           for(let wy=0;wy<4;wy++) for(let wx=0;wx<3;wx++)
-            ctx.fillRect(bx+5+wx*16, C.GROUND-bh+6+wy*18, 8,10);
-          // broken window
+            ctx.fillRect(bx+5+wx*16, C.GROUND-bh+6+wy*18, 8, 10);
           ctx.fillStyle='rgba(0,0,0,0.5)';
           ctx.fillRect(bx+5+(i%3)*16, C.GROUND-bh+6+((i+1)%4)*18, 8, 10);
         }
@@ -754,32 +1381,33 @@ class StoryGame {
       case 'jungle': {
         for (let i = 0; i < 13; i++) {
           const tx = 60 + i*185;
-          ctx.fillStyle='#2a1a0a'; ctx.fillRect(tx-5,C.GROUND-90,10,90);
+          ctx.fillStyle='#2a1a0a'; ctx.fillRect(tx-5, C.GROUND-90, 10, 90);
           ctx.fillStyle='#1a3a1a';
-          ctx.beginPath();ctx.arc(tx,C.GROUND-88,32,0,Math.PI*2);ctx.fill();
+          ctx.beginPath(); ctx.arc(tx, C.GROUND-88, 32, 0, Math.PI*2); ctx.fill();
           ctx.fillStyle='#1e4a1e';
-          ctx.beginPath();ctx.arc(tx-10,C.GROUND-100,20,0,Math.PI*2);ctx.fill();
-          ctx.beginPath();ctx.arc(tx+12,C.GROUND-96,18,0,Math.PI*2);ctx.fill();
+          ctx.beginPath(); ctx.arc(tx-10, C.GROUND-100, 20, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(tx+12, C.GROUND-96,  18, 0, Math.PI*2); ctx.fill();
         }
-        // Temple ruins in center zone
-        ctx.fillStyle='#3a3020';
-        ctx.fillRect(900, C.GROUND-100, 200, 100);
+        ctx.fillStyle='#3a3020'; ctx.fillRect(900,  C.GROUND-100, 200, 100);
         ctx.fillRect(880, C.GROUND-120, 240, 24);
-        for(let c=0;c<5;c++) ctx.fillRect(895+c*46,C.GROUND-100,20,100);
+        for(let c=0;c<5;c++) ctx.fillRect(895+c*46, C.GROUND-100, 20, 100);
         break;
       }
       case 'snow': {
-        ctx.fillStyle='#dde8f0'; ctx.fillRect(0,C.GROUND-16,STORY_WORLD_W,16);
-        ctx.fillStyle='#fff'; ctx.fillRect(0,C.GROUND-20,STORY_WORLD_W,6);
+        ctx.fillStyle='#dde8f0'; ctx.fillRect(0, C.GROUND-16, STORY_WORLD_W, 16);
+        ctx.fillStyle='#fff';    ctx.fillRect(0, C.GROUND-20, STORY_WORLD_W, 6);
         for (let i = 0; i < 7; i++) {
-          const mx=180+i*340;
+          const mx = 180+i*340;
           ctx.fillStyle='#8899aa';
           ctx.beginPath();ctx.moveTo(mx-55,C.GROUND-16);ctx.lineTo(mx,C.GROUND-130);ctx.lineTo(mx+55,C.GROUND-16);ctx.fill();
           ctx.fillStyle='#eef4ff';
           ctx.beginPath();ctx.moveTo(mx-22,C.GROUND-16);ctx.lineTo(mx,C.GROUND-130);ctx.lineTo(mx+22,C.GROUND-16);ctx.fill();
         }
-        ctx.fillStyle='#445566'; ctx.fillRect(1000,C.GROUND-140,160,140);
-        ctx.fillStyle='#336699'; ctx.fillRect(1010,C.GROUND-120,40,60);ctx.fillRect(1060,C.GROUND-120,40,60);ctx.fillRect(1110,C.GROUND-120,40,60);
+        ctx.fillStyle='#445566'; ctx.fillRect(1000, C.GROUND-140, 160, 140);
+        ctx.fillStyle='#336699';
+        ctx.fillRect(1010,C.GROUND-120,40,60);
+        ctx.fillRect(1060,C.GROUND-120,40,60);
+        ctx.fillRect(1110,C.GROUND-120,40,60);
         break;
       }
       case 'castle': {
@@ -822,38 +1450,57 @@ class StoryGame {
     ctx.fillText('P1', 8, 13);
     this._drawHpPips(ctx, 8, 17, this.p1Hp, 5, C.COL.P1_HUD, this.p1Fallen);
 
-    if (this.coop) {
+    if (this.coop && this.p2) {
       ctx.fillStyle=C.COL.P2_HUD; ctx.font='bold 9px "Courier New"';
       ctx.textAlign='right'; ctx.fillText('P2', C.W-8, 13);
       this._drawHpPips(ctx, C.W-8-5*22, 17, this.p2Hp, 5, C.COL.P2_HUD, this.p2Fallen);
     }
 
-    // Centre
+    // Centre — boss bar or wave info
     ctx.textAlign='center';
-    ctx.fillStyle=act.bg.accent; ctx.font='bold 10px "Courier New"';
-    ctx.fillText(`${act.title} — ${act.zone}`, C.W/2, 13);
-
-    ctx.font='9px "Courier New"';
-    const ws = this._waveState;
-    if (ws==='fighting'||ws==='spawning') {
-      const rem = this.enemies.length + this._spawnQueue.length;
-      ctx.fillStyle = rem>5?'#FF9999':'#FFCC44';
-      ctx.fillText(`WAVE ${this._wave}/${act.waves.length}  ·  ${rem} enemies`, C.W/2, 27);
-    } else if (ws==='countdown') {
-      ctx.fillStyle='#FFDD44';
-      ctx.fillText(
-        this._wave===0 ? `GET READY!  ${Math.ceil(this._waveTimer/1000)}s` :
-          `WAVE ${this._wave+1} in ${Math.ceil(this._waveTimer/1000)}s`,
-        C.W/2, 27);
-    } else if (ws==='wave_end') {
-      ctx.fillStyle='#88FF88';
-      ctx.fillText(`WAVE ${this._wave} CLEAR! +1 HP`, C.W/2, 27);
+    const boss = this.enemies.find(e => e instanceof StoryBoss);
+    if (boss) {
+      const bx = C.W/2 - 110, bw = 220;
+      ctx.fillStyle = '#330000'; ctx.fillRect(bx, 28, bw, 10);
+      ctx.fillStyle = '#FF2222'; ctx.fillRect(bx, 28, bw * (boss.hp / boss.maxHp), 10);
+      ctx.strokeStyle = '#FF5555'; ctx.lineWidth = 1; ctx.strokeRect(bx, 28, bw, 10);
+      ctx.fillStyle = '#FF6666'; ctx.font = 'bold 9px "Courier New"';
+      ctx.fillText(boss.type.toUpperCase().replace(/_/g,' '), C.W/2, 26);
+      const hints = {
+        patient_zero:   'AIM FOR THE HEAD',
+        stone_guardian: 'HIT TWICE IN 0.4s',
+        mech_fluffkins: 'WAIT FOR SHIELD DOWN',
+        iron_champion:  'HIT DURING STUMBLE',
+        nexus_core:     'TWO QUICK HITS OR EXPLODE',
+      };
+      ctx.fillStyle = '#FFAA44'; ctx.font = '8px "Courier New"';
+      ctx.fillText(hints[boss.type] || '', C.W/2, 44);
+    } else {
+      ctx.fillStyle = act.bg.accent; ctx.font = 'bold 10px "Courier New"';
+      ctx.fillText(`${act.title} — ${act.zone}`, C.W/2, 13);
+      ctx.font='9px "Courier New"';
+      const ws = this._waveState;
+      if (ws==='fighting'||ws==='spawning') {
+        const rem = this.enemies.length + this._spawnQueue.length;
+        ctx.fillStyle = rem>5 ? '#FF9999' : '#FFCC44';
+        ctx.fillText(`WAVE ${this._wave}/${act.waves.length}  ${rem} enemies`, C.W/2, 27);
+      } else if (ws==='countdown') {
+        ctx.fillStyle='#FFDD44';
+        ctx.fillText(
+          this._wave===0 ? `GET READY!  ${Math.ceil(this._waveTimer/1000)}s` :
+            `WAVE ${this._wave+1} in ${Math.ceil(this._waveTimer/1000)}s`,
+          C.W/2, 27);
+      } else if (ws==='wave_end') {
+        ctx.fillStyle='#88FF88';
+        ctx.fillText(`WAVE ${this._wave} CLEAR! +1 HP`, C.W/2, 27);
+      }
     }
 
     ctx.fillStyle='rgba(255,255,255,0.09)'; ctx.font='8px "Courier New"';
+    ctx.textAlign='center';
     ctx.fillText('ESC · world map', C.W/2, C.H-5);
 
-    // SP bar for P1
+    // SP bars
     const sp1 = Math.min(1, this.p1.spCharge / C.SP_CHARGE_MAX);
     ctx.fillStyle='#111'; ctx.fillRect(8,33,100,6);
     ctx.fillStyle=sp1>=1?'#FFD700':C.COL.P1_HUD; ctx.fillRect(8,33,100*sp1,6);
@@ -890,7 +1537,7 @@ class StoryGame {
       ctx.fillText('AREA CLEAR!', C.W/2, C.H/2-24);
       ctx.shadowBlur=0;
       ctx.fillStyle='#aaa'; ctx.font='13px "Courier New"';
-      ctx.fillText('A survivor wants to talk to you…', C.W/2, C.H/2+14);
+      ctx.fillText('A survivor wants to talk to you...', C.W/2, C.H/2+14);
       ctx.fillStyle='#555'; ctx.font='10px "Courier New"';
       ctx.fillText('ENTER to continue', C.W/2, C.H/2+38);
     } else if (ws === 'game_over') {
@@ -901,12 +1548,12 @@ class StoryGame {
       ctx.fillText('GAME OVER', C.W/2, C.H/2-26);
       ctx.shadowBlur=0;
       ctx.fillStyle='#aaa'; ctx.font='13px "Courier New"';
-      ctx.fillText(`Wave ${this._wave}  ·  ${STORY_ACTS[this.actIndex].zone}`, C.W/2, C.H/2+12);
+      ctx.fillText(`Wave ${this._wave}  -  ${STORY_ACTS[this.actIndex].zone}`, C.W/2, C.H/2+12);
       ctx.fillStyle='#555'; ctx.font='10px "Courier New"';
       ctx.fillText('ENTER to retry from wave 1', C.W/2, C.H/2+36);
     }
 
-    // Opening title card during first countdown
+    // Act intro banner (first countdown)
     if (ws === 'countdown' && this._wave === 0 && this._waveTimer > 600) {
       const t = (this._waveTimer - 600) / 2200;
       ctx.fillStyle=`rgba(0,0,0,${t*0.72})`;
@@ -920,34 +1567,51 @@ class StoryGame {
       ctx.fillStyle=`rgba(180,100,40,${t*.9})`;
       ctx.font='9px "Courier New"'; ctx.fillText(`ENEMY TYPE: ${act.enemyCategory}`, C.W/2, C.H/2+32);
     }
+
+    // Boss wave announcement (wave 9 countdown = wave 10 incoming)
+    if (ws === 'countdown' && this._wave === 9 && this._waveTimer > 600) {
+      const t = (this._waveTimer - 600) / 2200;
+      ctx.fillStyle = `rgba(80,0,0,${t*0.85})`;
+      ctx.fillRect(C.W/2 - 230, C.H/2 - 52, 460, 104);
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 20 * t;
+      ctx.fillStyle = `rgba(255,50,0,${t})`;
+      ctx.font = 'bold 24px "Courier New"'; ctx.fillText('!! BOSS INCOMING !!', C.W/2, C.H/2 - 14);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgba(255,180,50,${t})`;
+      ctx.font = '11px "Courier New"'; ctx.fillText('Prepare yourself...', C.W/2, C.H/2 + 16);
+    }
   }
 
   // ── Dialogue ────────────────────────────────────────────────────────────────
   _drawDialogue(ctx) {
     const act = STORY_ACTS[this.actIndex];
 
-    // Background (static scene)
     const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
     g.addColorStop(0, act.bg.sky); g.addColorStop(1, act.bg.mid);
     ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);
     ctx.fillStyle = act.bg.ground;
     ctx.fillRect(0, C.GROUND, C.W, C.H - C.GROUND);
     ctx.save();
-    ctx.translate(-this._camX * 0.5, 0); // subtle parallax on dialogue backdrop
+    ctx.translate(-this._camX * 0.5, 0);
     this._drawScenery(ctx, act.id);
     ctx.restore();
+
+    // Phase label
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '8px "Courier New"';
+    ctx.fillText(this._dlgPhase === 'intro' ? 'PRE-BATTLE' : 'POST-BATTLE', C.W - 12, C.H - 162);
 
     // Dialogue box
     const bx=36, by=C.H-148, bw=C.W-72, bh=128;
     ctx.fillStyle='rgba(0,0,0,0.9)'; ctx.fillRect(bx,by,bw,bh);
     ctx.strokeStyle=this._dlgCol; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
 
-    // NPC name plate
     ctx.fillStyle=this._dlgCol; ctx.font='bold 10px "Courier New"';
     ctx.textAlign='left'; ctx.fillText(this._dlgName, bx+12, by+16);
     ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(bx+2,by+2,bw-4,18);
 
-    // Text with word wrap
     ctx.fillStyle='#eee'; ctx.font='11px "Courier New"';
     const line = this._dlgLines[this._dlgLine] || '';
     const maxW = bw - 28;
@@ -960,16 +1624,14 @@ class StoryGame {
     rows.push(row);
     rows.forEach((r, i) => ctx.fillText(r, bx+12, by+36+i*18));
 
-    // Advance indicator
     const adv = 0.5 + 0.5*Math.sin(Date.now()/320);
     ctx.globalAlpha = adv;
     const last = this._dlgLine >= this._dlgLines.length - 1;
     ctx.fillStyle = this._dlgCol; ctx.font='9px "Courier New"';
     ctx.textAlign='right';
-    ctx.fillText(last ? 'ENTER · done' : 'ENTER · next ›', bx+bw-10, by+bh-10);
+    ctx.fillText(last ? 'ENTER - done' : 'ENTER - next', bx+bw-10, by+bh-10);
     ctx.globalAlpha = 1;
 
-    // Counter
     ctx.fillStyle='#333'; ctx.font='8px "Courier New"';
     ctx.textAlign='right';
     ctx.fillText(`${this._dlgLine+1}/${this._dlgLines.length}`, bx+bw-10, by+16);
