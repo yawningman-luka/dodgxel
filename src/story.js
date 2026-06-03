@@ -1587,6 +1587,7 @@ class StoryGame {
   _drawDialogue(ctx) {
     const act = STORY_ACTS[this.actIndex];
 
+    // ── Background ──────────────────────────────────────────────────
     const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
     g.addColorStop(0, act.bg.sky); g.addColorStop(1, act.bg.mid);
     ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);
@@ -1597,43 +1598,215 @@ class StoryGame {
     this._drawScenery(ctx, act.id);
     ctx.restore();
 
-    // Phase label
+    // ── Phase label (subtle, top-right) ─────────────────────────────
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.font = '8px "Courier New"';
-    ctx.fillText(this._dlgPhase === 'intro' ? 'PRE-BATTLE' : 'POST-BATTLE', C.W - 12, C.H - 162);
+    ctx.fillText(this._dlgPhase === 'intro' ? 'PRE-BATTLE' : 'POST-BATTLE', C.W - 12, 14);
 
-    // Dialogue box
-    const bx=36, by=C.H-148, bw=C.W-72, bh=128;
-    ctx.fillStyle='rgba(0,0,0,0.9)'; ctx.fillRect(bx,by,bw,bh);
-    ctx.strokeStyle=this._dlgCol; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
-
-    ctx.fillStyle=this._dlgCol; ctx.font='bold 10px "Courier New"';
-    ctx.textAlign='left'; ctx.fillText(this._dlgName, bx+12, by+16);
-    ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(bx+2,by+2,bw-4,18);
-
-    ctx.fillStyle='#eee'; ctx.font='11px "Courier New"';
+    // ── Wrap text into rows ─────────────────────────────────────────
+    ctx.font = '11px "Courier New"';
     const line = this._dlgLines[this._dlgLine] || '';
-    const maxW = bw - 28;
+    const bMaxW = 480;
+    const bPad  = 14;
     let row = '', rows = [];
     for (const word of line.split(' ')) {
       const test = row ? row + ' ' + word : word;
-      if (ctx.measureText(test).width > maxW) { rows.push(row); row = word; }
+      if (ctx.measureText(test).width > bMaxW - bPad * 2) { rows.push(row); row = word; }
       else row = test;
     }
     rows.push(row);
-    rows.forEach((r, i) => ctx.fillText(r, bx+12, by+36+i*18));
 
-    const adv = 0.5 + 0.5*Math.sin(Date.now()/320);
-    ctx.globalAlpha = adv;
-    const last = this._dlgLine >= this._dlgLines.length - 1;
-    ctx.fillStyle = this._dlgCol; ctx.font='9px "Courier New"';
-    ctx.textAlign='right';
-    ctx.fillText(last ? 'ENTER - done' : 'ENTER - next', bx+bw-10, by+bh-10);
+    // ── Comic speech bubble ─────────────────────────────────────────
+    const lineH = 19;
+    const bW    = bMaxW;
+    const bH    = 28 + rows.length * lineH + bPad; // 28 = name header area
+    const bX    = (C.W - bW) / 2;
+    const bY    = 18;
+    const cr    = 10; // corner radius
+    // Tail anchored near bottom-right of bubble, pointing toward NPC avatar
+    const tX = bX + bW - 64;
+    const tY = bY + bH;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(bX + cr, bY);
+    ctx.lineTo(bX + bW - cr, bY);
+    ctx.quadraticCurveTo(bX + bW, bY, bX + bW, bY + cr);
+    ctx.lineTo(bX + bW, tY);
+    ctx.lineTo(tX + 14, tY);
+    ctx.lineTo(tX + 6,  tY + 32); // tail tip
+    ctx.lineTo(tX - 6,  tY);
+    ctx.lineTo(bX + cr, tY);
+    ctx.quadraticCurveTo(bX, tY, bX, tY - cr);
+    ctx.lineTo(bX, bY + cr);
+    ctx.quadraticCurveTo(bX, bY, bX + cr, bY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+    ctx.strokeStyle = this._dlgCol;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // NPC name in bubble header
+    ctx.fillStyle = this._dlgCol;
+    ctx.font = 'bold 10px "Courier New"';
+    ctx.textAlign = 'left';
+    ctx.fillText(this._dlgName, bX + bPad, bY + 16);
+
+    // Thin divider under name
+    ctx.fillStyle = this._dlgCol;
+    ctx.globalAlpha = 0.2;
+    ctx.fillRect(bX + bPad, bY + 20, bW - bPad * 2, 1);
     ctx.globalAlpha = 1;
 
-    ctx.fillStyle='#333'; ctx.font='8px "Courier New"';
-    ctx.textAlign='right';
-    ctx.fillText(`${this._dlgLine+1}/${this._dlgLines.length}`, bx+bw-10, by+16);
+    // Page counter (top-right of bubble)
+    ctx.fillStyle = '#666';
+    ctx.font = '8px "Courier New"';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${this._dlgLine + 1}/${this._dlgLines.length}`, bX + bW - bPad, bY + 15);
+
+    // Dialogue text
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = '11px "Courier New"';
+    ctx.textAlign = 'left';
+    rows.forEach((r2, i) => ctx.fillText(r2, bX + bPad, bY + 32 + i * lineH));
+
+    // ENTER prompt (bottom-right of bubble, flickering)
+    const adv  = 0.5 + 0.5 * Math.sin(Date.now() / 320);
+    const last = this._dlgLine >= this._dlgLines.length - 1;
+    ctx.globalAlpha = adv;
+    ctx.fillStyle = this._dlgCol;
+    ctx.font = '9px "Courier New"';
+    ctx.textAlign = 'right';
+    ctx.fillText(last ? 'ENTER - done' : 'ENTER - next', bX + bW - bPad, bY + bH - 7);
+    ctx.globalAlpha = 1;
+
+    // ── Player avatar — bottom-left ──────────────────────────────────
+    const feetY = C.H - 8;
+    ctx.save();
+    ctx.translate(55, feetY);
+    Sprites.drawBoy(ctx, 0, 0, 'idle', 1, 0, false);
+    ctx.restore();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '7px "Courier New"';
+    ctx.fillText('YOU', 55, C.H - 1);
+
+    // ── NPC avatar — bottom-right ────────────────────────────────────
+    this._drawDlgNpc(ctx, act.npc.portrait, C.W - 55, feetY);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '7px "Courier New"';
+    ctx.fillText(act.npc.name.split(' ').slice(-1)[0], C.W - 55, C.H - 1);
+  }
+
+  // ── NPC dialogue avatar dispatcher ──────────────────────────────────────────
+  _drawDlgNpc(ctx, portrait, x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    switch (portrait) {
+      case 'wendy':      this._dlgNpcWendy(ctx);      break;
+      case 'biff':       this._dlgNpcBiff(ctx);        break;
+      case 'fluffkins':  this._dlgNpcFluffkins(ctx);   break;
+      case 'princesses': this._dlgNpcPrincesses(ctx);  break;
+      case 'everyone':   this._dlgNpcEveryone(ctx);    break;
+      default:           Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false); break;
+    }
+    ctx.restore();
+  }
+
+  // ── Dr. Wendy — lab coat, glasses, ponytail ──────────────────────────────────
+  _dlgNpcWendy(ctx) {
+    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+    S('#444444', -6, -14, 5, 14); S('#444444',  2, -14, 5, 14); // pants
+    S('#222222', -8,  -3, 6,  5); S('#222222',  3,  -3, 6,  5); // shoes
+    S('#EEEEEE', -9, -36, 20, 22);                                // lab coat body
+    S('#EEEEEE', -14, -34, 6, 14); S('#EEEEEE', 10, -34, 6, 14); // coat arms
+    S('#FDBCB4', -14, -20, 6,  6); S('#FDBCB4', 10, -20, 6,  6); // hands
+    S('#FDBCB4',  -8, -52, 18, 16);                               // head
+    S('#8B4513', -10, -54, 20,  8);                               // hair top
+    S('#8B4513',  10, -54,  4, 18);                               // ponytail
+    S('#1a1a2e',  -5, -48,  3,  3); S('#1a1a2e',  4, -48, 3, 3); // eyes
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+    ctx.strokeRect(-7, -50, 6, 5); ctx.strokeRect(2, -50, 6, 5); // glasses
+    S('#CC8888',  -2, -43,  6,  2);                               // smile
+    S('#DDDDDD',  -3, -36,  8,  4);                               // collar
+  }
+
+  // ── Prof. Biff — khaki, explorer hat, mustache ───────────────────────────────
+  _dlgNpcBiff(ctx) {
+    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+    S('#8B7355', -6, -14, 5, 14); S('#8B7355',  2, -14, 5, 14);
+    S('#6B5335', -8,  -3, 6,  5); S('#6B5335',  3,  -3, 6,  5);
+    S('#CC9944', -9, -36, 20, 22);                                // khaki shirt
+    S('#AA8833', -14, -34, 6, 14); S('#AA8833', 10, -34, 6, 14);
+    S('#FDBCB4', -14, -20, 6,  6); S('#FDBCB4', 10, -20, 6,  6);
+    S('#FDBCB4',  -8, -52, 18, 16);                               // head
+    S('#8B6914', -14, -57, 30,  5);                               // hat brim
+    S('#A07820',  -8, -68, 18, 13);                               // hat crown
+    S('#A07820', -10, -54,  4,  4); S('#A07820', 8, -54, 4, 4);  // sideburns
+    S('#1a1a2e',  -5, -48,  3,  3); S('#1a1a2e', 4, -48, 3, 3);
+    S('#A07820',  -7, -43, 16,  5);                               // big mustache
+  }
+
+  // ── Gen. Fluffkins — blue uniform, cat ears, whiskers ───────────────────────
+  _dlgNpcFluffkins(ctx) {
+    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+    S('#2244AA', -6, -14, 5, 14); S('#2244AA',  2, -14, 5, 14);
+    S('#113388', -8,  -3, 6,  5); S('#113388',  3,  -3, 6,  5);
+    S('#3355CC', -9, -36, 20, 22);                                // blue uniform
+    S('#FFD700', -2, -28,  6,  6);                                // medal
+    S('#2244AA', -14, -34, 6, 14); S('#2244AA', 10, -34, 6, 14);
+    S('#AAAAAA', -14, -20, 6,  6); S('#AAAAAA', 10, -20, 6,  6); // paws
+    S('#CCCCCC',  -8, -52, 18, 16);                               // face
+    S('#BBBBBB', -10, -62,  7, 10); S('#BBBBBB', 5, -62, 7, 10); // ears
+    S('#FFAAAA',  -8, -60,  4,  6); S('#FFAAAA', 6, -60, 4, 6);  // inner ears
+    S('#44AA44',  -5, -48,  3,  4); S('#44AA44', 4, -48, 3, 4);  // cat eyes
+    S('#222222',  -4, -47,  1,  4); S('#222222', 5, -47, 1, 4);  // pupils
+    S('#FFAAAA',  -1, -44,  3,  2);                               // nose
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-13,-43); ctx.lineTo(-1,-43); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( 2,-43); ctx.lineTo(14,-43); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-13,-41); ctx.lineTo(-1,-41); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( 2,-41); ctx.lineTo(14,-41); ctx.stroke();
+  }
+
+  // ── Princesses Dot & Val — two small pink figures, crowns ───────────────────
+  _dlgNpcPrincesses(ctx) {
+    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+    const drawP = (ox, hairCol) => {
+      S('#FF66BB', ox-4, -14, 4, 14); S('#FF66BB', ox+1, -14, 4, 14);
+      S('#CC4499', ox-5,  -3, 4,  5); S('#CC4499', ox+2,  -3, 4,  5);
+      S('#FF88CC', ox-6, -36, 14, 22);
+      S('#FDBCB4', ox-5, -52, 12, 16);
+      S('#FFD700', ox-7, -59, 16,  5); // crown base
+      S('#FFD700', ox-6, -65,  4,  7); S('#FFD700', ox-1, -65, 4, 7); S('#FFD700', ox+5, -63, 4, 5);
+      S('#FF4444', ox-5, -63,  3,  3); S('#FF4444', ox+2, -63, 3, 3);
+      S('#1a1a2e', ox-2, -48,  2,  3); S('#1a1a2e', ox+3, -48, 2, 3);
+      S(hairCol,   ox-7, -54, 14,  5);
+    };
+    drawP(-12, '#FFD700');
+    drawP( 12, '#FF8844');
+  }
+
+  // ── All Survivors — three silhouettes + radio arcs ───────────────────────────
+  _dlgNpcEveryone(ctx) {
+    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+    const cols = ['#88FF88', '#DDAA44', '#AAAAFF'];
+    const xs   = [-18, 0, 18];
+    for (let i = 0; i < 3; i++) {
+      S(cols[i], xs[i]-4, -30, 9, 20); // body
+      S(cols[i], xs[i]-4, -46, 9, 14); // head
+    }
+    ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1.5;
+    for (let i = 1; i <= 3; i++) {
+      ctx.globalAlpha = 0.2 + i * 0.2;
+      ctx.beginPath();
+      ctx.arc(0, -36, i * 9, -Math.PI * 0.75, Math.PI * 0.75);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 }
