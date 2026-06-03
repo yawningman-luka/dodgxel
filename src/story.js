@@ -1303,21 +1303,36 @@ class StoryGame {
     const sa = STORY_ACTS[this._mapCursor];
     const done = this.completedActs.has(this._mapCursor);
     const unlocked = this._unlockedActs.has(this._mapCursor);
-    const px = C.W/2, py = C.H - 88;
-    ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(px-190,py,380,78);
+    const px = C.W/2, py = C.H - 110;
+    ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(px-200,py,400,102);
     ctx.strokeStyle = done ? '#44FF88' : unlocked ? sa.bg.accent : '#2a2a2a';
-    ctx.lineWidth=1.5; ctx.strokeRect(px-190,py,380,78);
+    ctx.lineWidth=1.5; ctx.strokeRect(px-200,py,400,102);
     ctx.textAlign='center';
     ctx.fillStyle = done ? '#44FF88' : unlocked ? sa.bg.accent : '#444';
     ctx.font = 'bold 11px "Courier New"';
-    ctx.fillText(`${sa.title} — ${sa.zone}`, px, py+16);
+    ctx.fillText(`${sa.title} — ${sa.zone}`, px, py+15);
     ctx.fillStyle='#555'; ctx.font='9px "Courier New"';
-    ctx.fillText(`Enemies: ${sa.enemyCategory}`, px, py+30);
+    ctx.fillText(`Enemies: ${sa.enemyCategory}`, px, py+28);
+    // Synopsis
+    if (sa.synopsis) {
+      ctx.fillStyle = unlocked ? '#999' : '#444';
+      ctx.font = 'italic 9px "Courier New"';
+      const words = sa.synopsis.split(' ');
+      let line = '', lineY = py + 46;
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width > 370) {
+          ctx.fillText(line, px, lineY);
+          line = word; lineY += 13;
+        } else { line = test; }
+      }
+      if (line) ctx.fillText(line, px, lineY);
+    }
     ctx.fillStyle = done ? '#44FF88' : unlocked ? '#aaa' : '#333';
     ctx.font = done ? 'bold 10px "Courier New"' : '10px "Courier New"';
     ctx.fillText(
       done ? 'COMPLETED — ENTER to replay' : unlocked ? 'ENTER to begin' : 'Complete previous act first',
-      px, py+50
+      px, py+90
     );
   }
 
