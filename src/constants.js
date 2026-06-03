@@ -65,6 +65,7 @@ const C = {
     SP_HEAVY:     '#A08060',
     SP_SEEKER:    '#FF00CC',
     SP_SPLIT:     '#44FF88',
+    SP_EXPLODE:   '#FF6B00',
   },
 
   // Game states
@@ -102,9 +103,9 @@ const C = {
   },
 
   // Superpowers — all shoot-based, randomly assigned when bar fills
-  POWERS: ['rocket', 'double', 'shadow', 'curve', 'boomerang', 'blaze', 'heavy', 'seeker', 'split'],
+  POWERS: ['rocket', 'double', 'shadow', 'curve', 'boomerang', 'blaze', 'heavy', 'seeker', 'split', 'explode'],
   POWER_NAMES: { rocket:'ROCKET', double:'DOUBLE', shadow:'SHADOW', curve:'CURVE',
-                 boomerang:'BOOMERANG', blaze:'BLAZE', heavy:'HEAVY', seeker:'SEEKER', split:'SPLIT' },
+                 boomerang:'BOOMERANG', blaze:'BLAZE', heavy:'HEAVY', seeker:'SEEKER', split:'SPLIT', explode:'EXPLODE' },
 
   // Controls screen action list and labels
   CTRL_ACTIONS: ['left','right','jump','crouch','throw','catch','shield'],
@@ -143,6 +144,9 @@ const CHARACTERS = [
   { id:'zeph',  name:'ZEPH',   type:'girl', power:'split',
     colors:{ shirt:'#00AA44', pants:'#006622', hair:'#88FF44', hairDark:'#55CC22', hairType:'ponytail', accessory:'headband' },
     bio:'Ball explodes into 3 — triple the trouble.', accentCol:'#44FF88' },
+  { id:'boom',  name:'BOOM',   type:'boy',  power:'explode',
+    colors:{ shirt:'#FF6B00', pants:'#993300', hair:'#FFCC00', hairDark:'#CC9900', hairType:'spiky', accessory:'none' },
+    bio:'Area-blast throw. One hit, everyone nearby feels it.', accentCol:'#FF6B00' },
   { id:'custom', name:'CUSTOM', type:null, power:null, colors:null,
     bio:'Design your own fighter.', accentCol:'#888888' },
 ];
@@ -187,6 +191,7 @@ const POWER_DESCRIPTIONS  = {
   heavy:     '3× bigger, slow & hard to miss',
   seeker:    'Homes toward opponent',
   split:     'Explodes into 3 tiny balls',
+  explode:   'Area blast on impact — hits all nearby',
 };
 
 // Mutable control bindings — loaded from localStorage, used at runtime
