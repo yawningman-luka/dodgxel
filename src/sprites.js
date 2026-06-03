@@ -112,6 +112,27 @@ const Sprites = {
         this.px(ctx, hair, -10, headY - 1,  3, 14);
         this.px(ctx, hair,   9, headY - 1,  3, 14);
         break;
+      case 'lionsmane':
+        // Thick mane around head
+        this.px(ctx, hair,     -14, headY - 4, 30, 10);
+        this.px(ctx, hair,     -14, headY - 4,  6, 28);
+        this.px(ctx, hair,      10, headY - 4,  6, 28);
+        this.px(ctx, hair,      -8, headY + 20,  18, 8);
+        this.px(ctx, hairDark, -14, headY + 6, 30,  4);
+        this.px(ctx, hair,     -16, headY,     5, 20);
+        this.px(ctx, hair,      13, headY,     5, 20);
+        break;
+      case 'star':
+        // Central cap
+        this.px(ctx, hair, -10, headY, 22, 6);
+        // 6 spikes radiating
+        this.px(ctx, hair,  -1, headY - 14,  4, 16);
+        this.px(ctx, hair,  -8, headY - 10,  4, 14);
+        this.px(ctx, hair,   6, headY - 10,  4, 14);
+        this.px(ctx, hair, -13, headY - 6,   5, 10);
+        this.px(ctx, hair,  10, headY - 6,   5, 10);
+        this.px(ctx, hairDark, -10, headY + 4, 22, 3);
+        break;
       default: // straight
         this.px(ctx, hair,     -10, headY - 2, 22, 10);
         this.px(ctx, hair,     -10, headY - 2,  4, 22);
@@ -236,6 +257,30 @@ const Sprites = {
         this.px(ctx, hair,     -14, headY - 2,  6, 34);
         this.px(ctx, hair,       8, headY - 2,  6, 34);
         this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        break;
+      case 'very_long':
+        // Floor-sweeping hair (extra long strands)
+        this.px(ctx, hair,     -10, headY - 2, 22, 10);
+        this.px(ctx, hair,     -14, headY - 2,  6, 52);
+        this.px(ctx, hair,       8, headY - 2,  6, 52);
+        this.px(ctx, hair,     -12, headY + 36,  4, 18);
+        this.px(ctx, hair,       9, headY + 36,  4, 18);
+        this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        break;
+      case 'wave':
+        // Wavy: zigzag side locks
+        this.px(ctx, hair, -10, headY - 2, 22, 10);
+        this.px(ctx, hairDark, -10, headY + 8, 22, 3);
+        // Left wave
+        this.px(ctx, hair, -14, headY,      6, 10);
+        this.px(ctx, hair, -11, headY + 10, 6, 10);
+        this.px(ctx, hair, -14, headY + 20, 6, 10);
+        this.px(ctx, hair, -11, headY + 30, 6,  8);
+        // Right wave
+        this.px(ctx, hair,  10, headY,      6, 10);
+        this.px(ctx, hair,   7, headY + 10, 6, 10);
+        this.px(ctx, hair,  10, headY + 20, 6, 10);
+        this.px(ctx, hair,   7, headY + 30, 6,  8);
         break;
       default: // ponytail
         this.px(ctx, hair,     -10, headY - 2, 22, 10);

@@ -87,10 +87,7 @@ class Game {
       case C.STATE.CHAR_SELECT:
         this._updateCharSelect(dt);
         break;
-      case C.STATE.WORMS:
-        this._wormsGame.update(dt);
-        if (this._wormsGame.returnToMenu) { this._wormsGame = null; this.state = C.STATE.MENU; }
-        break;
+
       case C.STATE.HOW_TO_PLAY:
         this._updateHowToPlay();
         break;
@@ -118,7 +115,7 @@ class Game {
       case C.STATE.HORDE:        if (this._hordeGame) this._hordeGame.draw(); break;
       case C.STATE.ARENA_BUILDER: if (this._builder) this._builder.draw(); break;
       case C.STATE.CHAR_SELECT:   this._drawCharSelect(this.ctx); break;
-      case C.STATE.WORMS:         if (this._wormsGame) this._wormsGame.draw(); break;
+
       case C.STATE.HOW_TO_PLAY:   this._drawHowToPlay(ctx); break;
       case C.STATE.ONLINE_LOBBY:  this._drawOnlineLobby(ctx); break;
       case C.STATE.STORY:         if (this._storyGame) this._storyGame.draw(); break;
@@ -127,7 +124,7 @@ class Game {
 
   // ---- Menu ----
   _updateMenu() {
-    const N = 8;
+    const N = 7;
     if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor - 1 + N) % N;
     if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % N;
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
@@ -135,11 +132,10 @@ class Game {
         case 0: this._startCharSelect('classic');     break;
         case 1: this._startStory();                   break;
         case 2: this._startCharSelect('horde');       break;
-        case 3: this._startCharSelect('worms');       break;
-        case 4: this._startOnlineLobby();             break;
-        case 5: this.state = C.STATE.HOW_TO_PLAY;    break;
-        case 6: this.state = C.STATE.CONTROLS;        break;
-        case 7: this._startBuilder();                 break;
+        case 3: this._startOnlineLobby();             break;
+        case 4: this.state = C.STATE.HOW_TO_PLAY;    break;
+        case 5: this.state = C.STATE.CONTROLS;        break;
+        case 6: this._startBuilder();                 break;
       }
     }
     if (Input.wasPressed('KeyH')) this._startCharSelect('horde');
@@ -176,7 +172,7 @@ class Game {
       { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',         col: C.COL.P1_HUD, bh:42 },
       { label:'📖 STORY MODE',    sub:'solo or co-op · 5 acts · save the world',    col:'#CC88FF',     bh:42 },
       { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',             col:'#FF6600',     bh:42 },
-      { label:'💣 SALVO MODE',    sub:'turn-based · action points · 2 maps',        col:'#88CC44',     bh:42 },
+
       { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',    col:'#00CCFF',     bh:42 },
       { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',               col:'#AAAAAA',     bh:30 },
       { label:'⚙️ CONTROLS',     sub:'remap keys for both players',                 col:'#888888',     bh:30 },

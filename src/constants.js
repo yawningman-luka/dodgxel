@@ -81,6 +81,7 @@ const C = {
     WORMS: 'worms',
     HOW_TO_PLAY: 'how_to_play',
     ONLINE_LOBBY: 'online_lobby',
+    STORY: 'story',
   },
 
   WIN_SCORE: 11,
@@ -150,8 +151,8 @@ const CHARACTERS = [
 const CUSTOM_SHIRT_PRESETS     = ['#4169E1','#E14169','#CC2200','#007755','#CC8800','#6A0DAD','#556677','#CC0088','#00AA44','#AAAAAA'];
 const CUSTOM_HAIR_PRESETS      = ['#A0722A','#FFD700','#FF9900','#88DDAA','#FF6B35','#2C2C2C','#00DDAA','#88FF44','#FFFFFF','#CC4400'];
 // All hair styles in one list; body type is derived from the style chosen
-const CUSTOM_HAIR_STYLES  = ['straight','spiky','buzz','ponytail','bun','long'];
-const HAIR_STYLE_TO_BODY  = { straight:'boy', spiky:'boy', buzz:'boy', ponytail:'girl', bun:'girl', long:'girl' };
+const CUSTOM_HAIR_STYLES  = ['straight','spiky','buzz','ponytail','bun','long','lionsmane','very_long','wave','star'];
+const HAIR_STYLE_TO_BODY  = { straight:'boy', spiky:'boy', buzz:'boy', ponytail:'girl', bun:'girl', long:'girl', lionsmane:'boy', very_long:'girl', wave:'girl', star:'boy' };
 // Hats · Eyewear · Head · Wings
 const CUSTOM_ACCESSORIES  = [
   'none',
