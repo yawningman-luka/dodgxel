@@ -515,7 +515,7 @@ class Game {
       p1: { idx:0, confirmed:false, customSub:false,
             customShirt:0, customHair:0, customPower:0, customName:'P1',
             customHairStyle:0, customAccessory:0, customSymbol:0, customBallStyle:0, _customRow:0 },
-      p2: { idx:0, confirmed:false, customSub:false,
+      p2: { idx:1, confirmed:false, customSub:false,
             customShirt:0, customHair:0, customPower:0, customName:'P2',
             customHairStyle:0, customAccessory:0, customSymbol:0, customBallStyle:0, _customRow:0 },
       bothTimer: 0, soloHorde: false,

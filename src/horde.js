@@ -365,11 +365,13 @@ class HordeGame {
 
     this.p1 = new Player(0, solo ? 200 : 140, Controls.p1);
     this.p1.noMidline = true; this.p1.hordeMode = true; this.p1.dir = 1;
+    { const ch = CHARACTERS[0]; this.p1.signaturePower=ch.power; this.p1.charColors=ch.colors; this.p1.charType=ch.type; this.p1.charName=ch.name; }
 
     // P2 only exists in co-op
     if (!solo) {
       this.p2 = new Player(1, 260, Controls.p2);
       this.p2.noMidline = true; this.p2.hordeMode = true; this.p2.dir = 1;
+      { const ch = CHARACTERS[1]; this.p2.signaturePower=ch.power; this.p2.charColors=ch.colors; this.p2.charType=ch.type; this.p2.charName=ch.name; }
     } else {
       this.p2 = null;
     }
