@@ -21,6 +21,29 @@ function _drawBunkerPlatform(ctx, obs) {
   for (let i = 8; i < obs.w - 4; i += 22) ctx.fillRect(obs.x + i, obs.y + 7, 5, 5);
 }
 
+function _drawDesertRock(ctx, obs) {
+  // Sandstone base
+  ctx.fillStyle = '#B8863A';
+  ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+  // Worn sun-bleached top
+  ctx.fillStyle = '#D4A85A';
+  ctx.fillRect(obs.x, obs.y, obs.w, 5);
+  // Shadow underside
+  ctx.fillStyle = '#7A5518';
+  ctx.fillRect(obs.x, obs.y + obs.h - 4, obs.w, 4);
+  // Horizontal strata lines
+  ctx.fillStyle = '#8B6220';
+  for (let i = 8; i < obs.h - 5; i += 8) {
+    ctx.fillRect(obs.x + 3, obs.y + i, obs.w - 6, 1);
+  }
+  // Vertical crack (deterministic from position)
+  ctx.fillStyle = '#6A4010';
+  if (obs.w > 40) {
+    const cx = obs.x + ((obs.x * 7 + obs.y * 13) % Math.max(1, obs.w - 24)) + 12;
+    ctx.fillRect(cx, obs.y + 5, 1, obs.h - 9);
+  }
+}
+
 function _drawForestBranch(ctx, obs) {
   ctx.fillStyle = '#5A3310';
   ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
@@ -47,7 +70,7 @@ function _makeBunkerMap() {
   const W = WORMS_WORLD_W;
   return {
     name: '🏚️ UNDERGROUND BUNKER',
-    skyTop: '#0A0A18', skyBot: '#1A1A30',
+    skyTop: '#0E0E30', skyBot: '#1C2060',
     groundColor: '#1A1A2E', groundLine: '#2A2A4A',
     p1Start: [90,  148],
     p2Start: [W - 90, 148],
@@ -95,7 +118,39 @@ function _makeForestMap() {
   };
 }
 
-const WORMS_MAPS = [ _makeBunkerMap(), _makeForestMap() ];
+function _makeDesertMap() {
+  const rock = (x, y, w, h = 22) => new Obstacle(x, y, w, h, _drawDesertRock);
+  const W = WORMS_WORLD_W;
+  return {
+    name: '🏜️ SCORCHED DESERT',
+    skyTop: '#5B8FCA', skyBot: '#E8A83A',
+    groundColor: '#C4903A', groundLine: '#A07028',
+    p1Start: [90,  148],
+    p2Start: [W - 90, 148],
+    obstacles: [
+      // Left flank — tall pillar cluster
+      rock(0,    148, 210, 26), rock(30,   106, 150, 22), rock(80,   72,  90, 18),
+      rock(250,  200, 140, 22), rock(120,  285, 170, 18),
+      // Left-centre formations
+      rock(420,  148, 130, 26), rock(460,  104, 65,  22),
+      rock(620,  175, 155, 22), rock(660,  133, 80,  18),
+      rock(790,  260, 130, 18), rock(870,  152, 110, 22),
+      // Centre mesa — layered sandstone butte
+      rock(1040, 195, 320, 26), rock(1060, 153, 190, 22), rock(1100, 113, 100, 18),
+      // Centre-right (mirror)
+      rock(W - 1360, 195, 320, 26), rock(W - 1250, 153, 190, 22), rock(W - 1200, 113, 100, 18),
+      // Right-centre
+      rock(W - 980, 152, 110, 22), rock(W - 920,  260, 130, 18),
+      rock(W - 815, 133, 80,  18), rock(W - 775,  175, 155, 22),
+      // Right flank — mirror of left
+      rock(W - 550, 104, 65,  22), rock(W - 550,  148, 130, 26),
+      rock(W - 290, 285, 170, 18), rock(W - 390,  200, 140, 22),
+      rock(W - 210, 148, 210, 26), rock(W - 180,  106, 150, 22), rock(W - 170, 72, 90, 18),
+    ],
+  };
+}
+
+const WORMS_MAPS = [ _makeBunkerMap(), _makeForestMap(), _makeDesertMap() ];
 
 // ── WormsGame ─────────────────────────────────────────────────────────────────
 
@@ -141,7 +196,7 @@ class WormsGame {
     // Turn state
     this.turn      = 0;
     this._phase    = 'intro';
-    this._introTimer = 2200;
+    this._introTimer = 900;
     this._endTimer   = 0;
     this._apLeft     = AP_MAX;
     this._preview    = null; // { dir, destX } or null
@@ -400,6 +455,17 @@ class WormsGame {
     }
   }
 
+  // ── Draw helpers ──────────────────────────────────────────────────────────
+
+  _drawScaledPlayer(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(0.1, 0.1);
+    ctx.translate(-p.x, -p.y);
+    p.draw(ctx, this.ball);
+    ctx.restore();
+  }
+
   // ── Draw ──────────────────────────────────────────────────────────────────
 
   draw() {
@@ -411,19 +477,24 @@ class WormsGame {
     ctx.translate(-Math.round(this.camX), 0);
 
     this._drawBg(ctx);
-    for (const obs of this._arena.getObstacles()) obs.drawFn(ctx, obs);
+    for (const obs of this._arena.getObstacles()) obs.draw(ctx);
 
-    // Preview ghost
+    // Preview ghost (scaled 1/10)
     if (this._preview && this._phase === 'active') {
       const p = this._active;
       ctx.globalAlpha = 0.35;
       const drawFn = (p.charType === 'girl' || (!p.charType && p.isGirl))
         ? Sprites.drawGirl.bind(Sprites) : Sprites.drawBoy.bind(Sprites);
+      ctx.save();
+      ctx.translate(this._preview.destX, p.y);
+      ctx.scale(0.1, 0.1);
+      ctx.translate(-this._preview.destX, -p.y);
       drawFn(ctx, this._preview.destX, p.y, 'idle', this._preview.dir, Math.PI/8, false, p.charColors);
+      ctx.restore();
       ctx.globalAlpha = 1;
       // Cost label above ghost
       const lx = this._preview.destX;
-      const ly = p.y - C.P_H - 14;
+      const ly = p.y - 8;
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
       ctx.fillRect(lx - 28, ly - 12, 56, 18);
       ctx.fillStyle = '#FFD700';
@@ -433,8 +504,8 @@ class WormsGame {
       ctx.textAlign = 'left';
     }
 
-    this.p1.draw(ctx, this.ball);
-    this.p2.draw(ctx, this.ball);
+    this._drawScaledPlayer(ctx, this.p1);
+    this._drawScaledPlayer(ctx, this.p2);
     this.ball.draw(ctx);
     if (this.ball2) this.ball2.draw(ctx);
     Particles.draw(ctx);
@@ -476,7 +547,7 @@ class WormsGame {
     const strip = ctx.createLinearGradient(0,0,0,68);
     strip.addColorStop(0,'rgba(0,0,0,0.92)'); strip.addColorStop(1,'rgba(0,0,0,0.55)');
     ctx.fillStyle = strip; ctx.fillRect(0,0,C.W,68);
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0,67,C.W,1);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0,67,C.W,1);
 
     const p1Name = this.p1.charName || C.P1_NAME;
     const p2Name = this.p2.charName || C.P2_NAME;
@@ -544,19 +615,22 @@ class WormsGame {
 
   _drawIntro(ctx) {
     const t = Math.max(0, this._introTimer / 2200);
-    ctx.globalAlpha = Math.min(1, t * 5) * 0.5;
-    ctx.fillStyle = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    ctx.fillRect(0,0,C.W,C.H);
-    ctx.globalAlpha = 1;
+    // Subtle dark vignette — no full-screen color fill
+    ctx.fillStyle = `rgba(0,0,0,${0.5 * Math.min(1, t * 4)})`;
+    ctx.fillRect(0, 0, C.W, C.H);
 
-    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(C.W/2-210, C.H/2-52, 420, 86);
+    const col = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
+    ctx.fillStyle = 'rgba(0,0,0,0.82)';
+    ctx.fillRect(C.W/2-220, C.H/2-52, 440, 92);
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.strokeRect(C.W/2-220, C.H/2-52, 440, 92);
     ctx.textAlign = 'center';
-    ctx.fillStyle = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    ctx.font = 'bold 28px "Courier New"';
+    ctx.fillStyle = col;
+    ctx.font = 'bold 26px "Courier New"';
     const nm = this.turn === 0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME);
-    ctx.fillText(`${nm}'S TURN 💣`, C.W/2, C.H/2 + 4);
+    ctx.fillText(`${nm}'S TURN 💣`, C.W/2, C.H/2 + 2);
     ctx.fillStyle = '#aaa'; ctx.font = '10px "Courier New"';
-    ctx.fillText(`${AP_MAX} AP  ·  move ×2 or jump then throw`, C.W/2, C.H/2 + 24);
+    ctx.fillText(`${AP_MAX} AP  ·  A/D preview move  ·  ENTER commit  ·  hold F to throw`, C.W/2, C.H/2 + 22);
     ctx.textAlign = 'left';
   }
 

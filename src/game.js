@@ -97,6 +97,10 @@ class Game {
       case C.STATE.ONLINE_LOBBY:
         this._updateOnlineLobby(dt);
         break;
+      case C.STATE.STORY:
+        this._storyGame.update(dt);
+        if (this._storyGame.returnToMenu) { this._storyGame = null; this.state = C.STATE.MENU; }
+        break;
     }
     Input.flush();
   }
@@ -117,23 +121,25 @@ class Game {
       case C.STATE.WORMS:         if (this._wormsGame) this._wormsGame.draw(); break;
       case C.STATE.HOW_TO_PLAY:   this._drawHowToPlay(ctx); break;
       case C.STATE.ONLINE_LOBBY:  this._drawOnlineLobby(ctx); break;
+      case C.STATE.STORY:         if (this._storyGame) this._storyGame.draw(); break;
     }
   }
 
   // ---- Menu ----
   _updateMenu() {
-    const N = 7;
+    const N = 8;
     if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor - 1 + N) % N;
     if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % N;
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
       switch (this.menuCursor) {
         case 0: this._startCharSelect('classic');     break;
-        case 1: this._startCharSelect('horde');       break;
-        case 2: this._startCharSelect('worms');       break;
-        case 3: this._startOnlineLobby();             break;
-        case 4: this.state = C.STATE.HOW_TO_PLAY;    break;
-        case 5: this.state = C.STATE.CONTROLS;        break;
-        case 6: this._startBuilder();                 break;
+        case 1: this._startStory();                   break;
+        case 2: this._startCharSelect('horde');       break;
+        case 3: this._startCharSelect('worms');       break;
+        case 4: this._startOnlineLobby();             break;
+        case 5: this.state = C.STATE.HOW_TO_PLAY;    break;
+        case 6: this.state = C.STATE.CONTROLS;        break;
+        case 7: this._startBuilder();                 break;
       }
     }
     if (Input.wasPressed('KeyH')) this._startCharSelect('horde');
@@ -167,13 +173,14 @@ class Game {
 
     // 7 menu buttons — narrower to leave room for characters on each side
     const BTNS = [
-      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',    col: C.COL.P1_HUD, bh:42 },
-      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',         col:'#FF6600',     bh:42 },
-      { label:'💣 SALVO MODE',    sub:'turn-based · action points · 2 maps',    col:'#88CC44',     bh:42 },
-      { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend', col:'#00CCFF',     bh:42 },
-      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',           col:'#AAAAAA',     bh:30 },
-      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',             col:'#888888',     bh:30 },
-      { label:'🔨 ARENA BUILDER', sub:'design & save your own stages',           col:'#00CC88',     bh:30 },
+      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',         col: C.COL.P1_HUD, bh:42 },
+      { label:'📖 STORY MODE',    sub:'solo or co-op · 5 acts · save the world',    col:'#CC88FF',     bh:42 },
+      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',             col:'#FF6600',     bh:42 },
+      { label:'💣 SALVO MODE',    sub:'turn-based · action points · 2 maps',        col:'#88CC44',     bh:42 },
+      { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',    col:'#00CCFF',     bh:42 },
+      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',               col:'#AAAAAA',     bh:30 },
+      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',                 col:'#888888',     bh:30 },
+      { label:'🔨 ARENA BUILDER', sub:'design & save your own stages',               col:'#00CC88',     bh:30 },
     ];
     const bw = 270, bx = C.W/2 - bw/2;
     let by = 80;
@@ -183,7 +190,7 @@ class Game {
       const b = BTNS[i];
       const sel = i === this.menuCursor;
       const gap = 4;
-      if (i === 4) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
+      if (i === 5) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
 
       ctx.fillStyle = sel ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.45)';
       ctx.fillRect(bx, by, bw, b.bh);
@@ -263,22 +270,33 @@ class Game {
   // ---- Arena Select ----
   _updateArenaSelect() {
     const COLS = 4;
-    if (Input.wasPressed('ArrowLeft')  || Input.wasPressed('KeyA')) {
+    const moved = Input.wasPressed('ArrowLeft') || Input.wasPressed('KeyA') ||
+                  Input.wasPressed('ArrowRight')|| Input.wasPressed('KeyD') ||
+                  Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW') ||
+                  Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS');
+    if (Input.wasPressed('ArrowLeft')  || Input.wasPressed('KeyA'))
       this.menuCursor = (this.menuCursor - 1 + ARENAS.length) % ARENAS.length;
-    }
-    if (Input.wasPressed('ArrowRight') || Input.wasPressed('KeyD')) {
+    if (Input.wasPressed('ArrowRight') || Input.wasPressed('KeyD'))
       this.menuCursor = (this.menuCursor + 1) % ARENAS.length;
-    }
-    if (Input.wasPressed('ArrowUp')    || Input.wasPressed('KeyW')) {
+    if (Input.wasPressed('ArrowUp')    || Input.wasPressed('KeyW'))
       this.menuCursor = (this.menuCursor - COLS + ARENAS.length) % ARENAS.length;
-    }
-    if (Input.wasPressed('ArrowDown')  || Input.wasPressed('KeyS')) {
+    if (Input.wasPressed('ArrowDown')  || Input.wasPressed('KeyS'))
       this.menuCursor = (this.menuCursor + COLS) % ARENAS.length;
+    // Navigation resets readiness so players re-confirm on the new arena
+    if (moved) { this._as_p1Ready = false; this._as_p2Ready = false; }
+
+    if (Input.wasPressed(Controls.p1.catch)) this._as_p1Ready = !this._as_p1Ready;
+    if (Input.wasPressed(Controls.p2.catch)) this._as_p2Ready = !this._as_p2Ready;
+
+    if (this._as_p1Ready && this._as_p2Ready) { this._startGame(this.menuCursor); return; }
+
+    if (Input.wasPressed('Escape')) {
+      if (this._as_p1Ready || this._as_p2Ready) {
+        this._as_p1Ready = false; this._as_p2Ready = false;
+      } else {
+        this.state = C.STATE.MENU;
+      }
     }
-    if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
-      this._startGame(this.menuCursor);
-    }
-    if (Input.wasPressed('Escape')) this.state = C.STATE.MENU;
   }
 
   _drawArenaSelect(ctx) {
@@ -353,12 +371,38 @@ class Game {
     }
 
     const rows = Math.ceil(ARENAS.length / COLS);
-    const navY = 68 + rows * (cardH + 28) + 10;
-    const pulse2 = 0.6 + 0.4 * Math.sin(Date.now() / 350);
+    const navY = 68 + rows * (cardH + 28) + 8;
+
+    // P1 and P2 ready indicators
+    const p1Key = Controls.keyName(Controls.p1.catch);
+    const p2Key = Controls.keyName(Controls.p2.catch);
+    const p1R = this._as_p1Ready, p2R = this._as_p2Ready;
+
+    // P1 panel (left)
+    ctx.fillStyle = p1R ? 'rgba(30,80,30,0.9)' : 'rgba(20,20,40,0.8)';
+    ctx.fillRect(C.W/2 - 280, navY - 2, 130, 28);
+    ctx.strokeStyle = p1R ? '#44FF88' : C.COL.P1_HUD;
+    ctx.lineWidth = p1R ? 2 : 1; ctx.strokeRect(C.W/2 - 280, navY - 2, 130, 28);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = p1R ? '#44FF88' : C.COL.P1_HUD;
+    ctx.font = `${p1R ? 'bold ' : ''}11px "Courier New"`;
+    ctx.fillText(p1R ? '✓ P1 READY' : `P1 [${p1Key}] ready`, C.W/2 - 215, navY + 14);
+
+    // P2 panel (right)
+    ctx.fillStyle = p2R ? 'rgba(30,80,30,0.9)' : 'rgba(20,20,40,0.8)';
+    ctx.fillRect(C.W/2 + 150, navY - 2, 130, 28);
+    ctx.strokeStyle = p2R ? '#44FF88' : C.COL.P2_HUD;
+    ctx.lineWidth = p2R ? 2 : 1; ctx.strokeRect(C.W/2 + 150, navY - 2, 130, 28);
+    ctx.fillStyle = p2R ? '#44FF88' : C.COL.P2_HUD;
+    ctx.font = `${p2R ? 'bold ' : ''}11px "Courier New"`;
+    ctx.fillText(p2R ? '✓ P2 READY' : `P2 [${p2Key}] ready`, C.W/2 + 215, navY + 14);
+
+    // Centre nav hint
+    const pulse2 = 0.5 + 0.5 * Math.sin(Date.now() / 350);
     ctx.globalAlpha = pulse2;
-    ctx.fillStyle = '#fff';
-    ctx.font = '13px "Courier New"';
-    ctx.fillText('← → ↑ ↓  choose · ENTER play · ESC back', C.W / 2, navY);
+    ctx.fillStyle = '#888';
+    ctx.font = '10px "Courier New"';
+    ctx.fillText('← → ↑ ↓  navigate · ESC back', C.W / 2, navY + 14);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
@@ -523,17 +567,27 @@ class Game {
       if (Input.wasPressed(leftKey))  ps.idx = (ps.idx - 1 + N) % N;
       if (Input.wasPressed(rightKey)) ps.idx = (ps.idx + 1) % N;
       const ch = CHARACTERS[ps.idx];
-      if (Input.wasPressed(confirmKey) || Input.wasPressed('Enter')) {
+      if (Input.wasPressed(confirmKey)) {
         if (ch.id === 'custom') { ps.customSub = true; ps._customRow = 0; }
         else                     ps.confirmed = true;
       }
     };
 
-    updateSide(cs.p1, 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyG');
-    updateSide(cs.p2, 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyL');
+    updateSide(cs.p1, 'KeyA', 'KeyD', 'KeyW', 'KeyS', Controls.p1.catch);
+    updateSide(cs.p2, 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', Controls.p2.catch);
 
-    // Horde solo: P1 presses Space → skip P2, go solo
-    if ((cs.dest === 'horde') && !cs.p1.customSub && !cs.p2.customSub
+    // Extra confirm keys: ENTER for P1, R-SHIFT for P2
+    if (!cs.p1.confirmed && Input.wasPressed('Enter')) {
+      if (cs.p1.customSub) { cs.p1.confirmed = true; cs.p1.customSub = false; }
+      else { const _c1 = CHARACTERS[cs.p1.idx]; if (_c1.id === 'custom') { cs.p1.customSub = true; cs.p1._customRow = 0; } else cs.p1.confirmed = true; }
+    }
+    if (!cs.p2.confirmed && Input.wasPressed('ShiftRight')) {
+      if (cs.p2.customSub) { cs.p2.confirmed = true; cs.p2.customSub = false; }
+      else { const _c2 = CHARACTERS[cs.p2.idx]; if (_c2.id === 'custom') { cs.p2.customSub = true; cs.p2._customRow = 0; } else cs.p2.confirmed = true; }
+    }
+
+    // Solo shortcut: P1 presses Space → skip P2, go solo
+    if ((cs.dest === 'horde' || cs.dest === 'worms') && !cs.p1.customSub && !cs.p2.customSub
         && Input.wasPressed('Space') && !cs.p1.confirmed) {
       cs.p1.confirmed = true; cs.p2.confirmed = true; cs.soloHorde = true;
     }
@@ -545,7 +599,7 @@ class Game {
         if      (cs.dest === 'horde')  { this._startHorde(cs.soloHorde); }
         else if (cs.dest === 'worms')  { this._startWorms(); }
         else if (cs.dest === 'online') { this._startOnlineGame(); }
-        else { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; }
+        else { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; this._as_p1Ready = false; this._as_p2Ready = false; }
       }
     }
   }
@@ -599,25 +653,32 @@ class Game {
     ctx.font = 'bold 22px "Courier New"';
     ctx.fillText('SELECT YOUR FIGHTER', C.W / 2, 36);
 
-    const modeLabel = cs.dest === 'horde' ? '— HORDE MODE —' : '— CLASSIC MATCH —';
-    ctx.fillStyle = cs.dest === 'horde' ? '#FF6600' : C.COL.P1_HUD;
+    const modeLabel = cs.dest === 'horde' ? '— HORDE MODE —' : cs.dest === 'worms' ? '— SALVO MODE —' : '— CLASSIC MATCH —';
+    ctx.fillStyle = cs.dest === 'horde' ? '#FF6600' : cs.dest === 'worms' ? '#22CC88' : C.COL.P1_HUD;
     ctx.font = 'bold 10px "Courier New"';
     ctx.fillText(modeLabel, C.W / 2, 50);
 
     ctx.fillStyle = '#444';
     ctx.font = '10px "Courier New"';
-    ctx.fillText('P1: A/D choose  G confirm     P2: ←/→ choose  L confirm     ESC back', C.W / 2, 62);
+    ctx.fillText(`P1: A/D choose  [G or ENTER] ready     P2: ←/→ choose  [L or R-SHIFT] ready     ESC back`, C.W / 2, 62);
+
+    let panelTop = 74;
     if (cs.dest === 'horde') {
       ctx.fillStyle = '#FF6600'; ctx.font = 'bold 10px "Courier New"';
       ctx.fillText('💀 HORDE: SPACE = start solo (P1 only)  ·  both confirm = co-op', C.W / 2, 74);
+      panelTop = 86;
+    } else if (cs.dest === 'worms') {
+      ctx.fillStyle = '#22CC88'; ctx.font = 'bold 10px "Courier New"';
+      ctx.fillText('💣 SALVO: SPACE = start solo (P1 only)  ·  both confirm = 2-player', C.W / 2, 74);
+      panelTop = 86;
     }
 
     const panelW = 360, panelH = 340, gap = 20;
     const p1x = (C.W / 2) - panelW - gap / 2;
     const p2x = (C.W / 2) + gap / 2;
 
-    this._drawCharPanel(ctx, cs.p1, p1x, 74, panelW, panelH, C.COL.P1_HUD, 'P1');
-    this._drawCharPanel(ctx, cs.p2, p2x, 74, panelW, panelH, C.COL.P2_HUD, 'P2');
+    this._drawCharPanel(ctx, cs.p1, p1x, panelTop, panelW, panelH, C.COL.P1_HUD, 'P1');
+    this._drawCharPanel(ctx, cs.p2, p2x, panelTop, panelW, panelH, C.COL.P2_HUD, 'P2');
 
     // Both confirmed — countdown
     if (cs.p1.confirmed && cs.p2.confirmed) {
@@ -832,6 +893,11 @@ class Game {
   }
 
   // ---- Horde ----
+  _startStory() {
+    this._storyGame = new StoryGame(this.canvas, false);
+    this.state = C.STATE.STORY;
+  }
+
   _startHorde(solo = false) {
     this._hordeGame = new HordeGame(this.canvas, solo);
     this.state = C.STATE.HORDE;
@@ -839,7 +905,7 @@ class Game {
 
   // ---- Worms ----
   _startWorms() {
-    const mapIdx = Math.floor(Math.random() * 2); // random of 2 maps for now
+    const mapIdx = Math.floor(Math.random() * 3); // random of 3 maps
     const p1d = { signaturePower:this.p1.signaturePower, charColors:this.p1.charColors, charType:this.p1.charType, charName:this.p1.charName };
     const p2d = { signaturePower:this.p2.signaturePower, charColors:this.p2.charColors, charType:this.p2.charType, charName:this.p2.charName };
     this._wormsGame = new WormsGame(this.canvas, mapIdx, p1d, p2d);
@@ -860,6 +926,7 @@ class Game {
     }
     this.state = C.STATE.ARENA_SELECT;
     this.menuCursor = 0;
+    this._as_p1Ready = false; this._as_p2Ready = false;
     this._onlineMode = true;
   }
 
@@ -1372,6 +1439,7 @@ class Game {
     if (Input.wasPressed('KeyR')) {
       this.state = C.STATE.ARENA_SELECT;
       this.menuCursor = this.arenaIndex;
+      this._as_p1Ready = false; this._as_p2Ready = false;
     }
     if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); }
   }
