@@ -882,16 +882,15 @@ class StoryGame {
     this._battleCryText = '';
   }
 
-  // ── Act start: show intro dialogue then begin combat ─────────────────────────
+  // ── Act start: go straight to sidescroll — NPC triggers dialogue on contact ──
   _startAct(idx) {
     this.actIndex = idx;
     this._dlgPhase = 'intro';
-    const act = STORY_ACTS[idx];
-    this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
+    this._startActCombat(idx);
   }
 
   // ── Combat setup ─────────────────────────────────────────────────────────────
-  _startActCombat(idx) {
+  _startActCombat(idx, opts) {
     this.actIndex = idx;
 
     this.p1 = new Player(0, 150, Controls.p1);
@@ -944,22 +943,22 @@ class StoryGame {
     const _cryLines = ["LET'S GO!", "MOVE OUT!", "SHOW 'EM WHAT YOU'VE GOT!", "FOR THE SURVIVORS!"];
     this._battleCryText = _cryLines[idx % _cryLines.length];
 
-    // Act 1: friendly NPC (Dr. Wendy) is visible at the start of the world
-    if (idx === 0) {
+    // Friendly NPC stands at start of each act; dialogue fires on player contact
+    if (!opts || !opts.skipNpc) {
+      const actDef = STORY_ACTS[idx];
+      const npcQuips = {
+        wendy:      ['OW!!','I\'M A DOCTOR!!!','MY THESIS!!!','KINETIC IMPACT\nNOTED.','THAT\'S GOING IN\nMY REPORT!!','STATISTICALLY\nOUCH!'],
+        biff:       ['WATCH THE HAT!','THAT\'S AN ARTEFACT!','OUCH — SCIENTIFICALLY!','THE TOME!!\nSAFE THOUGH.','MY GLASSES!!','UNACCEPTABLE SIR!'],
+        fluffkins:  ['*HISS*','INSUBORDINATION!','MY WHISKERS!!','*ANGRY MEOW*','THAT IS A\nCOURT MARTIAL.','UNACCEPTABLE.'],
+        princesses: ['EXCUSE ME?!','OUR GOWNS!!','HOW DARE YOU!!','RUDE!!','VAL — DID YOU\nSEE THAT?!','SECTION 4.7.2\nFORBIDS THIS!'],
+        everyone:   ['SERIOUSLY?!','WE\'RE ON\nYOUR SIDE!!','OW!!','COME ON!!','THAT\'S NOT HELPFUL!','DODGEBALL\nFRIENDLY FIRE!'],
+      };
       this._sceneNpc = {
         x: 380, y: C.GROUND,
-        portrait: 'wendy',
-        reactionTimer: 0,
-        reactionText: '',
-        wobble: 0,
-        _hitQuips: [
-          'OW!!',
-          'I\'M A DOCTOR!!!',
-          'MY THESIS!!!',
-          'KINETIC IMPACT\nNOTED.',
-          'THAT\'S GOING IN\nMY REPORT!!',
-          'STATISTICALLY\nOUCH!',
-        ],
+        portrait: actDef.npc.portrait,
+        reactionTimer: 0, reactionText: '', wobble: 0,
+        _talked: false,
+        _hitQuips: npcQuips[actDef.npc.portrait] || ['OW!!'],
         _hitCount: 0,
       };
     } else {
@@ -1009,8 +1008,8 @@ class StoryGame {
           this._dlgPhase = 'outro';
           this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.outroLines });
         } else {
-          // Retry: skip intro, go straight to combat
-          this._startActCombat(this.actIndex);
+          // Retry: skip NPC intro, go straight to combat
+          this._startActCombat(this.actIndex, { skipNpc: true });
         }
       }
       return;
@@ -1217,8 +1216,8 @@ class StoryGame {
       const j = Math.floor(Math.random() * (i + 1));
       [regularTypes[i], regularTypes[j]] = [regularTypes[j], regularTypes[i]];
     }
-    // Place across territory x: 600 → 1900 (keep enemies off-screen at start so player must walk to them)
-    const startX = 600, endX = 1850, n = regularTypes.length;
+    // Place across territory x: 900 → 1900 (enemies start off the first screen so opening scene is clear)
+    const startX = 900, endX = 1850, n = regularTypes.length;
     const enemies = [];
     for (let i = 0; i < n; i++) {
       const t = n > 1 ? i / (n - 1) : 0.5;
@@ -1241,12 +1240,24 @@ class StoryGame {
     if (npc.reactionTimer > 0) npc.reactionTimer -= dt;
     if (npc.wobble > 0) npc.wobble -= dt * 0.008;
 
-    // Check player balls
+    // Trigger intro dialogue when player walks/jumps close to the NPC
+    if (!npc._talked && this.p1) {
+      const dist = Math.abs(this.p1.x - npc.x);
+      if (dist < 80) {
+        npc._talked = true;
+        this._introFromScene = true;
+        this._dlgPhase = 'intro';
+        const act = STORY_ACTS[this.actIndex];
+        this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
+        return;
+      }
+    }
+
+    // Check player balls (hit reaction — only after already talked or pre-talk)
     const allBalls = [this.p1Ball, this.p2Ball, ...this._extraBalls].filter(b => b && b.inFlight && !b.dead);
     for (const ball of allBalls) {
       const nx = npc.x, ny = npc.y - 34;
       if (Math.abs(ball.x - nx) < 18 && Math.abs(ball.y - ny) < 36) {
-        // Ball hits the NPC — funny reaction, ball bounces back
         const quip = npc._hitQuips[npc._hitCount % npc._hitQuips.length];
         npc._hitCount++;
         npc.reactionText = quip;
@@ -1299,7 +1310,14 @@ class StoryGame {
       this._dlgLine++;
       if (this._dlgLine >= this._dlgLines.length) {
         if (this._dlgPhase === 'intro') {
-          this._startActCombat(this.actIndex);
+          if (this._introFromScene) {
+            // Dialogue was triggered by walking up to NPC — just return to sidescroll
+            this._introFromScene = false;
+            this._sceneNpc = null; // NPC exits after speaking
+            this.subState = 'sidescroll';
+          } else {
+            this._startActCombat(this.actIndex);
+          }
         } else {
           this.subState = 'world_map';
         }
@@ -1528,15 +1546,44 @@ class StoryGame {
     }
   }
 
+  // NPC color palettes (object format matching Sprites.drawBoy/drawGirl signature)
+  _npcColors(portrait) {
+    switch (portrait) {
+      case 'wendy':      return { shirt:'#FFFFFF', pants:'#335577', hair:'#5A3010', hairDark:'#3A1A00', hairType:'bun',      accessory:'glasses' };
+      case 'biff':       return { shirt:'#CC9944', pants:'#5A3A00', hair:'#A07820', hairDark:'#6B5200', hairType:'straight',  accessory:'none' };
+      case 'fluffkins':  return { shirt:'#2244AA', pants:'#1a2f88', hair:'#CCCCCC', hairDark:'#888888', hairType:'buzz',      accessory:'none' };
+      case 'princesses': return { shirt:'#FF66BB', pants:'#CC3388', hair:'#FFD700', hairDark:'#DAA520', hairType:'long',      accessory:'none' };
+      case 'everyone':   return { shirt:'#AAAAAA', pants:'#555555', hair:'#886644', hairDark:'#553322', hairType:'straight',  accessory:'none' };
+      default:           return {};
+    }
+  }
+
   _drawSceneNpc(ctx) {
     const npc = this._sceneNpc;
     if (!npc) return;
     ctx.save();
-    // Wobble when hit
+    // Gentle idle bob
+    const bob = Math.sin(Date.now() * 0.002) * 2;
     const wobbleX = npc.wobble > 0 ? Math.sin(Date.now() * 0.04) * npc.wobble * 6 : 0;
-    ctx.translate(npc.x + wobbleX, npc.y);
-    Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#66CCBB','#E8E8F0','#E8E8F0','#FDBCB4','#8B4513']);
+    ctx.translate(npc.x + wobbleX, npc.y + bob);
+    const colors = this._npcColors(npc.portrait);
+    const isGirl = npc.portrait === 'wendy' || npc.portrait === 'princesses';
+    if (isGirl) Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, colors);
+    else        Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, false, colors);
     ctx.restore();
+
+    // Prompt hint above NPC when player is nearby but hasn't talked yet
+    if (!npc._talked && this.p1 && Math.abs(this.p1.x - npc.x) < 160) {
+      const bx = npc.x - this._camX;
+      const alpha = Math.min(1, (160 - Math.abs(this.p1.x - npc.x)) / 80);
+      ctx.save();
+      ctx.globalAlpha = alpha * (0.7 + 0.3 * Math.sin(Date.now() * 0.004));
+      ctx.fillStyle = '#FFE86E';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('▶ WALK CLOSE TO TALK', bx, npc.y - 80);
+      ctx.restore();
+    }
 
     // Reaction speech bubble
     if (npc.reactionTimer > 0) {
@@ -1898,30 +1945,21 @@ class StoryGame {
 
   // ── NPC arena sprite dispatcher (full-body, drawn at 0,0 already scaled) ────
   _drawDlgNpcArena(ctx, portrait) {
-    // For NPC types that have no distinct sprite, use tinted boy/girl sprites
+    const colors = this._npcColors(portrait);
     switch (portrait) {
       case 'wendy':
-        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#66CCBB','#E8E8F0','#E8E8F0','#FDBCB4','#8B4513']);
-        break;
-      case 'biff':
-        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, ['#CC9944','#8B6914','#7A6040','#FDBCB4','#A07820']);
-        break;
-      case 'fluffkins':
-        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, ['#2244AA','#FFD700','#1a3388','#CCCCCC','#444444']);
-        break;
       case 'princesses':
-        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#FF66BB','#FFD700','#CC4499','#FDBCB4','#882266']);
+        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, colors);
         break;
       case 'everyone':
-        // Draw three small survivors side by side
         ctx.save(); ctx.scale(0.65, 0.65);
-        Sprites.drawBoy(ctx, -28, 0, 'idle', -1, 0, false, ['#88CC88','#553311','#555555','#FDBCB4','#333333']);
-        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#DDAA44','#221100','#555555','#FDBCB4','#333333']);
-        Sprites.drawBoy(ctx, 28, 0, 'idle', -1, 0, false, ['#8888FF','#220044','#555555','#D4A0C4','#333333']);
+        Sprites.drawBoy (ctx, -28, 0, 'idle', -1, 0, false, { shirt:'#88CC88', pants:'#335533', hair:'#553311', hairDark:'#331100', hairType:'straight' });
+        Sprites.drawGirl(ctx,   0, 0, 'idle', -1, 0, false, { shirt:'#FFFFFF', pants:'#335577', hair:'#5A3010', hairDark:'#3A1A00', hairType:'bun', accessory:'glasses' });
+        Sprites.drawBoy (ctx,  28, 0, 'idle', -1, 0, false, { shirt:'#2244AA', pants:'#1a2f88', hair:'#CCCCCC', hairDark:'#888888', hairType:'buzz' });
         ctx.restore();
         break;
       default:
-        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false);
+        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, colors);
     }
   }
 
