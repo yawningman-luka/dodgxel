@@ -586,7 +586,7 @@
     }
 
     // Solo shortcut: P1 presses Space → skip P2, go solo
-    if ((cs.dest === 'horde' || cs.dest === 'worms') && !cs.p1.customSub && !cs.p2.customSub
+    if ((cs.dest === 'horde' || cs.dest === 'worms' || cs.dest === 'story') && !cs.p1.customSub && !cs.p2.customSub
         && Input.wasPressed('Space') && !cs.p1.confirmed) {
       cs.p1.confirmed = true; cs.p2.confirmed = true; cs.soloHorde = true;
     }
@@ -598,6 +598,14 @@
         if      (cs.dest === 'horde')  { this._startHorde(cs.soloHorde); }
         else if (cs.dest === 'worms')  { this._startWorms(); }
         else if (cs.dest === 'online') { this._startOnlineGame(); }
+        else if (cs.dest === 'story')  {
+          this._applyCharSelections();
+          const coop = !cs.soloHorde;
+          const p1d = { signaturePower:this.p1.signaturePower, charColors:this.p1.charColors, charType:this.p1.charType, charName:this.p1.charName };
+          const p2d = coop ? { signaturePower:this.p2.signaturePower, charColors:this.p2.charColors, charType:this.p2.charType, charName:this.p2.charName } : null;
+          this._storyGame = new StoryGame(this.canvas, coop, p1d, p2d);
+          this.state = C.STATE.STORY;
+        }
         else { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; this._as_p1Ready = false; this._as_p2Ready = false; }
       }
     }
@@ -669,6 +677,10 @@
     } else if (cs.dest === 'worms') {
       ctx.fillStyle = '#22CC88'; ctx.font = '11px Segoe UI, Arial, sans-serif';
       ctx.fillText('💣 SALVO: SPACE = start solo (P1 only)  ·  both confirm = 2-player', C.W / 2, 74);
+      panelTop = 86;
+    } else if (cs.dest === 'story') {
+      ctx.fillStyle = '#AA44FF'; ctx.font = '11px Segoe UI, Arial, sans-serif';
+      ctx.fillText('📖 STORY: SPACE = play solo (P1 only)  ·  both confirm = co-op', C.W / 2, 74);
       panelTop = 86;
     }
 
@@ -904,8 +916,7 @@
 
   // ---- Horde ----
   _startStory() {
-    this._storyGame = new StoryGame(this.canvas, false);
-    this.state = C.STATE.STORY;
+    this._startCharSelect('story');
   }
 
   _startHorde(solo = false) {

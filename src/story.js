@@ -843,11 +843,13 @@ class StoryBoss extends StoryEnemy {
 
 // ── StoryGame ─────────────────────────────────────────────────────────────────
 class StoryGame {
-  constructor(canvas, coop = false) {
+  constructor(canvas, coop = false, p1Data = null, p2Data = null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
     this.coop = coop;
+    this._p1Data = p1Data;
+    this._p2Data = p2Data;
     this.returnToMenu = false;
 
     this.subState = 'world_map';
@@ -880,6 +882,14 @@ class StoryGame {
     this._bossDlgTimer = 0;
     this._battleCryTimer = 0;
     this._battleCryText = '';
+
+    // First-encounter quips
+    this._seenEnemyTypes = new Set();
+    this._playerQuipTimer = 0;
+    this._playerQuipText = '';
+    this._playerQuipName = '';
+    this._playerQuip2Timer = 0;
+    this._playerQuip2Text = '';
   }
 
   // ── Act start: go straight to sidescroll — NPC triggers dialogue on contact ──
@@ -895,12 +905,20 @@ class StoryGame {
 
     this.p1 = new Player(0, 150, Controls.p1);
     this.p1.noMidline = true; this.p1.hordeMode = true; this.p1.dir = 1;
-    { const ch = CHARACTERS[0]; this.p1.signaturePower=ch.power; this.p1.charColors=ch.colors; this.p1.charType=ch.type; this.p1.charName=ch.name; }
+    {
+      const d = this._p1Data || (() => { const ch = CHARACTERS[0]; return { signaturePower:ch.power, charColors:ch.colors, charType:ch.type, charName:ch.name }; })();
+      this.p1.signaturePower = d.signaturePower; this.p1.charColors = d.charColors;
+      this.p1.charType = d.charType; this.p1.charName = d.charName;
+    }
 
     if (this.coop) {
       this.p2 = new Player(1, 220, Controls.p2);
       this.p2.noMidline = true; this.p2.hordeMode = true; this.p2.dir = 1;
-      { const ch = CHARACTERS[1]; this.p2.signaturePower=ch.power; this.p2.charColors=ch.colors; this.p2.charType=ch.type; this.p2.charName=ch.name; }
+      {
+        const d = this._p2Data || (() => { const ch = CHARACTERS[1]; return { signaturePower:ch.power, charColors:ch.colors, charType:ch.type, charName:ch.name }; })();
+        this.p2.signaturePower = d.signaturePower; this.p2.charColors = d.charColors;
+        this.p2.charType = d.charType; this.p2.charName = d.charName;
+      }
     } else {
       this.p2 = null;
     }
@@ -931,6 +949,9 @@ class StoryGame {
     this.p1Hp = 5; this.p2Hp = 5;
     this.p1Fallen = false; this.p2Fallen = false;
     this._camX = 0;
+    this._seenEnemyTypes = new Set();
+    this._playerQuipTimer = 0; this._playerQuipText = ''; this._playerQuipName = '';
+    this._playerQuip2Timer = 0; this._playerQuip2Text = '';
 
     const level = this._buildLevel(idx);
     this.enemies = level.enemies;
@@ -1026,6 +1047,13 @@ class StoryGame {
 
     this.p1.x = Math.max(16, Math.min(STORY_WORLD_W - 16, this.p1.x));
     if (this.coop && this.p2) this.p2.x = Math.max(16, Math.min(STORY_WORLD_W - 16, this.p2.x));
+
+    // Dynamic right wall: no bounce during normal play; only lock at STORY_WORLD_W during boss fight
+    const bossActive = this._bossEnemy && !this._bossEnemy.dead && this._bossEnemy._awake;
+    const rightBound = bossActive ? STORY_WORLD_W : 99999;
+    for (const b of [this.p1Ball, this.p2Ball, ...this._extraBalls]) {
+      if (b) b.worldW = rightBound;
+    }
 
     this.p1Ball.update(dt, []);
     if (this.coop && this.p2Ball) this.p2Ball.update(dt, []);
@@ -1216,13 +1244,23 @@ class StoryGame {
       const j = Math.floor(Math.random() * (i + 1));
       [regularTypes[i], regularTypes[j]] = [regularTypes[j], regularTypes[i]];
     }
-    // Place across territory x: 900 → 1900 (enemies start off the first screen so opening scene is clear)
-    const startX = 900, endX = 1850, n = regularTypes.length;
+    // First enemy is a lone scout at x≈950 (just off the first screen)
+    // Remaining enemies spread from x=1200 → 1850 with good spacing
     const enemies = [];
-    for (let i = 0; i < n; i++) {
-      const t = n > 1 ? i / (n - 1) : 0.5;
-      const bx = startX + t * (endX - startX) + (Math.random() - 0.5) * 80;
-      enemies.push(new StoryEnemy(Math.max(startX, Math.min(endX, bx)), regularTypes[i]));
+    const n = regularTypes.length;
+    if (n === 0) { /* nothing */ }
+    else if (n === 1) {
+      enemies.push(new StoryEnemy(950, regularTypes[0]));
+    } else {
+      // First enemy alone — gives the player a manageable first encounter
+      enemies.push(new StoryEnemy(950 + Math.random() * 60, regularTypes[0]));
+      // Rest spread across 1200–1850 with enough space between each
+      const restStart = 1200, restEnd = 1850, restN = n - 1;
+      for (let i = 0; i < restN; i++) {
+        const t = restN > 1 ? i / (restN - 1) : 0.5;
+        const bx = restStart + t * (restEnd - restStart) + (Math.random() - 0.5) * 100;
+        enemies.push(new StoryEnemy(Math.max(restStart, Math.min(restEnd, bx)), regularTypes[i + 1]));
+      }
     }
     // Boss at end
     let boss = null;
@@ -1272,12 +1310,72 @@ class StoryGame {
   }
 
   // ── Tick the territory level state each frame ─────────────────────────────────
+  // ── First-encounter quips keyed by enemy type ────────────────────────────────
+  _getFirstEncounterQuips(type) {
+    // [ [solo-p1-line, solo-p2-react?], [coop-p1-line, coop-p2-line] ]
+    // We return { p1, p2 } where p2 is null in solo
+    const Q = {
+      zombie:      { solo1:'What IS that thing?!',        solo2: null,
+                     coop1:'Whoa — what is that?!',       coop2:'Looks angry. And dead.' },
+      fast_zombie: { solo1:'It\'s FAST. Be ready!',       solo2: null,
+                     coop1:'This one\'s fast!',           coop2:'I\'ll go left, you go right!' },
+      golem:       { solo1:'Stone... it\'s made of stone!',solo2: null,
+                     coop1:'Big. Very big.',               coop2:'Aim for the cracks!' },
+      hex_spirit:  { solo1:'It teleports?! Really?!',     solo2: null,
+                     coop1:'It just... disappeared!',     coop2:'Stay sharp, could be anywhere!' },
+      soldier:     { solo1:'They\'ve got soldiers here?!',solo2: null,
+                     coop1:'Military? Out here?',          coop2:'Keep moving, don\'t stop!' },
+      drone:       { solo1:'A drone — duck and dodge!',   solo2: null,
+                     coop1:'Watch the skies!',             coop2:'I hate flying things!' },
+      knight:      { solo1:'A knight? In full armour?!',  solo2: null,
+                     coop1:'Armour won\'t stop a ball.',  coop2:'Right? …Right?' },
+      archer:      { solo1:'Arrows! Are you kidding me?!',solo2: null,
+                     coop1:'Archers — close the gap!',    coop2:'On it!' },
+      robot:       { solo1:'Robots. Of course. Robots.',  solo2: null,
+                     coop1:'That\'s a robot.',             coop2:'Yep. Definitely a robot.' },
+      hack_drone:  { solo1:'Hacking drone — smash it!',   solo2: null,
+                     coop1:'Scrambles your controls!',    coop2:'Not if we hit it first!' },
+    };
+    return Q[type] || null;
+  }
+
   _tickLevel(dt) {
     if (this._levelState !== 'playing') return;
 
     if (this._introTimer > 0) this._introTimer -= dt;
     if (this._battleCryTimer > 0) this._battleCryTimer -= dt;
     if (this._bossDlgTimer > 0) { this._bossDlgTimer -= dt; return; }
+
+    // Tick player quip timers
+    if (this._playerQuipTimer > 0) this._playerQuipTimer -= dt;
+    if (this._playerQuip2Timer > 0) this._playerQuip2Timer -= dt;
+
+    // First-encounter quips: fire when enemy enters camera view for the first time
+    for (const e of this.enemies) {
+      if (e.dead || e instanceof StoryBoss) continue;
+      if (this._seenEnemyTypes.has(e.type)) continue;
+      // Check if enemy is now visible (within camera + 200px lookahead)
+      if (e.x < this._camX + C.W + 200) {
+        this._seenEnemyTypes.add(e.type);
+        const q = this._getFirstEncounterQuips(e.type);
+        if (q && this._playerQuipTimer <= 0) {
+          if (this.coop) {
+            this._playerQuipText = q.coop1;
+            this._playerQuipName = this.p1 ? this.p1.charName : 'P1';
+            this._playerQuipTimer = 3200;
+            if (q.coop2) {
+              this._playerQuip2Text = q.coop2;
+              this._playerQuip2Timer = 3200; // shows after slight delay drawn separately
+            }
+          } else {
+            this._playerQuipText = q.solo1;
+            this._playerQuipName = this.p1 ? this.p1.charName : 'P1';
+            this._playerQuipTimer = 3200;
+          }
+        }
+        break; // one type at a time
+      }
+    }
 
     // Trigger boss wake + taunt when player gets close
     if (this._bossEnemy && !this._bossEnemy._awake && !this._bossEnemy.dead) {
@@ -1463,6 +1561,8 @@ class StoryGame {
     for (const b of this._extraBalls) b.draw(ctx);
     Particles.draw(ctx);
 
+    this._drawPlayerQuips(ctx);
+
     ctx.restore();
 
     this._drawSidescrollHUD(ctx);
@@ -1555,6 +1655,45 @@ class StoryGame {
       case 'princesses': return { shirt:'#FF66BB', pants:'#CC3388', hair:'#FFD700', hairDark:'#DAA520', hairType:'long',      accessory:'none' };
       case 'everyone':   return { shirt:'#AAAAAA', pants:'#555555', hair:'#886644', hairDark:'#553322', hairType:'straight',  accessory:'none' };
       default:           return {};
+    }
+  }
+
+  _drawPlayerQuips(ctx) {
+    const drawQuip = (text, player, timer, maxTimer, side) => {
+      if (timer <= 0 || !player || !text) return;
+      const alpha = Math.min(1, timer / 500);
+      const bx = player.x - this._camX;
+      const by = player.y - 78;
+      const lines = text.split('\n');
+      const bw = Math.max(100, lines.reduce((m,l) => Math.max(m, l.length * 6.5), 0) + 20);
+      const bh = 14 + lines.length * 16;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = side === 1 ? C.COL.P1_HUD : C.COL.P2_HUD;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(bx - bw/2, by - bh, bw, bh, 6);
+      ctx.fill(); ctx.stroke();
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(bx - 6, by); ctx.lineTo(bx + 6, by); ctx.lineTo(bx + 2, by + 12);
+      ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = side === 1 ? C.COL.P1_HUD : C.COL.P2_HUD;
+      ctx.lineWidth = 2; ctx.stroke();
+      // Text
+      ctx.fillStyle = side === 1 ? '#1155AA' : '#AA5511';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      lines.forEach((l, i) => ctx.fillText(l, bx, by - bh + 14 + i * 16));
+      ctx.restore();
+    };
+
+    drawQuip(this._playerQuipText, this.p1, this._playerQuipTimer, 3200, 1);
+    if (this.coop && this.p2) {
+      // P2 quip shows with a 600ms delay (stagger) — represented by slightly shorter timer
+      const p2shown = this._playerQuip2Timer < 2600;
+      if (p2shown) drawQuip(this._playerQuip2Text, this.p2, this._playerQuip2Timer, 2600, 2);
     }
   }
 
