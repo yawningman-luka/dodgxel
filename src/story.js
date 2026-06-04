@@ -17,7 +17,8 @@ class StoryEnemy {
     this.throwTimer = this.def.throwInterval * (0.4 + Math.random() * 0.6);
     this._legAnim = Math.random() * Math.PI * 2;
     this.contactCooldown = 0;
-    this._teleportTimer = 1500 + Math.random() * 1000;
+    this._teleportTimer = 2800 + Math.random() * 1400;
+    this._teleportWarn = false; // true during 800ms pre-teleport warning glow
     this._awake = false;
   }
 
@@ -42,13 +43,16 @@ class StoryEnemy {
 
     if (def.teleports) {
       this._teleportTimer -= dt;
+      // Enter warning glow 800ms before teleport
+      if (!this._teleportWarn && this._teleportTimer <= 800) this._teleportWarn = true;
       if (this._teleportTimer <= 0) {
-        this._teleportTimer = 1800 + Math.random() * 1200;
+        this._teleportTimer = 2800 + Math.random() * 1400;
+        this._teleportWarn = false;
         const side = Math.random() > 0.5 ? 1 : -1;
         this.x = Math.max(40, Math.min(STORY_WORLD_W - 40,
           target.x + side * (90 + Math.random() * 80)));
       }
-      this.x += Math.sign(target.x - this.x) * this.speed * 0.4;
+      this.x += Math.sign(target.x - this.x) * this.speed * 0.25; // slower movement
     } else if (def.floats) {
       this.x += Math.sign(target.x - this.x) * this.speed;
       this.y = (C.GROUND - 90) - 28 * Math.abs(Math.sin(Date.now() * 0.002 + this._floatOffset));
@@ -164,6 +168,17 @@ class StoryEnemy {
   _drawHexSpirit(ctx) {
     const h=this.h,w=this.w,t=Date.now()*0.004+this._floatOffset;
     ctx.globalAlpha *= 0.75+0.25*Math.sin(t*3);
+    // Pre-teleport warning: bright pulsing white/yellow glow
+    if (this._teleportWarn) {
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.025);
+      ctx.save();
+      ctx.globalAlpha = pulse * 0.9;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.arc(0, -h*0.5, w*0.9, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
     ctx.fillStyle='#9955CC';
     ctx.beginPath();
     ctx.moveTo(0,-h); ctx.lineTo(w*.4,-h*.7); ctx.lineTo(w*.4,-h*.3);
@@ -890,6 +905,16 @@ class StoryGame {
     this._playerQuipName = '';
     this._playerQuip2Timer = 0;
     this._playerQuip2Text = '';
+
+    // Ghost / KO state (co-op)
+    this._p1GhostY = 0;
+    this._p2GhostY = 0;
+    this._p1GhostQuip = '';
+    this._p2GhostQuip = '';
+
+    // Slow HP regen
+    this._p1RegenTimer = 0;
+    this._p2RegenTimer = 0;
   }
 
   // ── Act start: go straight to sidescroll — NPC triggers dialogue on contact ──
@@ -952,6 +977,9 @@ class StoryGame {
     this._seenEnemyTypes = new Set();
     this._playerQuipTimer = 0; this._playerQuipText = ''; this._playerQuipName = '';
     this._playerQuip2Timer = 0; this._playerQuip2Text = '';
+    this._p1GhostY = 0; this._p2GhostY = 0;
+    this._p1GhostQuip = ''; this._p2GhostQuip = '';
+    this._p1RegenTimer = 0; this._p2RegenTimer = 0;
 
     const level = this._buildLevel(idx);
     this.enemies = level.enemies;
@@ -1090,9 +1118,15 @@ class StoryGame {
     this._tickSceneNpc(dt);
     this._tickLevel(dt);
 
-    const cx = this.coop && this.p2
-      ? (this.p1.x + this.p2.x) / 2 - C.W / 2
-      : this.p1.x - C.W / 2;
+    let cx;
+    if (this.coop && this.p2) {
+      // In co-op: focus on alive player if one is KO'd, otherwise average
+      if (this.p1Fallen && !this.p2Fallen) cx = this.p2.x - C.W / 2;
+      else if (this.p2Fallen && !this.p1Fallen) cx = this.p1.x - C.W / 2;
+      else cx = (this.p1.x + this.p2.x) / 2 - C.W / 2;
+    } else {
+      cx = this.p1.x - C.W / 2;
+    }
     this._camX = Math.max(0, Math.min(STORY_WORLD_W - C.W, cx));
   }
 
@@ -1220,11 +1254,24 @@ class StoryGame {
     Particles.emit(player.x, player.y - 22, 16,
       [isP1 ? C.COL.P1_HUD : C.COL.P2_HUD, '#FF4444', '#FFFFFF'],
       { upBias: 2, maxSpeed: 4 });
+    const wasAlive = isP1 ? (this.p1Hp > 0) : (this.p2Hp > 0);
     if (isP1) { this.p1Hp = Math.max(0, this.p1Hp - 1); if (this.p1Hp <= 0) this.p1Fallen = true; }
     else       { this.p2Hp = Math.max(0, this.p2Hp - 1); if (this.p2Hp <= 0) this.p2Fallen = true; }
     const allFallen = this.p1Fallen && (!this.coop || this.p2Fallen);
     player.stunTimer = allFallen ? 0 : 900;
     player.vx = 4; player.vy = -5;
+    // Ghost quip on KO
+    const justKO = isP1 ? (wasAlive && this.p1Fallen) : (wasAlive && this.p2Fallen);
+    if (justKO) {
+      const quips = [
+        'Goodbye cruel world…', 'I see a bright light…', 'Tell my mum I tried.',
+        'Is this… the afterlife?', 'I regret nothing. Well, maybe that.', 'Ow.',
+        'This is fine. It\'s fine.', 'I\'ll haunt you for this!', 'Not like this…',
+        'My entire life flashed by. It was short.'];
+      const q = quips[Math.floor(Math.random() * quips.length)];
+      if (isP1) { this._p1GhostQuip = q; this._p1GhostY = player.y - 50; }
+      else      { this._p2GhostQuip = q; this._p2GhostY = player.y - 50; }
+    }
     if (allFallen) this._levelState = 'game_over';
   }
 
@@ -1349,6 +1396,30 @@ class StoryGame {
     // Tick player quip timers
     if (this._playerQuipTimer > 0) this._playerQuipTimer -= dt;
     if (this._playerQuip2Timer > 0) this._playerQuip2Timer -= dt;
+
+    // Slow HP regeneration (one pip every 12 seconds, only when not fallen)
+    const REGEN_INTERVAL = 12000;
+    if (!this.p1Fallen && this.p1Hp < 5) {
+      this._p1RegenTimer += dt;
+      if (this._p1RegenTimer >= REGEN_INTERVAL) { this._p1RegenTimer = 0; this.p1Hp = Math.min(5, this.p1Hp + 1); }
+    } else { this._p1RegenTimer = 0; }
+    if (this.coop && !this.p2Fallen && this.p2Hp < 5) {
+      this._p2RegenTimer += dt;
+      if (this._p2RegenTimer >= REGEN_INTERVAL) { this._p2RegenTimer = 0; this.p2Hp = Math.min(5, this.p2Hp + 1); }
+    } else if (this.coop) { this._p2RegenTimer = 0; }
+
+    // Ghost bob: slowly rise toward ceiling when KO'd
+    if (this.coop) {
+      if (this.p1Fallen && this.p1) {
+        this._p1GhostY = (this._p1GhostY || this.p1.y) - dt * 0.018;
+        if (this._p1GhostY < 80) this._p1GhostY = 80;
+        this.p1.x = this.p1.x; // keep x stable
+      }
+      if (this.p2Fallen && this.p2) {
+        this._p2GhostY = (this._p2GhostY || this.p2.y) - dt * 0.018;
+        if (this._p2GhostY < 80) this._p2GhostY = 80;
+      }
+    }
 
     // First-encounter quips: fire when enemy enters camera view for the first time
     for (const e of this.enemies) {
@@ -1547,13 +1618,13 @@ class StoryGame {
     for (const eb of this.enemyBalls) eb.draw(ctx);
 
     if (this.p1Fallen) {
-      ctx.save(); ctx.globalAlpha=0.22; this.p1.draw(ctx,this.p1Ball); ctx.restore();
+      this._drawGhost(ctx, this.p1, this._p1GhostY, this._p1GhostQuip, C.COL.P1_HUD);
     } else { this.p1.draw(ctx, this.p1Ball); }
     this.p1Ball.draw(ctx);
 
     if (this.coop && this.p2) {
       if (this.p2Fallen) {
-        ctx.save(); ctx.globalAlpha=0.22; this.p2.draw(ctx,this.p2Ball); ctx.restore();
+        this._drawGhost(ctx, this.p2, this._p2GhostY, this._p2GhostQuip, C.COL.P2_HUD);
       } else { this.p2.draw(ctx, this.p2Ball); }
       if (this.p2Ball) this.p2Ball.draw(ctx);
     }
@@ -1655,6 +1726,50 @@ class StoryGame {
       case 'princesses': return { shirt:'#FF66BB', pants:'#CC3388', hair:'#FFD700', hairDark:'#DAA520', hairType:'long',      accessory:'none' };
       case 'everyone':   return { shirt:'#AAAAAA', pants:'#555555', hair:'#886644', hairDark:'#553322', hairType:'straight',  accessory:'none' };
       default:           return {};
+    }
+  }
+
+  _drawGhost(ctx, player, ghostY, quip, col) {
+    if (!player) return;
+    const gx = player.x - this._camX;
+    const gy = ghostY > 0 ? ghostY : player.y - 50;
+    const bob = Math.sin(Date.now() * 0.002) * 6;
+    ctx.save();
+    // Ghostly tinted silhouette
+    ctx.globalAlpha = 0.38 + 0.12 * Math.sin(Date.now() * 0.003);
+    ctx.translate(gx, gy + bob);
+    // Faint colour tint overlay
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(0, -20, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // Draw the player sprite at ghost position, tinted
+    const savedX = player.x, savedY = player.y;
+    player.y = gy + bob + this._camX * 0; // keep world coords for draw
+    // We need to draw at screen-space; ctx is already translated by -camX
+    player.x = savedX; // player.x is world-space, ctx already offset by -camX
+    player.y = gy + bob;
+    ctx.save(); ctx.globalAlpha = 0.38;
+    player.draw(ctx, null);
+    ctx.restore();
+    player.x = savedX; player.y = savedY;
+
+    // Speech bubble quip
+    if (quip) {
+      const bx = player.x - this._camX;
+      const by = gy + bob - 30;
+      const bw = Math.max(80, quip.length * 5.5 + 20);
+      const bh = 22;
+      ctx.save();
+      ctx.globalAlpha = 0.82;
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = col; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(bx - bw/2, by - bh, bw, bh, 5); ctx.fill(); ctx.stroke();
+      // tail
+      ctx.beginPath(); ctx.moveTo(bx-5,by); ctx.lineTo(bx+5,by); ctx.lineTo(bx+1,by+10); ctx.closePath();
+      ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle = '#333'; ctx.font = 'italic 10px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(quip, bx, by - bh + 14);
+      ctx.restore();
     }
   }
 
