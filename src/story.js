@@ -27,10 +27,10 @@ class StoryEnemy {
     if (this.contactCooldown > 0) this.contactCooldown -= dt;
     this._legAnim += dt * 0.012;
 
-    // Stand idle until a player ventures close
+    // Stand idle until a player ventures close (tighter threshold so enemies are off-screen at start)
     if (!this._awake) {
       for (const p of players) {
-        if (p && Math.abs(this.x - p.x) < 280) { this._awake = true; break; }
+        if (p && Math.abs(this.x - p.x) < 160) { this._awake = true; break; }
       }
       if (!this._awake) return;
     }
@@ -1195,8 +1195,8 @@ class StoryGame {
       const j = Math.floor(Math.random() * (i + 1));
       [regularTypes[i], regularTypes[j]] = [regularTypes[j], regularTypes[i]];
     }
-    // Place across territory x: 350 → 1900
-    const startX = 380, endX = 1850, n = regularTypes.length;
+    // Place across territory x: 600 → 1900 (keep enemies off-screen at start so player must walk to them)
+    const startX = 600, endX = 1850, n = regularTypes.length;
     const enemies = [];
     for (let i = 0; i < n; i++) {
       const t = n > 1 ? i / (n - 1) : 0.5;
@@ -1757,326 +1757,445 @@ class StoryGame {
     ctx.fillText(last ? 'ENTER — done' : 'ENTER — next', bX + bW - bPad, bY + bH - 7);
     ctx.globalAlpha = 1;
 
-    // ── Player watercolor avatar — bottom-left ───────────────────────
-    const feetY = C.H - 8;
+    // ── Characters standing in the arena ────────────────────────────
+    // Draw player and NPC as actual sprites in the scene, at 2× scale
+    const groundY = C.GROUND;
+    ctx.save();
+    ctx.translate(200, groundY);
+    ctx.scale(2, 2);
     const _p1Name = this.p1 && this.p1.charName;
-    if (_p1Name === 'Lucy') this._drawWatercolorLucy(ctx, 55, feetY);
-    else this._drawWatercolorJaco(ctx, 55, feetY);
+    const p1Colors = this.p1 && this.p1.charColors;
+    if (_p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, false, p1Colors);
+    else Sprites.drawBoy(ctx, 0, 0, 'idle', 1, 0, false, p1Colors);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(C.W - 200, groundY);
+    ctx.scale(2, 2);
+    this._drawDlgNpcArena(ctx, act.npc.portrait);
+    ctx.restore();
+
+    // ── Comic portrait — player (bottom-left panel) ──────────────────
+    const feetY = C.H - 8;
+    if (_p1Name === 'Lucy') this._drawComicPortraitLucy(ctx, 55, feetY);
+    else this._drawComicPortraitJaco(ctx, 55, feetY);
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.70)';
+    ctx.font = 'bold 10px Segoe UI, Arial, sans-serif';
     ctx.fillText('YOU', 55, C.H - 2);
 
-    // ── NPC watercolor avatar — bottom-right ─────────────────────────
+    // ── Comic portrait — NPC (bottom-right panel) ────────────────────
     this._drawDlgNpc(ctx, act.npc.portrait, C.W - 55, feetY);
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.70)';
+    ctx.font = 'bold 10px Segoe UI, Arial, sans-serif';
     ctx.fillText(act.npc.name.split(' ').slice(-1)[0], C.W - 55, C.H - 2);
   }
 
-  // ── NPC dialogue avatar dispatcher ──────────────────────────────────────────
+  // ── NPC dialogue avatar dispatcher (comic portrait) ─────────────────────────
   _drawDlgNpc(ctx, portrait, x, y) {
     ctx.save();
     ctx.translate(x, y);
     switch (portrait) {
-      case 'wendy':      this._dlgNpcWendy(ctx);      break;
-      case 'biff':       this._dlgNpcBiff(ctx);        break;
-      case 'fluffkins':  this._dlgNpcFluffkins(ctx);   break;
-      case 'princesses': this._dlgNpcPrincesses(ctx);  break;
-      case 'everyone':   this._dlgNpcEveryone(ctx);    break;
+      case 'wendy':      this._comicPortraitWendy(ctx);      break;
+      case 'biff':       this._comicPortraitBiff(ctx);        break;
+      case 'fluffkins':  this._comicPortraitFluffkins(ctx);   break;
+      case 'princesses': this._comicPortraitPrincesses(ctx);  break;
+      case 'everyone':   this._comicPortraitEveryone(ctx);    break;
       default:           Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false); break;
     }
     ctx.restore();
   }
 
-  // ── Watercolor helpers ───────────────────────────────────────────────────────
-  _wc(ctx, x, y, rx, ry, col, alpha, blur) {
+  // ── NPC arena sprite dispatcher (full-body, drawn at 0,0 already scaled) ────
+  _drawDlgNpcArena(ctx, portrait) {
+    // For NPC types that have no distinct sprite, use tinted boy/girl sprites
+    switch (portrait) {
+      case 'wendy':
+        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#66CCBB','#E8E8F0','#E8E8F0','#FDBCB4','#8B4513']);
+        break;
+      case 'biff':
+        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, ['#CC9944','#8B6914','#7A6040','#FDBCB4','#A07820']);
+        break;
+      case 'fluffkins':
+        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, ['#2244AA','#FFD700','#1a3388','#CCCCCC','#444444']);
+        break;
+      case 'princesses':
+        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#FF66BB','#FFD700','#CC4499','#FDBCB4','#882266']);
+        break;
+      case 'everyone':
+        // Draw three small survivors side by side
+        ctx.save(); ctx.scale(0.65, 0.65);
+        Sprites.drawBoy(ctx, -28, 0, 'idle', -1, 0, false, ['#88CC88','#553311','#555555','#FDBCB4','#333333']);
+        Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#DDAA44','#221100','#555555','#FDBCB4','#333333']);
+        Sprites.drawBoy(ctx, 28, 0, 'idle', -1, 0, false, ['#8888FF','#220044','#555555','#D4A0C4','#333333']);
+        ctx.restore();
+        break;
+      default:
+        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false);
+    }
+  }
+
+  // ── Comic portrait shared helper ─────────────────────────────────────────────
+  // Draws a crisp anime-style face portrait centered at (cx, baseY-panelH/2)
+  // baseY = feet position, portrait panel is ~70px tall
+  _drawComicPanel(ctx, cx, baseY, drawFn) {
+    const pw = 58, ph = 70;
+    const px = cx - pw / 2, py = baseY - ph;
+    // Panel drop shadow
     ctx.save();
-    ctx.filter = `blur(${blur}px)`;
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = col;
-    ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
-    ctx.filter = 'none';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 5); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    // Clip to panel
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 5); ctx.clip();
+    // Background gradient (panel bg)
+    const bg = ctx.createLinearGradient(px, py, px, py + ph);
+    bg.addColorStop(0, '#e8f0ff'); bg.addColorStop(1, '#c8d8f8');
+    ctx.fillStyle = bg; ctx.fillRect(px, py, pw, ph);
+    // Call the character-specific drawing fn (coordinate origin = cx, baseY)
+    drawFn(ctx, cx, baseY);
+    ctx.restore();
+    // Panel border
+    ctx.save();
+    ctx.strokeStyle = '#1a1a3e'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 5); ctx.stroke();
     ctx.restore();
   }
 
-  // ── Player avatar: Jaco (blue/white) ────────────────────────────────────────
-  _drawWatercolorJaco(ctx, cx, baseY) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, cx+x, baseY+y, rx,ry,col,a,bl);
-    // Body / torso – blue
-    wc(0,-38, 18,26, '#3366CC', 0.55, 5);
-    wc(0,-38, 14,20, '#4477DD', 0.45, 3);
-    wc(0,-38, 10,16, '#88AAFF', 0.30, 2);
-    // White stripes on chest
-    wc(0,-40,  6, 4, '#FFFFFF', 0.35, 3);
-    // Legs – dark blue
-    wc(-7,-14, 6,14, '#223388', 0.50, 4);
-    wc( 7,-14, 6,14, '#223388', 0.50, 4);
-    // Shoes
-    wc(-8, -2, 7, 4, '#111133', 0.65, 2);
-    wc( 8, -2, 7, 4, '#111133', 0.65, 2);
-    // Arms
-    wc(-16,-36, 5,12, '#4477DD', 0.50, 4);
-    wc( 16,-36, 5,12, '#4477DD', 0.50, 4);
-    // Hands
-    wc(-16,-24, 4, 4, '#FDBCB4', 0.70, 2);
-    wc( 16,-24, 4, 4, '#FDBCB4', 0.70, 2);
-    // Head
-    wc(0,-55, 14,14, '#FDBCB4', 0.65, 4);
-    wc(0,-55, 10,10, '#FFCFB8', 0.40, 2);
-    // Hair – dark blue
-    wc(0,-63, 12, 7, '#1a2255', 0.70, 3);
-    wc(4,-60,  8, 5, '#2233AA', 0.45, 2);
-    // Eyes
-    wc(-4,-54, 2.5,2.5, '#1a1a3e', 0.90, 1);
-    wc( 4,-54, 2.5,2.5, '#1a1a3e', 0.90, 1);
-    // Blush
-    wc(-7,-52, 3,2, '#FF9999', 0.35, 3);
-    wc( 7,-52, 3,2, '#FF9999', 0.35, 3);
-    // Soft outer glow
-    wc(0,-38, 22,36, '#5588FF', 0.08, 10);
+  // ── Anime-style eye helper ────────────────────────────────────────────────────
+  _drawAnimeEye(ctx, x, y, w, h, irisCol) {
+    // White sclera
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(x, y, w, h, 0, 0, Math.PI*2); ctx.fill();
+    // Iris
+    ctx.fillStyle = irisCol;
+    ctx.beginPath(); ctx.ellipse(x, y, w*0.72, h*0.85, 0, 0, Math.PI*2); ctx.fill();
+    // Pupil
+    ctx.fillStyle = '#0d0d1a';
+    ctx.beginPath(); ctx.ellipse(x, y+1, w*0.38, h*0.55, 0, 0, Math.PI*2); ctx.fill();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath(); ctx.ellipse(x - w*0.22, y - h*0.28, w*0.20, h*0.22, 0, 0, Math.PI*2); ctx.fill();
+    // Outline
+    ctx.strokeStyle = '#1a1a3e'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.ellipse(x, y, w, h, 0, 0, Math.PI*2); ctx.stroke();
   }
 
-  _drawWatercolorLucy(ctx, cx, baseY) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, cx+x, baseY+y, rx,ry,col,a,bl);
-    // Outer glow
-    wc(0,-38, 22,36, '#FF6633', 0.08, 12);
-    // Body / torso – warm red-orange
-    wc(0,-38, 18,26, '#CC3300', 0.55, 5);
-    wc(0,-38, 14,20, '#DD4411', 0.45, 3);
-    wc(0,-38, 10,16, '#FF6644', 0.28, 2);
-    // White shoulder stripes
-    wc(-11,-46, 4, 3, '#FFFFFF', 0.40, 2);
-    wc( 11,-46, 4, 3, '#FFFFFF', 0.40, 2);
-    // Shorts – dark charcoal
-    wc(-5,-18, 7, 9, '#222222', 0.55, 3);
-    wc( 5,-18, 7, 9, '#222222', 0.55, 3);
-    // Long athletic socks – white
-    wc(-7,-10, 5,10, '#EEEEEE', 0.50, 3);
-    wc( 7,-10, 5,10, '#EEEEEE', 0.50, 3);
-    // Shoes – red
-    wc(-8, -1, 7, 4, '#AA1100', 0.70, 2);
-    wc( 8, -1, 7, 4, '#AA1100', 0.70, 2);
-    // Arms
-    wc(-16,-38, 5,13, '#DD4411', 0.50, 4);
-    wc( 16,-38, 5,13, '#DD4411', 0.50, 4);
-    // Hands
-    wc(-16,-25, 4, 4, '#FDBCB4', 0.72, 2);
-    wc( 16,-25, 4, 4, '#FDBCB4', 0.72, 2);
-    // Head – skin
-    wc(0,-55, 14,14, '#FDBCB4', 0.65, 4);
-    wc(0,-55, 10,10, '#FFCFB8', 0.38, 2);
-    // Fiery auburn hair – swept to the side
-    wc(0,-63, 13, 8, '#992200', 0.70, 4);
-    wc(5,-62, 10, 6, '#CC4400', 0.50, 3);
-    wc(9,-60,  7, 5, '#FF6633', 0.35, 3);
-    // Eyes – dark
-    wc(-4,-54, 2.5,2.5, '#1a1a1a', 0.92, 1);
-    wc( 4,-54, 2.5,2.5, '#1a1a1a', 0.92, 1);
-    // Determined brow lines
-    wc(-4,-57, 3.5,1.5, '#553322', 0.55, 1);
-    wc( 4,-57, 3.5,1.5, '#553322', 0.55, 1);
-    // Slight smirk
-    wc(1,-49, 3.5,1.5, '#CC7777', 0.45, 2);
-  }
-
-  // ── Dr. Wendy — watercolor lab-coat scientist ─────────────────────────────
-  _dlgNpcWendy(ctx) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
-    // Lab coat body
-    wc(0,-35, 18,24, '#E8E8F0', 0.55, 5);
-    wc(0,-35, 13,18, '#F5F5FF', 0.40, 3);
-    // Shirt underneath (teal)
-    wc(0,-38,  8,10, '#66CCBB', 0.40, 3);
-    // Arms
-    wc(-15,-33, 5,12, '#EEEEEE', 0.55, 4);
-    wc( 15,-33, 5,12, '#EEEEEE', 0.55, 4);
-    // Hands
-    wc(-15,-20, 4, 4, '#FDBCB4', 0.75, 2);
-    wc( 15,-20, 4, 4, '#FDBCB4', 0.75, 2);
-    // Pants (dark grey)
-    wc(-6,-12, 5,12, '#444455', 0.55, 3);
-    wc( 6,-12, 5,12, '#444455', 0.55, 3);
-    // Shoes
-    wc(-7, -1, 6, 3, '#222233', 0.65, 2);
-    wc( 7, -1, 6, 3, '#222233', 0.65, 2);
-    // Head
-    wc(0,-52, 13,13, '#FDBCB4', 0.65, 4);
-    wc(0,-52, 10, 9, '#FFCFB8', 0.38, 2);
-    // Brown hair + ponytail
-    wc(0,-60, 12, 7, '#8B4513', 0.65, 4);
-    wc(11,-55, 4,10, '#7A3810', 0.55, 3);
-    // Glasses (soft teal circles)
-    wc(-5,-51, 4, 3, '#AADDCC', 0.50, 2);
-    wc( 5,-51, 4, 3, '#AADDCC', 0.50, 2);
-    // Eyes
-    wc(-5,-51, 2, 2, '#1a1a3e', 0.88, 1);
-    wc( 5,-51, 2, 2, '#1a1a3e', 0.88, 1);
-    // Smile
-    wc(0,-46, 4, 2, '#CC8888', 0.45, 2);
-    // Glow
-    wc(0,-35, 22,32, '#AACCFF', 0.06, 12);
-  }
-
-  // ── Prof. Biff — watercolor khaki explorer ──────────────────────────────────
-  _dlgNpcBiff(ctx) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
-    // Body khaki
-    wc(0,-34, 18,23, '#CC9944', 0.55, 5);
-    wc(0,-34, 13,17, '#DDB055', 0.40, 3);
-    // Arms
-    wc(-15,-32, 5,12, '#BB8833', 0.52, 4);
-    wc( 15,-32, 5,12, '#BB8833', 0.52, 4);
-    // Hands
-    wc(-15,-20, 4, 4, '#FDBCB4', 0.75, 2);
-    wc( 15,-20, 4, 4, '#FDBCB4', 0.75, 2);
-    // Pants
-    wc(-6,-12, 5,12, '#7A6040', 0.55, 3);
-    wc( 6,-12, 5,12, '#7A6040', 0.55, 3);
-    // Boots
-    wc(-7, -1, 6, 3, '#4A3010', 0.70, 2);
-    wc( 7, -1, 6, 3, '#4A3010', 0.70, 2);
-    // Head
-    wc(0,-52, 13,13, '#FDBCB4', 0.65, 4);
-    wc(0,-52, 10, 9, '#FFCFB8', 0.38, 2);
-    // Hat brim
-    wc(0,-60, 18, 4, '#8B6914', 0.70, 3);
-    // Hat crown
-    wc(0,-67, 12,10, '#A07820', 0.65, 4);
-    wc(0,-67,  8, 7, '#C09030', 0.35, 2);
-    // Sideburns
-    wc(-10,-54, 3, 4, '#A07820', 0.55, 2);
-    wc( 10,-54, 3, 4, '#A07820', 0.55, 2);
-    // Eyes
-    wc(-4,-51, 2.5,2.5, '#1a1a3e', 0.88, 1);
-    wc( 4,-51, 2.5,2.5, '#1a1a3e', 0.88, 1);
-    // Big mustache
-    wc(0,-45, 9, 3, '#A07820', 0.65, 3);
-    wc(0,-45, 7, 2, '#C09030', 0.40, 1);
-    // Warm glow
-    wc(0,-34, 22,32, '#DDAA55', 0.07, 12);
-  }
-
-  // ── Gen. Fluffkins — watercolor navy uniform, cat ───────────────────────────
-  _dlgNpcFluffkins(ctx) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
-    // Navy uniform body
-    wc(0,-34, 18,23, '#2244AA', 0.60, 5);
-    wc(0,-34, 13,17, '#3355CC', 0.42, 3);
-    // Gold medal
-    wc(0,-30,  5, 5, '#FFD700', 0.65, 2);
-    wc(0,-30,  3, 3, '#FFEE80', 0.50, 1);
-    // Arms
-    wc(-15,-32, 5,12, '#2244AA', 0.55, 4);
-    wc( 15,-32, 5,12, '#2244AA', 0.55, 4);
-    // Paws
-    wc(-15,-20, 5, 4, '#AAAAAA', 0.70, 2);
-    wc( 15,-20, 5, 4, '#AAAAAA', 0.70, 2);
-    // Pants
-    wc(-6,-12, 5,12, '#1a3388', 0.55, 3);
-    wc( 6,-12, 5,12, '#1a3388', 0.55, 3);
-    // Boots
-    wc(-7, -1, 6, 3, '#113366', 0.65, 2);
-    wc( 7, -1, 6, 3, '#113366', 0.65, 2);
-    // Cat face
-    wc(0,-52, 14,13, '#CCCCCC', 0.65, 5);
-    wc(0,-52, 10, 9, '#DDDDDD', 0.38, 2);
-    // Ears
-    wc(-8,-61,  6,  8, '#BBBBBB', 0.65, 3);
-    wc( 8,-61,  6,  8, '#BBBBBB', 0.65, 3);
-    wc(-8,-61,  3,  5, '#FFAAAA', 0.50, 2);
-    wc( 8,-61,  3,  5, '#FFAAAA', 0.50, 2);
-    // Cat eyes (green)
-    wc(-5,-51, 3, 4, '#44AA44', 0.80, 2);
-    wc( 5,-51, 3, 4, '#44AA44', 0.80, 2);
-    wc(-5,-51, 1, 3, '#111111', 0.90, 1);
-    wc( 5,-51, 1, 3, '#111111', 0.90, 1);
-    // Nose
-    wc(0,-45, 2.5,2, '#FFAAAA', 0.70, 1);
-    // Whiskers (thin ellipses)
-    wc(-9,-45, 5,1, '#888888', 0.45, 1);
-    wc( 9,-45, 5,1, '#888888', 0.45, 1);
-    wc(-9,-44, 5,1, '#888888', 0.35, 1);
-    wc( 9,-44, 5,1, '#888888', 0.35, 1);
-    // Blue glow
-    wc(0,-34, 22,32, '#4466CC', 0.07, 12);
-  }
-
-  // ── Princesses Dot & Val — watercolor pink royalty ──────────────────────────
-  _dlgNpcPrincesses(ctx) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
-    const drawP = (ox, hairCol) => {
-      // Dress
-      wc(ox,-30, 10,18, '#FF66BB', 0.55, 5);
-      wc(ox,-30,  7,13, '#FF88CC', 0.40, 3);
-      // Arms
-      wc(ox-10,-30, 4,10, '#FF88CC', 0.50, 3);
-      wc(ox+10,-30, 4,10, '#FF88CC', 0.50, 3);
-      // Legs
-      wc(ox-3,-12, 3,10, '#CC4499', 0.45, 3);
-      wc(ox+3,-12, 3,10, '#CC4499', 0.45, 3);
-      // Shoes
-      wc(ox-4, -2, 4, 2.5, '#882266', 0.65, 2);
-      wc(ox+4, -2, 4, 2.5, '#882266', 0.65, 2);
+  // ── Player portrait: Jaco ─────────────────────────────────────────────────────
+  _drawComicPortraitJaco(ctx, cx, baseY) {
+    this._drawComicPanel(ctx, cx, baseY, (c, x, y) => {
+      // Shoulders / body
+      c.fillStyle = '#3366CC';
+      c.fillRect(x - 22, y - 28, 44, 28);
+      // White collar stripe
+      c.fillStyle = '#fff';
+      c.fillRect(x - 8, y - 28, 16, 6);
+      // Neck
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(x, y - 32, 6, 8, 0, 0, Math.PI*2); c.fill();
       // Head
-      wc(ox,-50, 10,11, '#FDBCB4', 0.65, 4);
-      wc(ox,-50,  7, 8, '#FFCFB8', 0.35, 2);
-      // Crown base
-      wc(ox,-59, 10, 4, '#FFD700', 0.70, 3);
-      // Crown spires
-      wc(ox-5,-63, 3, 5, '#FFD700', 0.65, 2);
-      wc(ox,  -65, 3, 6, '#FFD700', 0.65, 2);
-      wc(ox+5,-63, 3, 5, '#FFD700', 0.65, 2);
-      // Gems on crown
-      wc(ox-5,-62, 2,2, '#FF4444', 0.70, 1);
-      wc(ox+5,-62, 2,2, '#FF4444', 0.70, 1);
-      // Hair
-      wc(ox,-54, 11, 6, hairCol, 0.65, 4);
-      // Eyes
-      wc(ox-3,-49, 2,2, '#1a1a3e', 0.88, 1);
-      wc(ox+3,-49, 2,2, '#1a1a3e', 0.88, 1);
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(x, y - 46, 14, 16, 0, 0, Math.PI*2); c.fill();
+      c.strokeStyle = '#e0a090'; c.lineWidth = 0.8;
+      c.beginPath(); c.ellipse(x, y - 46, 14, 16, 0, 0, Math.PI*2); c.stroke();
+      // Hair (dark navy, swept forward)
+      c.fillStyle = '#1a2255';
+      c.beginPath();
+      c.moveTo(x - 14, y - 50);
+      c.bezierCurveTo(x - 16, y - 68, x + 10, y - 70, x + 14, y - 56);
+      c.lineTo(x + 12, y - 48);
+      c.bezierCurveTo(x + 6, y - 52, x - 4, y - 64, x - 10, y - 50);
+      c.closePath(); c.fill();
+      // Side hair / bangs
+      c.beginPath(); c.moveTo(x - 8, y - 62); c.bezierCurveTo(x - 16, y - 56, x - 14, y - 44, x - 13, y - 44);
+      c.lineTo(x - 14, y - 50); c.closePath(); c.fill();
+      // Ears
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(x - 14, y - 46, 3.5, 5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(x + 14, y - 46, 3.5, 5, 0, 0, Math.PI*2); c.fill();
+      // Eyes (anime — blue iris)
+      this._drawAnimeEye(c, x - 5, y - 46, 4.5, 5.5, '#2255BB');
+      this._drawAnimeEye(c, x + 5, y - 46, 4.5, 5.5, '#2255BB');
+      // Eyebrows
+      c.strokeStyle = '#1a2255'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(x - 8, y - 53); c.lineTo(x - 2.5, y - 52); c.stroke();
+      c.beginPath(); c.moveTo(x + 2.5, y - 52); c.lineTo(x + 8, y - 53); c.stroke();
+      // Nose (simple dot)
+      c.fillStyle = '#d4967a';
+      c.beginPath(); c.ellipse(x, y - 41, 1.5, 1.2, 0, 0, Math.PI*2); c.fill();
+      // Smile
+      c.strokeStyle = '#c07060'; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(x, y - 37, 4.5, 0.1, Math.PI - 0.1); c.stroke();
       // Blush
-      wc(ox-6,-48, 3,2, '#FF99AA', 0.40, 2);
-      wc(ox+6,-48, 3,2, '#FF99AA', 0.40, 2);
-    };
-    drawP(-13, '#FFD700');
-    drawP( 13, '#FF8844');
-    // Pink shimmer
-    wc(0,-34, 28,40, '#FF88CC', 0.06, 14);
+      c.fillStyle = 'rgba(255,140,140,0.30)';
+      c.beginPath(); c.ellipse(x - 9, y - 42, 4, 2.5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(x + 9, y - 42, 4, 2.5, 0, 0, Math.PI*2); c.fill();
+    });
   }
 
-  // ── All Survivors — watercolor trio with aura ─────────────────────────────
-  _dlgNpcEveryone(ctx) {
-    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
-    const profiles = [
-      { ox:-20, bodyCol:'#88CC88', headCol:'#FDBCB4', hairCol:'#553311' },
-      { ox:  0, bodyCol:'#DDAA44', headCol:'#FDBCB4', hairCol:'#221100' },
-      { ox: 20, bodyCol:'#8888FF', headCol:'#D4A0C4', hairCol:'#220044' },
-    ];
-    for (const p of profiles) {
-      wc(p.ox,-28, 10,17, p.bodyCol, 0.52, 5);
-      wc(p.ox,-28,  7,12, p.bodyCol, 0.35, 3);
-      wc(p.ox,-10,  5,10, '#555555', 0.45, 3);
-      wc(p.ox,-46, 10,10, p.headCol, 0.62, 4);
-      wc(p.ox,-51,  8, 5, p.hairCol, 0.60, 3);
-      wc(p.ox-3,-45, 2,2, '#1a1a3e', 0.85, 1);
-      wc(p.ox+3,-45, 2,2, '#1a1a3e', 0.85, 1);
-    }
-    // Radio / hope arcs
-    for (let i = 1; i <= 3; i++) {
-      ctx.save();
-      ctx.globalAlpha = 0.12 + i * 0.10;
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 1.5;
-      ctx.filter = `blur(${i}px)`;
-      ctx.beginPath();
-      ctx.arc(0, -36, i * 12, -Math.PI * 0.72, Math.PI * 0.72);
-      ctx.stroke();
-      ctx.filter = 'none';
-      ctx.restore();
-    }
-    // Warm unified glow
-    wc(0,-32, 34,42, '#FFDD88', 0.05, 14);
+  // ── Player portrait: Lucy ─────────────────────────────────────────────────────
+  _drawComicPortraitLucy(ctx, cx, baseY) {
+    this._drawComicPanel(ctx, cx, baseY, (c, x, y) => {
+      // Shoulders / body (red)
+      c.fillStyle = '#CC3300';
+      c.fillRect(x - 22, y - 28, 44, 28);
+      // Neck
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(x, y - 32, 6, 8, 0, 0, Math.PI*2); c.fill();
+      // Head
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(x, y - 46, 14, 16, 0, 0, Math.PI*2); c.fill();
+      c.strokeStyle = '#e0a090'; c.lineWidth = 0.8;
+      c.beginPath(); c.ellipse(x, y - 46, 14, 16, 0, 0, Math.PI*2); c.stroke();
+      // Hair — fiery auburn swept side
+      c.fillStyle = '#882200';
+      c.beginPath();
+      c.moveTo(x - 14, y - 48);
+      c.bezierCurveTo(x - 18, y - 70, x + 4, y - 72, x + 18, y - 58);
+      c.lineTo(x + 16, y - 48);
+      c.bezierCurveTo(x + 8, y - 54, x + 0, y - 66, x - 10, y - 50);
+      c.closePath(); c.fill();
+      c.fillStyle = '#CC4400';
+      c.beginPath();
+      c.moveTo(x - 14, y - 58);
+      c.bezierCurveTo(x - 4, y - 70, x + 16, y - 60, x + 18, y - 52);
+      c.bezierCurveTo(x + 6, y - 62, x - 4, y - 66, x - 10, y - 56);
+      c.closePath(); c.fill();
+      // Ears
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(x - 14, y - 46, 3.5, 5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(x + 14, y - 46, 3.5, 5, 0, 0, Math.PI*2); c.fill();
+      // Eyes (anime — warm brown)
+      this._drawAnimeEye(c, x - 5, y - 47, 4.5, 5.5, '#884422');
+      this._drawAnimeEye(c, x + 5, y - 47, 4.5, 5.5, '#884422');
+      // Determined eyebrows (slight angle)
+      c.strokeStyle = '#553322'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(x - 9, y - 55); c.lineTo(x - 2.5, y - 54); c.stroke();
+      c.beginPath(); c.moveTo(x + 2.5, y - 54); c.lineTo(x + 9, y - 55); c.stroke();
+      // Nose
+      c.fillStyle = '#d4967a';
+      c.beginPath(); c.ellipse(x, y - 41, 1.5, 1.2, 0, 0, Math.PI*2); c.fill();
+      // Smirk
+      c.strokeStyle = '#c07060'; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(x - 3, y - 36); c.quadraticCurveTo(x + 1, y - 33, x + 5, y - 35); c.stroke();
+      // Blush (subtle)
+      c.fillStyle = 'rgba(255,120,100,0.25)';
+      c.beginPath(); c.ellipse(x - 9, y - 43, 4, 2.5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(x + 9, y - 43, 4, 2.5, 0, 0, Math.PI*2); c.fill();
+    });
+  }
+
+  // ── Dr. Wendy — comic portrait: lab-coat scientist with glasses ───────────────
+  _comicPortraitWendy(ctx) {
+    const x = 0, y = 0;
+    this._drawComicPanel(ctx, x, y, (c, cx, cy) => {
+      // Lab coat shoulders
+      c.fillStyle = '#E8F0FF';
+      c.fillRect(cx - 22, cy - 28, 44, 28);
+      c.fillStyle = '#66CCBB';
+      c.fillRect(cx - 8, cy - 28, 16, 8);
+      // Neck
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(cx, cy - 32, 6, 8, 0, 0, Math.PI*2); c.fill();
+      // Head
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(cx, cy - 47, 13, 15, 0, 0, Math.PI*2); c.fill();
+      // Brown hair (bun on top)
+      c.fillStyle = '#7A3810';
+      c.beginPath(); c.ellipse(cx, cy - 58, 13, 8, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(cx + 3, cy - 64, 7, 7, 0, 0, Math.PI*2); c.fill(); // bun
+      // Ears
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(cx - 13, cy - 47, 3, 4.5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(cx + 13, cy - 47, 3, 4.5, 0, 0, Math.PI*2); c.fill();
+      // Eyes (anime — green iris)
+      this._drawAnimeEye(c, cx - 5, cy - 48, 4, 5, '#338866');
+      this._drawAnimeEye(c, cx + 5, cy - 48, 4, 5, '#338866');
+      // Glasses
+      c.strokeStyle = '#558888'; c.lineWidth = 1.3;
+      c.beginPath(); c.roundRect(cx - 10.5, cy - 53, 8, 9, 2); c.stroke();
+      c.beginPath(); c.roundRect(cx + 2.5, cy - 53, 8, 9, 2); c.stroke();
+      c.beginPath(); c.moveTo(cx - 2.5, cy - 49); c.lineTo(cx + 2.5, cy - 49); c.stroke();
+      // Eyebrows
+      c.strokeStyle = '#553311'; c.lineWidth = 1.3;
+      c.beginPath(); c.moveTo(cx - 8.5, cy - 53.5); c.lineTo(cx - 2, cy - 53); c.stroke();
+      c.beginPath(); c.moveTo(cx + 2, cy - 53); c.lineTo(cx + 8.5, cy - 53.5); c.stroke();
+      // Nose
+      c.fillStyle = '#d4967a';
+      c.beginPath(); c.ellipse(cx, cy - 43, 1.5, 1.2, 0, 0, Math.PI*2); c.fill();
+      // Friendly smile
+      c.strokeStyle = '#c07060'; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(cx, cy - 38, 4, 0.15, Math.PI - 0.15); c.stroke();
+    });
+  }
+
+  // ── Prof. Biff — comic portrait: explorer with hat and mustache ───────────────
+  _comicPortraitBiff(ctx) {
+    const x = 0, y = 0;
+    this._drawComicPanel(ctx, x, y, (c, cx, cy) => {
+      // Khaki shirt
+      c.fillStyle = '#CC9944';
+      c.fillRect(cx - 22, cy - 28, 44, 28);
+      // Neck
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(cx, cy - 32, 6, 8, 0, 0, Math.PI*2); c.fill();
+      // Head
+      c.fillStyle = '#FDBCB4';
+      c.beginPath(); c.ellipse(cx, cy - 47, 13, 15, 0, 0, Math.PI*2); c.fill();
+      // Hat brim
+      c.fillStyle = '#8B6914';
+      c.beginPath(); c.ellipse(cx, cy - 60, 18, 4, 0, 0, Math.PI*2); c.fill();
+      // Hat crown
+      c.fillStyle = '#A07820';
+      c.beginPath(); c.roundRect(cx - 11, cy - 74, 22, 16, 3); c.fill();
+      c.fillStyle = '#C09030';
+      c.fillRect(cx - 11, cy - 62, 22, 4);
+      // Sideburns
+      c.fillStyle = '#A07820';
+      c.beginPath(); c.ellipse(cx - 13, cy - 51, 3, 5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(cx + 13, cy - 51, 3, 5, 0, 0, Math.PI*2); c.fill();
+      // Eyes (anime — brown)
+      this._drawAnimeEye(c, cx - 5, cy - 48, 4, 5, '#663300');
+      this._drawAnimeEye(c, cx + 5, cy - 48, 4, 5, '#663300');
+      // Thick eyebrows
+      c.strokeStyle = '#7A5010'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(cx - 9, cy - 54); c.lineTo(cx - 2, cy - 53); c.stroke();
+      c.beginPath(); c.moveTo(cx + 2, cy - 53); c.lineTo(cx + 9, cy - 54); c.stroke();
+      // Nose (bigger, manly)
+      c.fillStyle = '#d4967a';
+      c.beginPath(); c.ellipse(cx, cy - 43, 2.5, 2, 0, 0, Math.PI*2); c.fill();
+      // Big mustache
+      c.fillStyle = '#A07820';
+      c.beginPath();
+      c.moveTo(cx - 8, cy - 39);
+      c.bezierCurveTo(cx - 9, cy - 34, cx - 3, cy - 34, cx, cy - 37);
+      c.bezierCurveTo(cx + 3, cy - 34, cx + 9, cy - 34, cx + 8, cy - 39);
+      c.quadraticCurveTo(cx, cy - 36, cx - 8, cy - 39);
+      c.closePath(); c.fill();
+    });
+  }
+
+  // ── Gen. Fluffkins — comic portrait: military cat ────────────────────────────
+  _comicPortraitFluffkins(ctx) {
+    const x = 0, y = 0;
+    this._drawComicPanel(ctx, x, y, (c, cx, cy) => {
+      // Navy uniform
+      c.fillStyle = '#2244AA';
+      c.fillRect(cx - 22, cy - 28, 44, 28);
+      // Gold medal
+      c.fillStyle = '#FFD700';
+      c.beginPath(); c.arc(cx, cy - 20, 5, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#FFEE80';
+      c.beginPath(); c.arc(cx, cy - 20, 3, 0, Math.PI*2); c.fill();
+      // Grey fur head
+      c.fillStyle = '#CCCCCC';
+      c.beginPath(); c.ellipse(cx, cy - 46, 14, 16, 0, 0, Math.PI*2); c.fill();
+      // Inner lighter fur
+      c.fillStyle = '#EEEEEE';
+      c.beginPath(); c.ellipse(cx, cy - 44, 9, 11, 0, 0, Math.PI*2); c.fill();
+      // Ears (pointy cat ears)
+      c.fillStyle = '#AAAAAA';
+      c.beginPath(); c.moveTo(cx - 14, cy - 55); c.lineTo(cx - 8, cy - 68); c.lineTo(cx - 4, cy - 56); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(cx + 4, cy - 56); c.lineTo(cx + 8, cy - 68); c.lineTo(cx + 14, cy - 55); c.closePath(); c.fill();
+      // Inner ear
+      c.fillStyle = '#FFAAAA';
+      c.beginPath(); c.moveTo(cx - 12, cy - 57); c.lineTo(cx - 8, cy - 65); c.lineTo(cx - 6, cy - 57); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(cx + 6, cy - 57); c.lineTo(cx + 8, cy - 65); c.lineTo(cx + 12, cy - 57); c.closePath(); c.fill();
+      // Cat eyes (anime — vertical slit, green)
+      this._drawAnimeEye(c, cx - 5, cy - 47, 4, 5.5, '#44AA55');
+      this._drawAnimeEye(c, cx + 5, cy - 47, 4, 5.5, '#44AA55');
+      // Cat nose
+      c.fillStyle = '#FFAAAA';
+      c.beginPath(); c.moveTo(cx, cy - 41); c.lineTo(cx - 2.5, cy - 38); c.lineTo(cx + 2.5, cy - 38); c.closePath(); c.fill();
+      // Mouth
+      c.strokeStyle = '#888888'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(cx, cy - 38); c.lineTo(cx - 3, cy - 35); c.stroke();
+      c.beginPath(); c.moveTo(cx, cy - 38); c.lineTo(cx + 3, cy - 35); c.stroke();
+      // Whiskers
+      c.strokeStyle = 'rgba(100,100,100,0.7)'; c.lineWidth = 0.8;
+      for (let i = 0; i < 3; i++) {
+        const wy = cy - 40 + i * 2;
+        c.beginPath(); c.moveTo(cx - 4, wy); c.lineTo(cx - 16, wy - i * 0.5); c.stroke();
+        c.beginPath(); c.moveTo(cx + 4, wy); c.lineTo(cx + 16, wy - i * 0.5); c.stroke();
+      }
+    });
+  }
+
+  // ── Princesses Dot & Val — comic portrait (two faces side by side) ────────────
+  _comicPortraitPrincesses(ctx) {
+    const x = 0, y = 0;
+    this._drawComicPanel(ctx, x, y, (c, cx, cy) => {
+      // Two small faces
+      const drawFace = (ox, hairCol) => {
+        // Dress top
+        c.fillStyle = '#FF66BB';
+        c.fillRect(cx + ox - 12, cy - 28, 24, 28);
+        // Head
+        c.fillStyle = '#FDBCB4';
+        c.beginPath(); c.ellipse(cx + ox, cy - 46, 10, 12, 0, 0, Math.PI*2); c.fill();
+        // Crown
+        c.fillStyle = '#FFD700';
+        c.beginPath(); c.roundRect(cx + ox - 8, cy - 57, 16, 5, 2); c.fill();
+        c.fillStyle = '#FFD700';
+        // Spires
+        [[0, 6], [-5, 4], [5, 4]].forEach(([dx, h]) => {
+          c.fillRect(cx + ox + dx - 1.5, cy - 57 - h, 3, h);
+        });
+        // Hair
+        c.fillStyle = hairCol;
+        c.beginPath(); c.ellipse(cx + ox, cy - 53, 10, 5, 0, 0, Math.PI*2); c.fill();
+        // Eyes (smaller for chibi side-by-side)
+        this._drawAnimeEye(c, cx + ox - 3.5, cy - 47, 3, 3.8, '#883399');
+        this._drawAnimeEye(c, cx + ox + 3.5, cy - 47, 3, 3.8, '#883399');
+        // Blush
+        c.fillStyle = 'rgba(255,150,180,0.35)';
+        c.beginPath(); c.ellipse(cx + ox - 7, cy - 43, 3, 1.8, 0, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.ellipse(cx + ox + 7, cy - 43, 3, 1.8, 0, 0, Math.PI*2); c.fill();
+        // Smile
+        c.strokeStyle = '#cc6699'; c.lineWidth = 0.9;
+        c.beginPath(); c.arc(cx + ox, cy - 39.5, 3, 0.2, Math.PI - 0.2); c.stroke();
+      };
+      drawFace(-12, '#FFD700');
+      drawFace( 12, '#FF8844');
+    });
+  }
+
+  // ── All Survivors — comic portrait: three tiny cheering faces ─────────────────
+  _comicPortraitEveryone(ctx) {
+    const x = 0, y = 0;
+    this._drawComicPanel(ctx, x, y, (c, cx, cy) => {
+      const faces = [
+        { ox: -17, skin: '#FDBCB4', shirt: '#88CC88', hair: '#553311', eye: '#227722' },
+        { ox:   0, skin: '#FDBCB4', shirt: '#DDAA44', hair: '#221100', eye: '#885522' },
+        { ox:  17, skin: '#D4A0C4', shirt: '#8888FF', hair: '#220044', eye: '#6644BB' },
+      ];
+      for (const f of faces) {
+        // Shirt
+        c.fillStyle = f.shirt;
+        c.fillRect(cx + f.ox - 10, cy - 26, 20, 26);
+        // Head
+        c.fillStyle = f.skin;
+        c.beginPath(); c.ellipse(cx + f.ox, cy - 39, 9, 10, 0, 0, Math.PI*2); c.fill();
+        // Hair
+        c.fillStyle = f.hair;
+        c.beginPath(); c.ellipse(cx + f.ox, cy - 46, 9, 5, 0, 0, Math.PI*2); c.fill();
+        // Eyes
+        this._drawAnimeEye(c, cx + f.ox - 3, cy - 40, 2.8, 3.5, f.eye);
+        this._drawAnimeEye(c, cx + f.ox + 3, cy - 40, 2.8, 3.5, f.eye);
+        // Happy smile
+        c.strokeStyle = '#c07060'; c.lineWidth = 1;
+        c.beginPath(); c.arc(cx + f.ox, cy - 33, 3.5, 0.1, Math.PI - 0.1); c.stroke();
+      }
+      // Cheer stars
+      c.fillStyle = '#FFD700';
+      [[cx - 24, cy - 60], [cx, cy - 65], [cx + 24, cy - 60]].forEach(([sx, sy]) => {
+        c.save(); c.translate(sx, sy);
+        c.font = 'bold 9px Segoe UI Emoji, Arial'; c.textAlign = 'center';
+        c.fillText('★', 0, 3);
+        c.restore();
+      });
+    });
   }
 }
