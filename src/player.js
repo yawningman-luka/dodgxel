@@ -275,8 +275,8 @@ class Player {
       else                   this.onGround = false;
       // Soft floor so players don't fall off bottom entirely
       if (this.y > C.GROUND - 20) { this.y = C.GROUND - 20; this.vy = 0; }
-      if (this.x < hw)       { this.x = hw;       this.vx = 0; }
-      if (this.x > C.W - hw) { this.x = C.W - hw; this.vx = 0; }
+      if (this.x < hw)                          { this.x = hw;       this.vx = 0; }
+      if (!this.hordeMode && this.x > C.W - hw) { this.x = C.W - hw; this.vx = 0; }
       if (!this.noMidline) {
         const mid = C.W / 2;
         if (this.index === 0 && this.x > mid - hw) { this.x = mid - hw; this.vx = 0; }
@@ -299,8 +299,8 @@ class Player {
     // Safety ceiling — prevent players floating off the top of the screen
     if (this.y < 92) { this.y = 92; this.vy = Math.max(0, this.vy); }
 
-    if (this.x < hw)        { this.x = hw;        this.vx = 0; }
-    if (this.x > C.W - hw)  { this.x = C.W - hw;  this.vx = 0; }
+    if (this.x < hw)                           { this.x = hw;        this.vx = 0; }
+    if (!this.hordeMode && this.x > C.W - hw)  { this.x = C.W - hw;  this.vx = 0; }
     if (!this.noMidline) {
       const mid = C.W / 2;
       if (this.index === 0 && this.x > mid - hw) { this.x = mid - hw; this.vx = 0; }
