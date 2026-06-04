@@ -124,7 +124,7 @@
 
   // ---- Menu ----
   _updateMenu() {
-    const N = 6;
+    const N = 5;
     if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor - 1 + N) % N;
     if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % N;
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
@@ -132,9 +132,8 @@
         case 0: this._startCharSelect('classic');     break;
         case 1: this._startStory();                   break;
         case 2: this._startCharSelect('horde');       break;
-        case 3: this._startOnlineLobby();             break;
-        case 4: this.state = C.STATE.HOW_TO_PLAY;    break;
-        case 5: this.state = C.STATE.CONTROLS;        break;
+        case 3: this.state = C.STATE.HOW_TO_PLAY;    break;
+        case 4: this.state = C.STATE.CONTROLS;        break;
       }
     }
     if (Input.wasPressed('KeyH')) this._startCharSelect('horde');
@@ -168,25 +167,23 @@
     ctx.fillText('Dodge. Throw. Save the World.', C.W/2, 71);
     ctx.shadowBlur = 0;
 
-    // 7 menu buttons — narrower to leave room for characters on each side
+    // 5 menu buttons — wider and taller now that builder & online are gone
     const BTNS = [
-      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',         col: C.COL.P1_HUD, bh:42 },
-      { label:'📖 STORY MODE',    sub:'solo or co-op · 5 acts · save the world',    col:'#CC88FF',     bh:42 },
-      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',             col:'#FF6600',     bh:42 },
-
-      { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',    col:'#00CCFF',     bh:42 },
-      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',               col:'#AAAAAA',     bh:30 },
-      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',                 col:'#888888',     bh:30 },
+      { label:'🏐 CLASSIC MATCH', sub:'1v1 arena battle · pick your stage',      col: C.COL.P1_HUD, bh:52 },
+      { label:'📖 STORY MODE',    sub:'solo or co-op · 5 acts · save the world', col:'#CC88FF',     bh:52 },
+      { label:'💀 HORDE MODE',    sub:'co-op wave survival · 10 waves',          col:'#FF6600',     bh:52 },
+      { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',            col:'#AAAAAA',     bh:38 },
+      { label:'⚙️ CONTROLS',     sub:'remap keys for both players',              col:'#888888',     bh:38 },
     ];
-    const bw = 270, bx = C.W/2 - bw/2;
-    let by = 92;
+    const bw = 300, bx = C.W/2 - bw/2;
+    let by = 86;
     const pulse = 0.65 + 0.35*Math.sin(Date.now()/280);
 
     for (let i = 0; i < BTNS.length; i++) {
       const b = BTNS[i];
       const sel = i === this.menuCursor;
       const gap = 4;
-      if (i === 4) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
+      if (i === 3) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
 
       ctx.fillStyle = sel ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.45)';
       ctx.fillRect(bx, by, bw, b.bh);
@@ -200,12 +197,12 @@
 
       ctx.textAlign = 'left';
       ctx.fillStyle = sel ? '#fff' : '#888';
-      ctx.font = `bold ${b.bh > 36 ? 12 : 10}px "Segoe UI Emoji","Segoe UI Symbol",Segoe UI,Arial,sans-serif`;
-      ctx.fillText(b.label, bx+12, by + (b.bh > 36 ? 16 : 12));
-      if (b.bh > 36) {
+      ctx.font = `bold ${b.bh > 40 ? 14 : 11}px "Segoe UI Emoji","Segoe UI Symbol",Segoe UI,Arial,sans-serif`;
+      ctx.fillText(b.label, bx+14, by + (b.bh > 40 ? 20 : 14));
+      if (b.bh > 40) {
         ctx.fillStyle = sel ? b.col : '#444';
-        ctx.font = '11px Segoe UI,Arial,sans-serif';
-        ctx.fillText(b.sub, bx+12, by+28);
+        ctx.font = '12px Segoe UI,Arial,sans-serif';
+        ctx.fillText(b.sub, bx+14, by+35);
       }
       if (sel) {
         ctx.fillStyle = b.col;
@@ -1130,24 +1127,6 @@
           '  🔥 Wave 10 boss: THE OVERLORD',
           '  15 HP, spread shots, charge attacks.',
           '  Defeat him to achieve total victory.',
-        ],
-      },
-      {
-        title: '🌐 ONLINE MATCH', col: '#00CCFF',
-        lines: [
-          '  Play against a friend over LAN or internet.',
-          '',
-          '  1. Run:  node server.js  (in game folder)',
-          '  2. Both open the game at http://localhost:8080',
-          '',
-          '  HOST: press C → share the 4-letter room code.',
-          '  GUEST: press J → type the code → ENTER.',
-          '',
-          '  Once both connected → select characters',
-          '  → pick arena → play Classic Match rules.',
-          '',
-          '  🔌 LAN: share your machine\'s local IP.',
-          '  🌍 Internet: use a tunnel (e.g. ngrok, Tailscale).',
         ],
       },
       {
