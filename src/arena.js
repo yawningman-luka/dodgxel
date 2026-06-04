@@ -1,4 +1,4 @@
-class Arena {
+﻿class Arena {
   constructor(def) {
     Object.assign(this, def);
   }
@@ -53,7 +53,7 @@ class Obstacle {
   draw(ctx) { if (this._draw) this._draw(ctx, this); }
 }
 
-// Flying bird — ball-only dynamic obstacle
+// Flying bird â€” ball-only dynamic obstacle
 class BirdObstacle extends Obstacle {
   constructor(cx, cy, ampX, period) {
     super(cx - 20, cy - 8, 40, 16, null, { ballOnly: true });
@@ -94,7 +94,7 @@ class BirdObstacle extends Obstacle {
   }
 }
 
-// Slowly-drifting debris rock — Moon arena (blocks both player and ball)
+// Slowly-drifting debris rock â€” Moon arena (blocks both player and ball)
 class DebrisRock extends Obstacle {
   constructor(x, y, size, speed) {
     super(x, y, size, size, null, {}); // blocks both players and ball
@@ -142,7 +142,7 @@ class DebrisRock extends Obstacle {
   }
 }
 
-// Demon NPC — Upside-Down arena, shoots slow fire balls at both players
+// Demon NPC â€” Upside-Down arena, shoots slow fire balls at both players
 class DemonNPC {
   // inverted: true when players are on ceiling (fire balls thrown upward)
   constructor(x, y, inverted = false) {
@@ -163,7 +163,7 @@ class DemonNPC {
       const dir = this._lastTarget === 0 ? -1 : 1;
       const angle = Math.PI * (0.25 + Math.random() * 0.35);
       const speed = this.inverted ? 2.2 + Math.random() * 0.8 : 1.8 + Math.random() * 1.4;
-      const vySign = this.inverted ? 1 : -1; // inverted: +sin pushes down from ceiling toward players; wait — players are on ceiling so fire balls go UP
+      const vySign = this.inverted ? 1 : -1; // inverted: +sin pushes down from ceiling toward players; wait â€” players are on ceiling so fire balls go UP
       // Actually: demon is at bottom, players at ceiling (y=90). Fire must go UP (negative vy).
       const vy0 = this.inverted ? -Math.sin(angle) * speed : -Math.sin(angle) * speed;
       this.fireBalls.push({
@@ -288,16 +288,16 @@ class DemonNPC {
   }
 }
 
-// Plane — passes every ~5 seconds, kills on contact (handled in game.js)
+// Plane â€” passes every ~5 seconds, kills on contact (handled in game.js)
 class PlaneObstacle extends Obstacle {
   constructor() {
-    // Plane passes ~50 px above cloud surface (GROUND-100=270 → plane at GROUND-170=200)
+    // Plane passes ~50 px above cloud surface (GROUND-100=270 â†’ plane at GROUND-170=200)
     super(-400, 0, 220, 48, null, { ballOnly: true });
     this._timer   = 3000;
     this._active  = false;
     this._dir     = 1;
     this._speed   = 4.5;
-    this._warnY   = C.GROUND - 170; // y=200 → above player head (226) so must jump to clear
+    this._warnY   = C.GROUND - 170; // y=200 â†’ above player head (226) so must jump to clear
   }
 
   get rect() {
@@ -328,10 +328,10 @@ class PlaneObstacle extends Obstacle {
       if (blink) {
         ctx.save();
         ctx.fillStyle = '#FF4400';
-        ctx.font = 'bold 13px "Courier New"';
+        ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
         ctx.textAlign = this._dir > 0 ? 'left' : 'right';
         const ax = this._dir > 0 ? 6 : C.W - 6;
-        ctx.fillText(this._dir > 0 ? '▶▶ PLANE' : 'PLANE ◀◀', ax, this._warnY + 28);
+        ctx.fillText(this._dir > 0 ? 'â–¶â–¶ PLANE' : 'PLANE â—€â—€', ax, this._warnY + 28);
         ctx.restore();
       }
       return;
@@ -378,7 +378,7 @@ class PlaneObstacle extends Obstacle {
   }
 }
 
-// Drifting cloud platform — bobs and drifts within its side of the arena
+// Drifting cloud platform â€” bobs and drifts within its side of the arena
 class FloatingCloud extends Obstacle {
   constructor(x, y, w, opts = {}) {
     super(x, y, w, 30, null, {});
@@ -481,7 +481,7 @@ function makeUmbrella(x, y) {
   });
 }
 
-// Elevated tree branch — solid platform players and ball can land on
+// Elevated tree branch â€” solid platform players and ball can land on
 function makeBranch(x, y) {
   return new Obstacle(x, y, 110, 12, (ctx, o) => {
     Sprites.px(ctx, '#4A2E0A', o.x, o.y, o.w, o.h);
@@ -796,7 +796,7 @@ const ARENAS = [
         ctx.restore();
         // Pair letter label
         ctx.fillStyle = col;
-        ctx.font = 'bold 9px "Courier New"';
+        ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(['R','G','B'][p.pair], p.x, p.y + 4);
       }
@@ -820,7 +820,7 @@ const ARENAS = [
           ball.x  = exit.x;
           ball.y  = exit.y;
           ball.vx = -ball.vx; // mirror x so ball flies toward the opponent
-          // vy preserved — same downward trajectory
+          // vy preserved â€” same downward trajectory
           ball.teleportCooldown = 400;
           ball.lastThrower = -1;
           break;
@@ -842,15 +842,15 @@ const ARENAS = [
     ],
   }),
 
-  // ── MOON ──────────────────────────────────────────────────────────────────
+  // â”€â”€ MOON â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   new Arena({
     name: 'MOON',
     skyTop: '#000005', skyBot: '#050518',
     groundColor: '#8A8A9E', groundLine: '#6A6A7E',
     playerSpeedMult:     0.38,  // wade through moon dust
-    playerGravityMult:   0.22,  // very low gravity → floaty
-    playerJumpForceMult: 0.58,  // combined with low gravity → huge slow arcs
-    badge: 'LOW GRAVITY  ·  DEBRIS',
+    playerGravityMult:   0.22,  // very low gravity â†’ floaty
+    playerJumpForceMult: 0.58,  // combined with low gravity â†’ huge slow arcs
+    badge: 'LOW GRAVITY  Â·  DEBRIS',
     badgeColor: 'rgba(100,100,160,0.85)',
     badgeTextColor: '#AAAAFF',
 
@@ -896,7 +896,7 @@ const ARENAS = [
     ],
   }),
 
-  // ── UPSIDE DOWN ───────────────────────────────────────────────────────────
+  // â”€â”€ UPSIDE DOWN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   (() => {
     const demon = new DemonNPC(C.W / 2, C.GROUND - 5, true); // inverted=true
     return new Arena({
@@ -906,7 +906,7 @@ const ARENAS = [
       demon,
       playerInvertGravity: true,
       ballGravityMult: -1,
-      badge: 'UPSIDE DOWN  ·  LOSE IF HIT',
+      badge: 'UPSIDE DOWN  Â·  LOSE IF HIT',
       badgeColor: 'rgba(140,0,10,0.88)',
       badgeTextColor: '#FF6666',
 
@@ -971,7 +971,7 @@ const ARENAS = [
     });
   })(),
 
-  // ── CLOUDS ────────────────────────────────────────────────────────────────
+  // â”€â”€ CLOUDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   (() => {
     const CLOUD_Y = C.GROUND - 100;
     return new Arena({
@@ -980,7 +980,7 @@ const ARENAS = [
       groundColor: '#87CEEB', groundLine: '#87CEEB',
       noGround: true,
       playerStarts: [[150, CLOUD_Y], [650, CLOUD_Y]],
-      badge: 'FLOATING CLOUDS  ·  FALL = LOSE',
+      badge: 'FLOATING CLOUDS  Â·  FALL = LOSE',
       badgeColor: 'rgba(80,140,200,0.85)',
       badgeTextColor: '#DDEEFF',
 

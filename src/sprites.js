@@ -1,4 +1,4 @@
-// All pixel-art drawing functions
+﻿// All pixel-art drawing functions
 const Sprites = {
 
   // Draw a pixelated rectangle (snapped to PX grid)
@@ -63,7 +63,7 @@ const Sprites = {
     const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
     if (shirtSymbol && shirtSymbol !== 'none') {
       const sy = bodyTop + Math.round(bodyH * 0.68);
-      ctx.font = '11px serif'; ctx.textAlign = 'center';
+      ctx.font = '11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
       ctx.strokeText(shirtSymbol, 1, sy);
       ctx.fillStyle = '#FFFFFF'; ctx.fillText(shirtSymbol, 1, sy);
@@ -96,7 +96,7 @@ const Sprites = {
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
 
-    // Hair — style switch
+    // Hair â€” style switch
     const hairType = (colors && colors.hairType) || 'straight';
     switch (hairType) {
       case 'spiky':
@@ -203,7 +203,7 @@ const Sprites = {
     const shirtSymbol = (colors && colors.shirtSymbol) || 'none';
     if (shirtSymbol && shirtSymbol !== 'none') {
       const sy = bodyTop + Math.round(bodyH * 0.68);
-      ctx.font = '11px serif'; ctx.textAlign = 'center';
+      ctx.font = '11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
       ctx.strokeText(shirtSymbol, 1, sy);
       ctx.fillStyle = '#FFFFFF'; ctx.fillText(shirtSymbol, 1, sy);
@@ -240,7 +240,7 @@ const Sprites = {
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
 
-    // Hair — style switch
+    // Hair â€” style switch
     const hairType = (colors && colors.hairType) || 'ponytail';
     switch (hairType) {
       case 'bun':
@@ -357,7 +357,7 @@ const Sprites = {
   _drawAccessory(ctx, type, headY, hair, hairDark) {
     if (!type || type === 'none' || type.startsWith('wings_')) return;
     switch (type) {
-      // ── Hats ──────────────────────────────────────────────────────────────
+      // â”€â”€ Hats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       case 'cap': // flat newsboy cap
         this.px(ctx,'#1A1A1A',-14,headY-4, 30, 5);
         this.px(ctx,'#111111', -9,headY-16,20,13);
@@ -416,7 +416,7 @@ const Sprites = {
         ctx.beginPath();ctx.moveTo(-7,headY-2);ctx.lineTo(-5,headY-10);ctx.lineTo(-3,headY-2);ctx.closePath();ctx.fill();
         ctx.beginPath();ctx.moveTo( 5,headY-2);ctx.lineTo( 7,headY-10);ctx.lineTo( 9,headY-2);ctx.closePath();ctx.fill();
         break;
-      // ── Eyewear ────────────────────────────────────────────────────────────
+      // â”€â”€ Eyewear â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       case 'glasses':
         ctx.strokeStyle='#AAAAAA'; ctx.lineWidth=1.5;
         ctx.strokeRect(-7,headY+9,  7,6); // left lens
@@ -435,7 +435,7 @@ const Sprites = {
         ctx.beginPath();ctx.moveTo(0,headY+12);ctx.lineTo(2,headY+12);ctx.stroke();
         ctx.lineWidth=1;
         break;
-      // ── Head ───────────────────────────────────────────────────────────────
+      // â”€â”€ Head â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       case 'headband':
         this.px(ctx,'#FFFFFF',-11,headY+5,24,5);
         this.px(ctx,'#DDDDDD',-11,headY+5,24,2);
@@ -509,8 +509,8 @@ const Sprites = {
       const sx = x + Math.cos(angle) * 18;
       const sy = y - 65 + Math.sin(angle) * 8;
       ctx.fillStyle = '#FFD700';
-      ctx.font = '14px serif';
-      ctx.fillText('★', sx - 7, sy);
+      ctx.font = '14px Segoe UI, Arial, sans-serif';
+      ctx.fillText('â˜…', sx - 7, sy);
     }
   },
 
@@ -518,7 +518,7 @@ const Sprites = {
   drawHUD(ctx, p1, p2, arena) {
     const cx = C.W / 2;
 
-    // Background strip — slightly taller, stronger gradient
+    // Background strip â€” slightly taller, stronger gradient
     const strip = ctx.createLinearGradient(0, 0, 0, 88);
     strip.addColorStop(0, 'rgba(0,0,0,0.92)');
     strip.addColorStop(1, 'rgba(0,0,0,0.55)');
@@ -554,18 +554,18 @@ const Sprites = {
 
     // Player names
     ctx.textAlign = 'center';
-    ctx.font = 'bold 10px "Courier New"';
+    ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
     ctx.fillStyle = C.COL.P1_HUD;
     ctx.fillText(p1.charName || C.P1_NAME, cx - 78, 19);
     ctx.fillStyle = C.COL.P2_HUD;
     ctx.fillText(p2.charName || C.P2_NAME, cx + 78, 19);
 
-    // Leading player indicator — pulsing glow on the leader's score
+    // Leading player indicator â€” pulsing glow on the leader's score
     const leading = p1.score > p2.score ? 0 : p2.score > p1.score ? 1 : -1;
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 260);
 
     // Score numbers
-    ctx.font = 'bold 42px "Courier New"';
+    ctx.font = 'bold 42px Segoe UI, Arial, sans-serif';
 
     ctx.shadowColor = C.COL.P1_HUD;
     ctx.shadowBlur = leading === 0 ? 18 * pulse : 5;
@@ -578,7 +578,7 @@ const Sprites = {
     ctx.fillText(p2.score, cx + 78, 57);
     ctx.shadowBlur = 0;
 
-    // Win dots — glowing when lit
+    // Win dots â€” glowing when lit
     const dotR = 4, dotGap = 10;
     for (let i = 0; i < C.WIN_SCORE; i++) {
       const lit1 = i < p1.score, lit2 = i < p2.score;
@@ -605,12 +605,12 @@ const Sprites = {
 
     // Arena name badge + ESC hint
     ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.font = '9px "Courier New"';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(arena.name, cx, C.H - 6);
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.font = '8px "Courier New"';
-    ctx.fillText('ESC · menu', cx, C.H - 16);
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillText('ESC Â· menu', cx, C.H - 16);
     ctx.textAlign = 'left';
   },
 
@@ -630,7 +630,7 @@ const Sprites = {
       ctx.fillStyle = C.COL.SHIELD_RING;
       ctx.fillRect(sfx + 1, sy + 2, sfw - 2, BH - 4);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.font = 'bold 8px "Courier New"';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('SHIELD  READY', sfx + sfw / 2, sy + BH - 4);
     } else {
@@ -638,7 +638,7 @@ const Sprites = {
       ctx.fillStyle = '#1a3a5a';
       ctx.fillRect(sfx + 1, sy + 2, Math.max(0, (sfw - 2) * pct), BH - 4);
       ctx.fillStyle = '#4d84bb';
-      ctx.font = '8px "Courier New"';
+      ctx.font = '11px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`RECHARGING  ${Math.ceil(player.shieldCooldown / 1000)}s`, sfx + sfw / 2, sy + BH - 4);
     }
@@ -668,9 +668,9 @@ const Sprites = {
     }
     const pName = C.POWER_NAMES[player.currentPower] || '';
     ctx.fillStyle = ready ? '#FFD700' : '#555';
-    ctx.font = `${ready ? 'bold ' : ''}8px "Courier New"`;
+    ctx.font = `${ready ? 'bold ' : ''}8px Segoe UI, Arial, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(ready ? `★ ${pName} — THROW TO USE ★` : 'POWER CHARGING', pfx + pfw / 2, py + BH - 4);
+    ctx.fillText(ready ? `â˜… ${pName} â€” THROW TO USE â˜…` : 'POWER CHARGING', pfx + pfw / 2, py + BH - 4);
     ctx.textAlign = 'left';
   },
 
@@ -995,7 +995,7 @@ const Sprites = {
       ctx.fillStyle = '#DDDDE8';
       ctx.beginPath(); ctx.ellipse(x+Math.round(w*0.42), y+Math.round(skyH*0.45), 20, 6, 0.15, 0, Math.PI*2); ctx.fill();
     } else if (idx >= 8) { // CUSTOM (user-built)
-      // Draw a "★ CUSTOM" placeholder with a simple platform doodle
+      // Draw a "â˜… CUSTOM" placeholder with a simple platform doodle
       ctx.fillStyle = 'rgba(255,215,0,0.08)';
       ctx.fillRect(x, y, w, skyH);
       // A couple of brown platform tiles
@@ -1009,9 +1009,9 @@ const Sprites = {
       ctx.fillRect(x + Math.round(w*0.54), y + Math.round(skyH*0.30), Math.round(w*0.36), Math.round(skyH*0.04));
       // Star
       ctx.fillStyle = 'rgba(255,215,0,0.55)';
-      ctx.font = '18px serif';
+      ctx.font = '18px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('★', x + Math.round(w*0.5), y + Math.round(skyH*0.45));
+      ctx.fillText('â˜…', x + Math.round(w*0.5), y + Math.round(skyH*0.45));
       ctx.textAlign = 'left';
     } else if (idx === 6) { // UPSIDE DOWN
       // Dark hell sky

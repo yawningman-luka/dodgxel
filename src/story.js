@@ -18,6 +18,7 @@ class StoryEnemy {
     this._legAnim = Math.random() * Math.PI * 2;
     this.contactCooldown = 0;
     this._teleportTimer = 1500 + Math.random() * 1000;
+    this._awake = false;
   }
 
   update(dt, players, enemyBalls) {
@@ -25,6 +26,14 @@ class StoryEnemy {
     if (this._flashTimer > 0) this._flashTimer -= dt;
     if (this.contactCooldown > 0) this.contactCooldown -= dt;
     this._legAnim += dt * 0.012;
+
+    // Stand idle until a player ventures close
+    if (!this._awake) {
+      for (const p of players) {
+        if (p && Math.abs(this.x - p.x) < 280) { this._awake = true; break; }
+      }
+      if (!this._awake) return;
+    }
 
     const def = this.def;
     let target = players[0];
@@ -440,7 +449,7 @@ class StoryBoss extends StoryEnemy {
 
     if (this._bossMsgTimer > 0 && this._bossMsg) {
       ctx.globalAlpha = Math.min(1, this._bossMsgTimer / 350);
-      ctx.font = 'bold 9px "Courier New"';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#000';
       ctx.fillText(this._bossMsg, 1, -this.h - 22);
@@ -735,7 +744,7 @@ class StoryBoss extends StoryEnemy {
     // Stumble stars
     if (this._phase === 'stumble') {
       const st = Date.now() * 0.003;
-      ctx.font = 'bold 11px "Courier New"';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#FFD700';
       for (let i = 0; i < 3; i++) {
@@ -866,11 +875,13 @@ class StoryGame {
     this.p1Hp = 5; this.p2Hp = 5;
     this.p1Fallen = false; this.p2Fallen = false;
     this._camX = 0;
-    this._wave = 0;
-    this._waveState = 'idle';
-    this._waveTimer = 0;
-    this._spawnQueue = [];
-    this._spawnTimer = 0;
+    this._levelState = 'idle'; // 'idle'|'playing'|'act_clear'|'game_over'
+    this._levelTimer = 0;
+    this._introTimer = 0;
+    this._bossEnemy = null;
+    this._bossDlgTimer = 0;
+    this._battleCryTimer = 0;
+    this._battleCryText = '';
   }
 
   // ── Act start: show intro dialogue then begin combat ─────────────────────────
@@ -918,15 +929,21 @@ class StoryGame {
     }
 
     this._extraBalls = [];
-    this.enemies = [];
     this.enemyBalls = [];
     this.p1Hp = 5; this.p2Hp = 5;
     this.p1Fallen = false; this.p2Fallen = false;
     this._camX = 0;
-    this._wave = 0;
-    this._waveState = 'countdown';
-    this._waveTimer = 2800;
-    this._spawnQueue = [];
+
+    const level = this._buildLevel(idx);
+    this.enemies = level.enemies;
+    this._bossEnemy = level.boss;
+    this._levelState = 'playing';
+    this._levelTimer = 0;
+    this._introTimer = 2600;
+    this._bossDlgTimer = 0;
+    this._battleCryTimer = 2000;
+    const _cryLines = ["LET'S GO!", "MOVE OUT!", "SHOW 'EM WHAT YOU'VE GOT!", "FOR THE SURVIVORS!"];
+    this._battleCryText = _cryLines[idx % _cryLines.length];
 
     this.subState = 'sidescroll';
   }
@@ -964,9 +981,9 @@ class StoryGame {
   }
 
   _updateSidescroll(dt) {
-    if (this._waveState === 'game_over' || this._waveState === 'act_clear') {
+    if (this._levelState === 'game_over' || this._levelState === 'act_clear') {
       if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
-        if (this._waveState === 'act_clear') {
+        if (this._levelState === 'act_clear') {
           const act = STORY_ACTS[this.actIndex];
           this._dlgPhase = 'outro';
           this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.outroLines });
@@ -1013,7 +1030,7 @@ class StoryGame {
     }
     this.enemyBalls = this.enemyBalls.filter(b => !b.dead);
 
-    if (this._waveState === 'fighting' || this._waveState === 'spawning') {
+    if (this._levelState === 'playing') {
       const alive = this._alivePlayers();
       for (const e of this.enemies) {
         e.update(dt, alive, this.enemyBalls);
@@ -1022,7 +1039,7 @@ class StoryGame {
       this.enemies = this.enemies.filter(e => !e.dead);
     }
 
-    this._tickWave(dt);
+    this._tickLevel(dt);
 
     const cx = this.coop && this.p2
       ? (this.p1.x + this.p2.x) / 2 - C.W / 2
@@ -1159,67 +1176,72 @@ class StoryGame {
     const allFallen = this.p1Fallen && (!this.coop || this.p2Fallen);
     player.stunTimer = allFallen ? 0 : 900;
     player.vx = 4; player.vy = -5;
-    if (allFallen) this._waveState = 'game_over';
+    if (allFallen) this._levelState = 'game_over';
   }
 
-  _tickWave(dt) {
-    const act = STORY_ACTS[this.actIndex];
-    switch (this._waveState) {
-      case 'countdown':
-        this._waveTimer -= dt;
-        if (this._waveTimer <= 0) this._beginWave();
-        break;
-      case 'spawning':
-        this._spawnTimer -= dt;
-        if (this._spawnQueue.length > 0 && this._spawnTimer <= 0) {
-          const spawnX = this._camX + C.W + 60 + Math.random() * 140;
-          this.enemies.push(new StoryEnemy(Math.min(spawnX, STORY_WORLD_W - 20), this._spawnQueue.shift()));
-          this._spawnTimer = 1200;
-        }
-        if (this._spawnQueue.length === 0) this._waveState = 'fighting';
-        break;
-      case 'fighting':
-        if (this.enemies.length === 0) {
-          if (this._wave >= act.waves.length) {
-            this._waveState = 'act_clear';
-            this.completedActs.add(this.actIndex);
-            if (this.actIndex + 1 < STORY_ACTS.length)
-              this._unlockedActs.add(this.actIndex + 1);
-          } else {
-            this._waveState = 'wave_end';
-            this._waveTimer = 2600;
-            if (!this.p1Fallen) this.p1Hp = Math.min(5, this.p1Hp + 1);
-            if (this.coop && this.p2 && !this.p2Fallen) this.p2Hp = Math.min(5, this.p2Hp + 1);
-          }
-        }
-        break;
-      case 'wave_end':
-        this._waveTimer -= dt;
-        if (this._waveTimer <= 0) { this._waveState = 'countdown'; this._waveTimer = 2200; }
-        break;
-    }
-  }
-
-  _beginWave() {
-    this._wave++;
-    const waveDef = STORY_ACTS[this.actIndex].waves[this._wave - 1];
+  // ── Build the full level by distributing enemies across the territory ─────────
+  _buildLevel(idx) {
+    const act = STORY_ACTS[idx];
     const allDefs = _ALL_ENEMY_DEFS();
-    const bossGroup = waveDef.find(g => allDefs[g.type] && allDefs[g.type].isBoss);
-
-    if (bossGroup) {
-      const spawnX = Math.min(this._camX + C.W + 160, STORY_WORLD_W - 60);
-      this.enemies.push(new StoryBoss(spawnX, bossGroup.type));
-      this._spawnQueue = [];
-      this._waveState = 'fighting';
-    } else {
-      this._spawnQueue = waveDef.flatMap(g => Array(g.count).fill(g.type));
-      for (let i = this._spawnQueue.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [this._spawnQueue[i], this._spawnQueue[j]] = [this._spawnQueue[j], this._spawnQueue[i]];
+    let regularTypes = [], bossType = null;
+    for (const wave of act.waves) {
+      for (const g of wave) {
+        if (allDefs[g.type] && allDefs[g.type].isBoss) { bossType = g.type; }
+        else { for (let i = 0; i < g.count; i++) regularTypes.push(g.type); }
       }
-      this._spawnTimer = 500;
-      this._waveState = 'spawning';
     }
+    // Shuffle regular enemies
+    for (let i = regularTypes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [regularTypes[i], regularTypes[j]] = [regularTypes[j], regularTypes[i]];
+    }
+    // Place across territory x: 350 → 1900
+    const startX = 380, endX = 1850, n = regularTypes.length;
+    const enemies = [];
+    for (let i = 0; i < n; i++) {
+      const t = n > 1 ? i / (n - 1) : 0.5;
+      const bx = startX + t * (endX - startX) + (Math.random() - 0.5) * 80;
+      enemies.push(new StoryEnemy(Math.max(startX, Math.min(endX, bx)), regularTypes[i]));
+    }
+    // Boss at end
+    let boss = null;
+    if (bossType) {
+      boss = new StoryBoss(2180, bossType);
+      enemies.push(boss);
+    }
+    return { enemies, boss };
+  }
+
+  // ── Tick the territory level state each frame ─────────────────────────────────
+  _tickLevel(dt) {
+    if (this._levelState !== 'playing') return;
+
+    if (this._introTimer > 0) this._introTimer -= dt;
+    if (this._battleCryTimer > 0) this._battleCryTimer -= dt;
+    if (this._bossDlgTimer > 0) { this._bossDlgTimer -= dt; return; }
+
+    // Trigger boss wake + taunt when player gets close
+    if (this._bossEnemy && !this._bossEnemy._awake && !this._bossEnemy.dead) {
+      const p = this.p1;
+      if (p && Math.abs(p.x - this._bossEnemy.x) < 340) {
+        this._bossEnemy._awake = true;
+        this._bossDlgTimer = 3200;
+      }
+    }
+
+    // Act complete when boss dies; fallback: all enemies dead
+    if (this._bossEnemy) {
+      if (this._bossEnemy.dead) this._completeAct();
+    } else if (this.enemies.length === 0) {
+      this._completeAct();
+    }
+  }
+
+  _completeAct() {
+    this._levelState = 'act_clear';
+    this.completedActs.add(this.actIndex);
+    if (this.actIndex + 1 < STORY_ACTS.length)
+      this._unlockedActs.add(this.actIndex + 1);
   }
 
   _updateDialogue() {
@@ -1262,10 +1284,10 @@ class StoryGame {
     }
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 15px "Courier New"';
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
     ctx.fillText('STORY MODE', C.W/2, 24);
-    ctx.fillStyle = '#555'; ctx.font = '9px "Courier New"';
-    ctx.fillText('ARROWS select zone   ENTER enter   ESC menu', C.W/2, 38);
+    ctx.fillStyle = '#666'; ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillText('ARROWS select zone   ENTER enter   ESC menu', C.W/2, 40);
 
     ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=2;ctx.setLineDash([6,6]);
     ctx.beginPath();
@@ -1291,15 +1313,15 @@ class StoryGame {
       ctx.stroke(); ctx.globalAlpha = 1;
 
       ctx.textAlign = 'center';
-      ctx.font = `${sel?14:12}px "Courier New"`;
+      ctx.font = `bold ${sel?14:12}px Segoe UI, Arial, sans-serif`;
       ctx.fillStyle = done ? '#44FF88' : unlocked ? '#eee' : '#333';
-      ctx.fillText(done ? 'X' : unlocked ? String(i+1) : '?', x, y+5);
+      ctx.fillText(done ? '✓' : unlocked ? String(i+1) : '?', x, y+5);
 
-      ctx.font = '8px "Courier New"';
+      ctx.font = '11px Segoe UI, Arial, sans-serif';
       ctx.fillStyle = sel ? '#FFD700' : unlocked ? '#888' : '#2a2a2a';
-      ctx.fillText(act.title, x, y+r+11);
+      ctx.fillText(act.title, x, y+r+13);
       ctx.fillStyle = sel ? act.bg.accent : unlocked ? '#555' : '#1a1a1a';
-      ctx.fillText(act.zone, x, y+r+21);
+      ctx.fillText(act.zone, x, y+r+26);
     }
 
     const sa = STORY_ACTS[this._mapCursor];
@@ -1311,14 +1333,14 @@ class StoryGame {
     ctx.lineWidth=1.5; ctx.strokeRect(px-200,py,400,102);
     ctx.textAlign='center';
     ctx.fillStyle = done ? '#44FF88' : unlocked ? sa.bg.accent : '#444';
-    ctx.font = 'bold 11px "Courier New"';
-    ctx.fillText(`${sa.title} — ${sa.zone}`, px, py+15);
-    ctx.fillStyle='#555'; ctx.font='9px "Courier New"';
-    ctx.fillText(`Enemies: ${sa.enemyCategory}`, px, py+28);
+    ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`${sa.title} — ${sa.zone}`, px, py+17);
+    ctx.fillStyle='#666'; ctx.font='11px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`Enemies: ${sa.enemyCategory}`, px, py+32);
     // Synopsis
     if (sa.synopsis) {
       ctx.fillStyle = unlocked ? '#999' : '#444';
-      ctx.font = 'italic 9px "Courier New"';
+      ctx.font = 'italic 11px Segoe UI, Arial, sans-serif';
       const words = sa.synopsis.split(' ');
       let line = '', lineY = py + 46;
       for (const word of words) {
@@ -1331,7 +1353,7 @@ class StoryGame {
       if (line) ctx.fillText(line, px, lineY);
     }
     ctx.fillStyle = done ? '#44FF88' : unlocked ? '#aaa' : '#333';
-    ctx.font = done ? 'bold 10px "Courier New"' : '10px "Courier New"';
+    ctx.font = done ? 'bold 12px Segoe UI, Arial, sans-serif' : '12px Segoe UI, Arial, sans-serif';
     ctx.fillText(
       done ? 'COMPLETED — ENTER to replay' : unlocked ? 'ENTER to begin' : 'Complete previous act first',
       px, py+90
@@ -1463,26 +1485,26 @@ class StoryGame {
 
     // P1 HP
     ctx.textAlign='left';
-    ctx.fillStyle=C.COL.P1_HUD; ctx.font='bold 9px "Courier New"';
-    ctx.fillText('P1', 8, 13);
-    this._drawHpPips(ctx, 8, 17, this.p1Hp, 5, C.COL.P1_HUD, this.p1Fallen);
+    ctx.fillStyle=C.COL.P1_HUD; ctx.font='bold 11px Segoe UI, Arial, sans-serif';
+    ctx.fillText('P1', 8, 14);
+    this._drawHpPips(ctx, 8, 18, this.p1Hp, 5, C.COL.P1_HUD, this.p1Fallen);
 
     if (this.coop && this.p2) {
-      ctx.fillStyle=C.COL.P2_HUD; ctx.font='bold 9px "Courier New"';
-      ctx.textAlign='right'; ctx.fillText('P2', C.W-8, 13);
-      this._drawHpPips(ctx, C.W-8-5*22, 17, this.p2Hp, 5, C.COL.P2_HUD, this.p2Fallen);
+      ctx.fillStyle=C.COL.P2_HUD; ctx.font='bold 11px Segoe UI, Arial, sans-serif';
+      ctx.textAlign='right'; ctx.fillText('P2', C.W-8, 14);
+      this._drawHpPips(ctx, C.W-8-5*22, 18, this.p2Hp, 5, C.COL.P2_HUD, this.p2Fallen);
     }
 
-    // Centre — boss bar or wave info
+    // Centre — boss bar or territory progress
     ctx.textAlign='center';
     const boss = this.enemies.find(e => e instanceof StoryBoss);
     if (boss) {
       const bx = C.W/2 - 110, bw = 220;
-      ctx.fillStyle = '#330000'; ctx.fillRect(bx, 28, bw, 10);
-      ctx.fillStyle = '#FF2222'; ctx.fillRect(bx, 28, bw * (boss.hp / boss.maxHp), 10);
-      ctx.strokeStyle = '#FF5555'; ctx.lineWidth = 1; ctx.strokeRect(bx, 28, bw, 10);
-      ctx.fillStyle = '#FF6666'; ctx.font = 'bold 9px "Courier New"';
-      ctx.fillText(boss.type.toUpperCase().replace(/_/g,' '), C.W/2, 26);
+      ctx.fillStyle = '#330000'; ctx.fillRect(bx, 27, bw, 11);
+      ctx.fillStyle = '#FF2222'; ctx.fillRect(bx, 27, bw * (boss.hp / boss.maxHp), 11);
+      ctx.strokeStyle = '#FF5555'; ctx.lineWidth = 1; ctx.strokeRect(bx, 27, bw, 11);
+      ctx.fillStyle = '#FF6666'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
+      ctx.fillText(boss.type.toUpperCase().replace(/_/g,' '), C.W/2, 24);
       const hints = {
         patient_zero:   'AIM FOR THE HEAD',
         stone_guardian: 'HIT TWICE IN 0.4s',
@@ -1490,30 +1512,28 @@ class StoryGame {
         iron_champion:  'HIT DURING STUMBLE',
         nexus_core:     'TWO QUICK HITS OR EXPLODE',
       };
-      ctx.fillStyle = '#FFAA44'; ctx.font = '8px "Courier New"';
+      ctx.fillStyle = '#FFAA44'; ctx.font = '11px Segoe UI, Arial, sans-serif';
       ctx.fillText(hints[boss.type] || '', C.W/2, 44);
     } else {
-      ctx.fillStyle = act.bg.accent; ctx.font = 'bold 10px "Courier New"';
-      ctx.fillText(`${act.title} — ${act.zone}`, C.W/2, 13);
-      ctx.font='9px "Courier New"';
-      const ws = this._waveState;
-      if (ws==='fighting'||ws==='spawning') {
-        const rem = this.enemies.length + this._spawnQueue.length;
-        ctx.fillStyle = rem>5 ? '#FF9999' : '#FFCC44';
-        ctx.fillText(`WAVE ${this._wave}/${act.waves.length}  ${rem} enemies`, C.W/2, 27);
-      } else if (ws==='countdown') {
-        ctx.fillStyle='#FFDD44';
-        ctx.fillText(
-          this._wave===0 ? `GET READY!  ${Math.ceil(this._waveTimer/1000)}s` :
-            `WAVE ${this._wave+1} in ${Math.ceil(this._waveTimer/1000)}s`,
-          C.W/2, 27);
-      } else if (ws==='wave_end') {
-        ctx.fillStyle='#88FF88';
-        ctx.fillText(`WAVE ${this._wave} CLEAR! +1 HP`, C.W/2, 27);
-      }
+      ctx.fillStyle = act.bg.accent; ctx.font = 'bold 12px Segoe UI, Arial, sans-serif';
+      ctx.fillText(`${act.title} — ${act.zone}`, C.W/2, 14);
+      // Territory progress bar
+      const bossX = this._bossEnemy ? this._bossEnemy.x : 2200;
+      const progress = Math.min(1, Math.max(0, (this.p1.x - 100) / (bossX - 200)));
+      const pBW = 200, pBH = 6, pBX = C.W/2 - 100, pBY = 21;
+      ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(pBX, pBY, pBW, pBH);
+      ctx.fillStyle = act.bg.accent; ctx.globalAlpha = 0.8;
+      ctx.fillRect(pBX, pBY, pBW * progress, pBH);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+      ctx.strokeRect(pBX, pBY, pBW, pBH);
+      const aliveRegular = this.enemies.filter(e => !(e instanceof StoryBoss)).length;
+      ctx.font = '11px Segoe UI, Arial, sans-serif';
+      ctx.fillStyle = aliveRegular > 0 ? '#FFCC55' : '#88FF88';
+      ctx.fillText(aliveRegular > 0 ? `${aliveRegular} enemies remaining` : '★ Find the boss!', C.W/2, 36);
     }
 
-    ctx.fillStyle='rgba(255,255,255,0.09)'; ctx.font='8px "Courier New"';
+    ctx.fillStyle='rgba(255,255,255,0.09)'; ctx.font='11px Segoe UI, Arial, sans-serif';
     ctx.textAlign='center';
     ctx.fillText('ESC · world map', C.W/2, C.H-5);
 
@@ -1530,7 +1550,7 @@ class StoryGame {
 
   _drawHpPips(ctx, x, y, hp, max, col, fallen) {
     if (fallen) {
-      ctx.fillStyle='#FF4444'; ctx.font='bold 12px "Courier New"';
+      ctx.fillStyle='#FF4444'; ctx.font='bold 12px Segoe UI, Arial, sans-serif';
       ctx.textAlign='left'; ctx.fillText('K.O.', x, y+10); return;
     }
     for (let i = 0; i < max; i++) {
@@ -1544,59 +1564,96 @@ class StoryGame {
   }
 
   _drawSidescrollOverlay(ctx) {
-    const ws = this._waveState;
+    const ls = this._levelState;
+    const act = STORY_ACTS[this.actIndex];
 
-    if (ws === 'act_clear') {
-      ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,0,C.W,C.H);
+    if (ls === 'act_clear') {
+      ctx.fillStyle='rgba(0,0,0,0.78)'; ctx.fillRect(0,0,C.W,C.H);
       ctx.textAlign='center';
-      ctx.shadowColor='#FFD700'; ctx.shadowBlur=22;
-      ctx.fillStyle='#FFD700'; ctx.font='bold 34px "Courier New"';
-      ctx.fillText('AREA CLEAR!', C.W/2, C.H/2-24);
+      ctx.shadowColor='#FFD700'; ctx.shadowBlur=26;
+      ctx.fillStyle='#FFD700'; ctx.font='bold 38px Segoe UI, Arial, sans-serif';
+      ctx.fillText('AREA CLEAR!', C.W/2, C.H/2-22);
       ctx.shadowBlur=0;
-      ctx.fillStyle='#aaa'; ctx.font='13px "Courier New"';
-      ctx.fillText('A survivor wants to talk to you...', C.W/2, C.H/2+14);
-      ctx.fillStyle='#555'; ctx.font='10px "Courier New"';
-      ctx.fillText('ENTER to continue', C.W/2, C.H/2+38);
-    } else if (ws === 'game_over') {
-      ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(0,0,C.W,C.H);
+      ctx.fillStyle='#ccc'; ctx.font='15px Segoe UI, Arial, sans-serif';
+      ctx.fillText('A survivor wants to speak with you…', C.W/2, C.H/2+16);
+      ctx.fillStyle='#666'; ctx.font='12px Segoe UI, Arial, sans-serif';
+      ctx.fillText('ENTER to continue', C.W/2, C.H/2+42);
+    } else if (ls === 'game_over') {
+      ctx.fillStyle='rgba(0,0,0,0.84)'; ctx.fillRect(0,0,C.W,C.H);
       ctx.textAlign='center';
-      ctx.shadowColor='#FF3333'; ctx.shadowBlur=16;
-      ctx.fillStyle='#FF3333'; ctx.font='bold 36px "Courier New"';
-      ctx.fillText('GAME OVER', C.W/2, C.H/2-26);
+      ctx.shadowColor='#FF3333'; ctx.shadowBlur=18;
+      ctx.fillStyle='#FF3333'; ctx.font='bold 40px Segoe UI, Arial, sans-serif';
+      ctx.fillText('GAME OVER', C.W/2, C.H/2-28);
       ctx.shadowBlur=0;
-      ctx.fillStyle='#aaa'; ctx.font='13px "Courier New"';
-      ctx.fillText(`Wave ${this._wave}  -  ${STORY_ACTS[this.actIndex].zone}`, C.W/2, C.H/2+12);
-      ctx.fillStyle='#555'; ctx.font='10px "Courier New"';
-      ctx.fillText('ENTER to retry from wave 1', C.W/2, C.H/2+36);
+      ctx.fillStyle='#bbb'; ctx.font='14px Segoe UI, Arial, sans-serif';
+      ctx.fillText(act.zone, C.W/2, C.H/2+12);
+      ctx.fillStyle='rgba(180,80,80,0.9)'; ctx.font='13px Segoe UI, Arial, sans-serif';
+      ctx.fillText('"Not like this… not here."', C.W/2, C.H/2+34);
+      ctx.fillStyle='#555'; ctx.font='12px Segoe UI, Arial, sans-serif';
+      ctx.fillText('ENTER to try again', C.W/2, C.H/2+58);
     }
 
-    // Act intro banner (first countdown)
-    if (ws === 'countdown' && this._wave === 0 && this._waveTimer > 600) {
-      const t = (this._waveTimer - 600) / 2200;
-      ctx.fillStyle=`rgba(0,0,0,${t*0.72})`;
-      ctx.fillRect(C.W/2-230, C.H/2-52, 460, 104);
+    // Act intro banner
+    if (this._introTimer > 0) {
+      const t = Math.min(1, this._introTimer / 1800);
+      ctx.fillStyle=`rgba(0,0,0,${t*0.68})`;
+      ctx.fillRect(C.W/2-240, C.H/2-58, 480, 116);
       ctx.textAlign='center';
-      const act = STORY_ACTS[this.actIndex];
       ctx.fillStyle=`rgba(255,215,0,${t})`;
-      ctx.font='bold 22px "Courier New"'; ctx.fillText(act.title, C.W/2, C.H/2-18);
+      ctx.font=`bold 24px Segoe UI, Arial, sans-serif`;
+      ctx.fillText(act.title, C.W/2, C.H/2-20);
       ctx.fillStyle=`rgba(255,255,255,${t})`;
-      ctx.font='14px "Courier New"'; ctx.fillText(act.zone, C.W/2, C.H/2+10);
-      ctx.fillStyle=`rgba(180,100,40,${t*.9})`;
-      ctx.font='9px "Courier New"'; ctx.fillText(`ENEMY TYPE: ${act.enemyCategory}`, C.W/2, C.H/2+32);
+      ctx.font=`15px Segoe UI, Arial, sans-serif`;
+      ctx.fillText(act.zone, C.W/2, C.H/2+8);
+      ctx.fillStyle=`rgba(200,140,60,${t*0.9})`;
+      ctx.font=`12px Segoe UI, Arial, sans-serif`;
+      ctx.fillText(`ENEMY TYPE: ${act.enemyCategory}`, C.W/2, C.H/2+30);
     }
 
-    // Boss wave announcement (wave 9 countdown = wave 10 incoming)
-    if (ws === 'countdown' && this._wave === 9 && this._waveTimer > 600) {
-      const t = (this._waveTimer - 600) / 2200;
-      ctx.fillStyle = `rgba(80,0,0,${t*0.85})`;
-      ctx.fillRect(C.W/2 - 230, C.H/2 - 52, 460, 104);
+    // Battle cry banner
+    if (this._battleCryTimer > 0 && this._introTimer <= 0) {
+      const t = Math.min(1, this._battleCryTimer / 800);
+      ctx.save();
+      ctx.globalAlpha = t;
       ctx.textAlign = 'center';
-      ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 20 * t;
-      ctx.fillStyle = `rgba(255,50,0,${t})`;
-      ctx.font = 'bold 24px "Courier New"'; ctx.fillText('!! BOSS INCOMING !!', C.W/2, C.H/2 - 14);
+      ctx.shadowColor = '#FFDD00'; ctx.shadowBlur = 18;
+      ctx.fillStyle = '#FFDD00'; ctx.font = 'bold 26px Segoe UI, Arial, sans-serif';
+      ctx.fillText(this._battleCryText, C.W/2, C.H/2);
       ctx.shadowBlur = 0;
-      ctx.fillStyle = `rgba(255,180,50,${t})`;
-      ctx.font = '11px "Courier New"'; ctx.fillText('Prepare yourself...', C.W/2, C.H/2 + 16);
+      ctx.restore();
+    }
+
+    // Boss encounter taunt
+    if (this._bossDlgTimer > 0 && this._bossEnemy) {
+      const t = Math.min(1, this._bossDlgTimer / 600);
+      const bossNames = {
+        patient_zero:   'PATIENT ZERO',
+        stone_guardian: 'THE STONE GUARDIAN',
+        mech_fluffkins: 'MECH FLUFFKINS',
+        iron_champion:  'IRON CHAMPION',
+        nexus_core:     'NEXUS CORE',
+      };
+      const bossTaunts = {
+        patient_zero:   '"Your suffering will be… delicious."',
+        stone_guardian: '"The earth itself rises against you."',
+        mech_fluffkins: '"Meow. And by meow I mean DIE."',
+        iron_champion:  '"No shield can stop what I bring."',
+        nexus_core:     '"I have already calculated your defeat."',
+      };
+      ctx.save();
+      ctx.globalAlpha = t;
+      ctx.fillStyle = 'rgba(80,0,0,0.82)';
+      ctx.fillRect(C.W/2-230, C.H/2-64, 460, 128);
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#FF2200'; ctx.shadowBlur = 22 * t;
+      ctx.fillStyle = '#FF4400'; ctx.font = 'bold 26px Segoe UI, Arial, sans-serif';
+      ctx.fillText('⚠ BOSS ENCOUNTER ⚠', C.W/2, C.H/2 - 26);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
+      ctx.fillText(bossNames[this._bossEnemy.type] || this._bossEnemy.type.toUpperCase(), C.W/2, C.H/2 + 4);
+      ctx.fillStyle = 'rgba(255,200,150,0.95)'; ctx.font = 'italic 13px Segoe UI, Arial, sans-serif';
+      ctx.fillText(bossTaunts[this._bossEnemy.type] || '"…"', C.W/2, C.H/2 + 28);
+      ctx.restore();
     }
   }
 
@@ -1617,12 +1674,12 @@ class StoryGame {
 
     // ── Phase label (subtle, top-right) ─────────────────────────────
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.font = '8px "Courier New"';
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
     ctx.fillText(this._dlgPhase === 'intro' ? 'PRE-BATTLE' : 'POST-BATTLE', C.W - 12, 14);
 
     // ── Wrap text into rows ─────────────────────────────────────────
-    ctx.font = '11px "Courier New"';
+    ctx.font = '13px Segoe UI, Arial, sans-serif';
     const line = this._dlgLines[this._dlgLine] || '';
     const bMaxW = 480;
     const bPad  = 14;
@@ -1635,9 +1692,9 @@ class StoryGame {
     rows.push(row);
 
     // ── Comic speech bubble ─────────────────────────────────────────
-    const lineH = 19;
+    const lineH = 21;
     const bW    = bMaxW;
-    const bH    = 28 + rows.length * lineH + bPad; // 28 = name header area
+    const bH    = 30 + rows.length * lineH + bPad; // 30 = name header area
     const bX    = (C.W - bW) / 2;
     const bY    = 18;
     const cr    = 10; // corner radius
@@ -1668,55 +1725,54 @@ class StoryGame {
 
     // NPC name in bubble header
     ctx.fillStyle = this._dlgCol;
-    ctx.font = 'bold 10px "Courier New"';
+    ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(this._dlgName, bX + bPad, bY + 16);
+    ctx.fillText(this._dlgName, bX + bPad, bY + 18);
 
     // Thin divider under name
     ctx.fillStyle = this._dlgCol;
     ctx.globalAlpha = 0.2;
-    ctx.fillRect(bX + bPad, bY + 20, bW - bPad * 2, 1);
+    ctx.fillRect(bX + bPad, bY + 22, bW - bPad * 2, 1);
     ctx.globalAlpha = 1;
 
     // Page counter (top-right of bubble)
-    ctx.fillStyle = '#666';
-    ctx.font = '8px "Courier New"';
+    ctx.fillStyle = '#888';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(`${this._dlgLine + 1}/${this._dlgLines.length}`, bX + bW - bPad, bY + 15);
+    ctx.fillText(`${this._dlgLine + 1} / ${this._dlgLines.length}`, bX + bW - bPad, bY + 17);
 
     // Dialogue text
     ctx.fillStyle = '#1a1a2e';
-    ctx.font = '11px "Courier New"';
+    ctx.font = '13px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'left';
-    rows.forEach((r2, i) => ctx.fillText(r2, bX + bPad, bY + 32 + i * lineH));
+    rows.forEach((r2, i) => ctx.fillText(r2, bX + bPad, bY + 36 + i * lineH));
 
     // ENTER prompt (bottom-right of bubble, flickering)
     const adv  = 0.5 + 0.5 * Math.sin(Date.now() / 320);
     const last = this._dlgLine >= this._dlgLines.length - 1;
     ctx.globalAlpha = adv;
     ctx.fillStyle = this._dlgCol;
-    ctx.font = '9px "Courier New"';
+    ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(last ? 'ENTER - done' : 'ENTER - next', bX + bW - bPad, bY + bH - 7);
+    ctx.fillText(last ? 'ENTER — done' : 'ENTER — next', bX + bW - bPad, bY + bH - 7);
     ctx.globalAlpha = 1;
 
-    // ── Player avatar — bottom-left ──────────────────────────────────
+    // ── Player watercolor avatar — bottom-left ───────────────────────
     const feetY = C.H - 8;
-    ctx.save();
-    ctx.translate(55, feetY);
-    Sprites.drawBoy(ctx, 0, 0, 'idle', 1, 0, false);
-    ctx.restore();
+    const _p1Name = this.p1 && this.p1.charName;
+    if (_p1Name === 'Lucy') this._drawWatercolorLucy(ctx, 55, feetY);
+    else this._drawWatercolorJaco(ctx, 55, feetY);
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '7px "Courier New"';
-    ctx.fillText('YOU', 55, C.H - 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillText('YOU', 55, C.H - 2);
 
-    // ── NPC avatar — bottom-right ────────────────────────────────────
+    // ── NPC watercolor avatar — bottom-right ─────────────────────────
     this._drawDlgNpc(ctx, act.npc.portrait, C.W - 55, feetY);
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '7px "Courier New"';
-    ctx.fillText(act.npc.name.split(' ').slice(-1)[0], C.W - 55, C.H - 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillText(act.npc.name.split(' ').slice(-1)[0], C.W - 55, C.H - 2);
   }
 
   // ── NPC dialogue avatar dispatcher ──────────────────────────────────────────
@@ -1734,96 +1790,293 @@ class StoryGame {
     ctx.restore();
   }
 
-  // ── Dr. Wendy — lab coat, glasses, ponytail ──────────────────────────────────
+  // ── Watercolor helpers ───────────────────────────────────────────────────────
+  _wc(ctx, x, y, rx, ry, col, alpha, blur) {
+    ctx.save();
+    ctx.filter = `blur(${blur}px)`;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.filter = 'none';
+    ctx.restore();
+  }
+
+  // ── Player avatar: Jaco (blue/white) ────────────────────────────────────────
+  _drawWatercolorJaco(ctx, cx, baseY) {
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, cx+x, baseY+y, rx,ry,col,a,bl);
+    // Body / torso – blue
+    wc(0,-38, 18,26, '#3366CC', 0.55, 5);
+    wc(0,-38, 14,20, '#4477DD', 0.45, 3);
+    wc(0,-38, 10,16, '#88AAFF', 0.30, 2);
+    // White stripes on chest
+    wc(0,-40,  6, 4, '#FFFFFF', 0.35, 3);
+    // Legs – dark blue
+    wc(-7,-14, 6,14, '#223388', 0.50, 4);
+    wc( 7,-14, 6,14, '#223388', 0.50, 4);
+    // Shoes
+    wc(-8, -2, 7, 4, '#111133', 0.65, 2);
+    wc( 8, -2, 7, 4, '#111133', 0.65, 2);
+    // Arms
+    wc(-16,-36, 5,12, '#4477DD', 0.50, 4);
+    wc( 16,-36, 5,12, '#4477DD', 0.50, 4);
+    // Hands
+    wc(-16,-24, 4, 4, '#FDBCB4', 0.70, 2);
+    wc( 16,-24, 4, 4, '#FDBCB4', 0.70, 2);
+    // Head
+    wc(0,-55, 14,14, '#FDBCB4', 0.65, 4);
+    wc(0,-55, 10,10, '#FFCFB8', 0.40, 2);
+    // Hair – dark blue
+    wc(0,-63, 12, 7, '#1a2255', 0.70, 3);
+    wc(4,-60,  8, 5, '#2233AA', 0.45, 2);
+    // Eyes
+    wc(-4,-54, 2.5,2.5, '#1a1a3e', 0.90, 1);
+    wc( 4,-54, 2.5,2.5, '#1a1a3e', 0.90, 1);
+    // Blush
+    wc(-7,-52, 3,2, '#FF9999', 0.35, 3);
+    wc( 7,-52, 3,2, '#FF9999', 0.35, 3);
+    // Soft outer glow
+    wc(0,-38, 22,36, '#5588FF', 0.08, 10);
+  }
+
+  _drawWatercolorLucy(ctx, cx, baseY) {
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, cx+x, baseY+y, rx,ry,col,a,bl);
+    // Outer glow
+    wc(0,-38, 22,36, '#FF6633', 0.08, 12);
+    // Body / torso – warm red-orange
+    wc(0,-38, 18,26, '#CC3300', 0.55, 5);
+    wc(0,-38, 14,20, '#DD4411', 0.45, 3);
+    wc(0,-38, 10,16, '#FF6644', 0.28, 2);
+    // White shoulder stripes
+    wc(-11,-46, 4, 3, '#FFFFFF', 0.40, 2);
+    wc( 11,-46, 4, 3, '#FFFFFF', 0.40, 2);
+    // Shorts – dark charcoal
+    wc(-5,-18, 7, 9, '#222222', 0.55, 3);
+    wc( 5,-18, 7, 9, '#222222', 0.55, 3);
+    // Long athletic socks – white
+    wc(-7,-10, 5,10, '#EEEEEE', 0.50, 3);
+    wc( 7,-10, 5,10, '#EEEEEE', 0.50, 3);
+    // Shoes – red
+    wc(-8, -1, 7, 4, '#AA1100', 0.70, 2);
+    wc( 8, -1, 7, 4, '#AA1100', 0.70, 2);
+    // Arms
+    wc(-16,-38, 5,13, '#DD4411', 0.50, 4);
+    wc( 16,-38, 5,13, '#DD4411', 0.50, 4);
+    // Hands
+    wc(-16,-25, 4, 4, '#FDBCB4', 0.72, 2);
+    wc( 16,-25, 4, 4, '#FDBCB4', 0.72, 2);
+    // Head – skin
+    wc(0,-55, 14,14, '#FDBCB4', 0.65, 4);
+    wc(0,-55, 10,10, '#FFCFB8', 0.38, 2);
+    // Fiery auburn hair – swept to the side
+    wc(0,-63, 13, 8, '#992200', 0.70, 4);
+    wc(5,-62, 10, 6, '#CC4400', 0.50, 3);
+    wc(9,-60,  7, 5, '#FF6633', 0.35, 3);
+    // Eyes – dark
+    wc(-4,-54, 2.5,2.5, '#1a1a1a', 0.92, 1);
+    wc( 4,-54, 2.5,2.5, '#1a1a1a', 0.92, 1);
+    // Determined brow lines
+    wc(-4,-57, 3.5,1.5, '#553322', 0.55, 1);
+    wc( 4,-57, 3.5,1.5, '#553322', 0.55, 1);
+    // Slight smirk
+    wc(1,-49, 3.5,1.5, '#CC7777', 0.45, 2);
+  }
+
+  // ── Dr. Wendy — watercolor lab-coat scientist ─────────────────────────────
   _dlgNpcWendy(ctx) {
-    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
-    S('#444444', -6, -14, 5, 14); S('#444444',  2, -14, 5, 14); // pants
-    S('#222222', -8,  -3, 6,  5); S('#222222',  3,  -3, 6,  5); // shoes
-    S('#EEEEEE', -9, -36, 20, 22);                                // lab coat body
-    S('#EEEEEE', -14, -34, 6, 14); S('#EEEEEE', 10, -34, 6, 14); // coat arms
-    S('#FDBCB4', -14, -20, 6,  6); S('#FDBCB4', 10, -20, 6,  6); // hands
-    S('#FDBCB4',  -8, -52, 18, 16);                               // head
-    S('#8B4513', -10, -54, 20,  8);                               // hair top
-    S('#8B4513',  10, -54,  4, 18);                               // ponytail
-    S('#1a1a2e',  -5, -48,  3,  3); S('#1a1a2e',  4, -48, 3, 3); // eyes
-    ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
-    ctx.strokeRect(-7, -50, 6, 5); ctx.strokeRect(2, -50, 6, 5); // glasses
-    S('#CC8888',  -2, -43,  6,  2);                               // smile
-    S('#DDDDDD',  -3, -36,  8,  4);                               // collar
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
+    // Lab coat body
+    wc(0,-35, 18,24, '#E8E8F0', 0.55, 5);
+    wc(0,-35, 13,18, '#F5F5FF', 0.40, 3);
+    // Shirt underneath (teal)
+    wc(0,-38,  8,10, '#66CCBB', 0.40, 3);
+    // Arms
+    wc(-15,-33, 5,12, '#EEEEEE', 0.55, 4);
+    wc( 15,-33, 5,12, '#EEEEEE', 0.55, 4);
+    // Hands
+    wc(-15,-20, 4, 4, '#FDBCB4', 0.75, 2);
+    wc( 15,-20, 4, 4, '#FDBCB4', 0.75, 2);
+    // Pants (dark grey)
+    wc(-6,-12, 5,12, '#444455', 0.55, 3);
+    wc( 6,-12, 5,12, '#444455', 0.55, 3);
+    // Shoes
+    wc(-7, -1, 6, 3, '#222233', 0.65, 2);
+    wc( 7, -1, 6, 3, '#222233', 0.65, 2);
+    // Head
+    wc(0,-52, 13,13, '#FDBCB4', 0.65, 4);
+    wc(0,-52, 10, 9, '#FFCFB8', 0.38, 2);
+    // Brown hair + ponytail
+    wc(0,-60, 12, 7, '#8B4513', 0.65, 4);
+    wc(11,-55, 4,10, '#7A3810', 0.55, 3);
+    // Glasses (soft teal circles)
+    wc(-5,-51, 4, 3, '#AADDCC', 0.50, 2);
+    wc( 5,-51, 4, 3, '#AADDCC', 0.50, 2);
+    // Eyes
+    wc(-5,-51, 2, 2, '#1a1a3e', 0.88, 1);
+    wc( 5,-51, 2, 2, '#1a1a3e', 0.88, 1);
+    // Smile
+    wc(0,-46, 4, 2, '#CC8888', 0.45, 2);
+    // Glow
+    wc(0,-35, 22,32, '#AACCFF', 0.06, 12);
   }
 
-  // ── Prof. Biff — khaki, explorer hat, mustache ───────────────────────────────
+  // ── Prof. Biff — watercolor khaki explorer ──────────────────────────────────
   _dlgNpcBiff(ctx) {
-    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
-    S('#8B7355', -6, -14, 5, 14); S('#8B7355',  2, -14, 5, 14);
-    S('#6B5335', -8,  -3, 6,  5); S('#6B5335',  3,  -3, 6,  5);
-    S('#CC9944', -9, -36, 20, 22);                                // khaki shirt
-    S('#AA8833', -14, -34, 6, 14); S('#AA8833', 10, -34, 6, 14);
-    S('#FDBCB4', -14, -20, 6,  6); S('#FDBCB4', 10, -20, 6,  6);
-    S('#FDBCB4',  -8, -52, 18, 16);                               // head
-    S('#8B6914', -14, -57, 30,  5);                               // hat brim
-    S('#A07820',  -8, -68, 18, 13);                               // hat crown
-    S('#A07820', -10, -54,  4,  4); S('#A07820', 8, -54, 4, 4);  // sideburns
-    S('#1a1a2e',  -5, -48,  3,  3); S('#1a1a2e', 4, -48, 3, 3);
-    S('#A07820',  -7, -43, 16,  5);                               // big mustache
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
+    // Body khaki
+    wc(0,-34, 18,23, '#CC9944', 0.55, 5);
+    wc(0,-34, 13,17, '#DDB055', 0.40, 3);
+    // Arms
+    wc(-15,-32, 5,12, '#BB8833', 0.52, 4);
+    wc( 15,-32, 5,12, '#BB8833', 0.52, 4);
+    // Hands
+    wc(-15,-20, 4, 4, '#FDBCB4', 0.75, 2);
+    wc( 15,-20, 4, 4, '#FDBCB4', 0.75, 2);
+    // Pants
+    wc(-6,-12, 5,12, '#7A6040', 0.55, 3);
+    wc( 6,-12, 5,12, '#7A6040', 0.55, 3);
+    // Boots
+    wc(-7, -1, 6, 3, '#4A3010', 0.70, 2);
+    wc( 7, -1, 6, 3, '#4A3010', 0.70, 2);
+    // Head
+    wc(0,-52, 13,13, '#FDBCB4', 0.65, 4);
+    wc(0,-52, 10, 9, '#FFCFB8', 0.38, 2);
+    // Hat brim
+    wc(0,-60, 18, 4, '#8B6914', 0.70, 3);
+    // Hat crown
+    wc(0,-67, 12,10, '#A07820', 0.65, 4);
+    wc(0,-67,  8, 7, '#C09030', 0.35, 2);
+    // Sideburns
+    wc(-10,-54, 3, 4, '#A07820', 0.55, 2);
+    wc( 10,-54, 3, 4, '#A07820', 0.55, 2);
+    // Eyes
+    wc(-4,-51, 2.5,2.5, '#1a1a3e', 0.88, 1);
+    wc( 4,-51, 2.5,2.5, '#1a1a3e', 0.88, 1);
+    // Big mustache
+    wc(0,-45, 9, 3, '#A07820', 0.65, 3);
+    wc(0,-45, 7, 2, '#C09030', 0.40, 1);
+    // Warm glow
+    wc(0,-34, 22,32, '#DDAA55', 0.07, 12);
   }
 
-  // ── Gen. Fluffkins — blue uniform, cat ears, whiskers ───────────────────────
+  // ── Gen. Fluffkins — watercolor navy uniform, cat ───────────────────────────
   _dlgNpcFluffkins(ctx) {
-    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
-    S('#2244AA', -6, -14, 5, 14); S('#2244AA',  2, -14, 5, 14);
-    S('#113388', -8,  -3, 6,  5); S('#113388',  3,  -3, 6,  5);
-    S('#3355CC', -9, -36, 20, 22);                                // blue uniform
-    S('#FFD700', -2, -28,  6,  6);                                // medal
-    S('#2244AA', -14, -34, 6, 14); S('#2244AA', 10, -34, 6, 14);
-    S('#AAAAAA', -14, -20, 6,  6); S('#AAAAAA', 10, -20, 6,  6); // paws
-    S('#CCCCCC',  -8, -52, 18, 16);                               // face
-    S('#BBBBBB', -10, -62,  7, 10); S('#BBBBBB', 5, -62, 7, 10); // ears
-    S('#FFAAAA',  -8, -60,  4,  6); S('#FFAAAA', 6, -60, 4, 6);  // inner ears
-    S('#44AA44',  -5, -48,  3,  4); S('#44AA44', 4, -48, 3, 4);  // cat eyes
-    S('#222222',  -4, -47,  1,  4); S('#222222', 5, -47, 1, 4);  // pupils
-    S('#FFAAAA',  -1, -44,  3,  2);                               // nose
-    ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(-13,-43); ctx.lineTo(-1,-43); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo( 2,-43); ctx.lineTo(14,-43); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-13,-41); ctx.lineTo(-1,-41); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo( 2,-41); ctx.lineTo(14,-41); ctx.stroke();
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
+    // Navy uniform body
+    wc(0,-34, 18,23, '#2244AA', 0.60, 5);
+    wc(0,-34, 13,17, '#3355CC', 0.42, 3);
+    // Gold medal
+    wc(0,-30,  5, 5, '#FFD700', 0.65, 2);
+    wc(0,-30,  3, 3, '#FFEE80', 0.50, 1);
+    // Arms
+    wc(-15,-32, 5,12, '#2244AA', 0.55, 4);
+    wc( 15,-32, 5,12, '#2244AA', 0.55, 4);
+    // Paws
+    wc(-15,-20, 5, 4, '#AAAAAA', 0.70, 2);
+    wc( 15,-20, 5, 4, '#AAAAAA', 0.70, 2);
+    // Pants
+    wc(-6,-12, 5,12, '#1a3388', 0.55, 3);
+    wc( 6,-12, 5,12, '#1a3388', 0.55, 3);
+    // Boots
+    wc(-7, -1, 6, 3, '#113366', 0.65, 2);
+    wc( 7, -1, 6, 3, '#113366', 0.65, 2);
+    // Cat face
+    wc(0,-52, 14,13, '#CCCCCC', 0.65, 5);
+    wc(0,-52, 10, 9, '#DDDDDD', 0.38, 2);
+    // Ears
+    wc(-8,-61,  6,  8, '#BBBBBB', 0.65, 3);
+    wc( 8,-61,  6,  8, '#BBBBBB', 0.65, 3);
+    wc(-8,-61,  3,  5, '#FFAAAA', 0.50, 2);
+    wc( 8,-61,  3,  5, '#FFAAAA', 0.50, 2);
+    // Cat eyes (green)
+    wc(-5,-51, 3, 4, '#44AA44', 0.80, 2);
+    wc( 5,-51, 3, 4, '#44AA44', 0.80, 2);
+    wc(-5,-51, 1, 3, '#111111', 0.90, 1);
+    wc( 5,-51, 1, 3, '#111111', 0.90, 1);
+    // Nose
+    wc(0,-45, 2.5,2, '#FFAAAA', 0.70, 1);
+    // Whiskers (thin ellipses)
+    wc(-9,-45, 5,1, '#888888', 0.45, 1);
+    wc( 9,-45, 5,1, '#888888', 0.45, 1);
+    wc(-9,-44, 5,1, '#888888', 0.35, 1);
+    wc( 9,-44, 5,1, '#888888', 0.35, 1);
+    // Blue glow
+    wc(0,-34, 22,32, '#4466CC', 0.07, 12);
   }
 
-  // ── Princesses Dot & Val — two small pink figures, crowns ───────────────────
+  // ── Princesses Dot & Val — watercolor pink royalty ──────────────────────────
   _dlgNpcPrincesses(ctx) {
-    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
     const drawP = (ox, hairCol) => {
-      S('#FF66BB', ox-4, -14, 4, 14); S('#FF66BB', ox+1, -14, 4, 14);
-      S('#CC4499', ox-5,  -3, 4,  5); S('#CC4499', ox+2,  -3, 4,  5);
-      S('#FF88CC', ox-6, -36, 14, 22);
-      S('#FDBCB4', ox-5, -52, 12, 16);
-      S('#FFD700', ox-7, -59, 16,  5); // crown base
-      S('#FFD700', ox-6, -65,  4,  7); S('#FFD700', ox-1, -65, 4, 7); S('#FFD700', ox+5, -63, 4, 5);
-      S('#FF4444', ox-5, -63,  3,  3); S('#FF4444', ox+2, -63, 3, 3);
-      S('#1a1a2e', ox-2, -48,  2,  3); S('#1a1a2e', ox+3, -48, 2, 3);
-      S(hairCol,   ox-7, -54, 14,  5);
+      // Dress
+      wc(ox,-30, 10,18, '#FF66BB', 0.55, 5);
+      wc(ox,-30,  7,13, '#FF88CC', 0.40, 3);
+      // Arms
+      wc(ox-10,-30, 4,10, '#FF88CC', 0.50, 3);
+      wc(ox+10,-30, 4,10, '#FF88CC', 0.50, 3);
+      // Legs
+      wc(ox-3,-12, 3,10, '#CC4499', 0.45, 3);
+      wc(ox+3,-12, 3,10, '#CC4499', 0.45, 3);
+      // Shoes
+      wc(ox-4, -2, 4, 2.5, '#882266', 0.65, 2);
+      wc(ox+4, -2, 4, 2.5, '#882266', 0.65, 2);
+      // Head
+      wc(ox,-50, 10,11, '#FDBCB4', 0.65, 4);
+      wc(ox,-50,  7, 8, '#FFCFB8', 0.35, 2);
+      // Crown base
+      wc(ox,-59, 10, 4, '#FFD700', 0.70, 3);
+      // Crown spires
+      wc(ox-5,-63, 3, 5, '#FFD700', 0.65, 2);
+      wc(ox,  -65, 3, 6, '#FFD700', 0.65, 2);
+      wc(ox+5,-63, 3, 5, '#FFD700', 0.65, 2);
+      // Gems on crown
+      wc(ox-5,-62, 2,2, '#FF4444', 0.70, 1);
+      wc(ox+5,-62, 2,2, '#FF4444', 0.70, 1);
+      // Hair
+      wc(ox,-54, 11, 6, hairCol, 0.65, 4);
+      // Eyes
+      wc(ox-3,-49, 2,2, '#1a1a3e', 0.88, 1);
+      wc(ox+3,-49, 2,2, '#1a1a3e', 0.88, 1);
+      // Blush
+      wc(ox-6,-48, 3,2, '#FF99AA', 0.40, 2);
+      wc(ox+6,-48, 3,2, '#FF99AA', 0.40, 2);
     };
-    drawP(-12, '#FFD700');
-    drawP( 12, '#FF8844');
+    drawP(-13, '#FFD700');
+    drawP( 13, '#FF8844');
+    // Pink shimmer
+    wc(0,-34, 28,40, '#FF88CC', 0.06, 14);
   }
 
-  // ── All Survivors — three silhouettes + radio arcs ───────────────────────────
+  // ── All Survivors — watercolor trio with aura ─────────────────────────────
   _dlgNpcEveryone(ctx) {
-    const S = (col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
-    const cols = ['#88FF88', '#DDAA44', '#AAAAFF'];
-    const xs   = [-18, 0, 18];
-    for (let i = 0; i < 3; i++) {
-      S(cols[i], xs[i]-4, -30, 9, 20); // body
-      S(cols[i], xs[i]-4, -46, 9, 14); // head
+    const wc = (x,y,rx,ry,col,a,bl) => this._wc(ctx, x, y, rx,ry,col,a,bl);
+    const profiles = [
+      { ox:-20, bodyCol:'#88CC88', headCol:'#FDBCB4', hairCol:'#553311' },
+      { ox:  0, bodyCol:'#DDAA44', headCol:'#FDBCB4', hairCol:'#221100' },
+      { ox: 20, bodyCol:'#8888FF', headCol:'#D4A0C4', hairCol:'#220044' },
+    ];
+    for (const p of profiles) {
+      wc(p.ox,-28, 10,17, p.bodyCol, 0.52, 5);
+      wc(p.ox,-28,  7,12, p.bodyCol, 0.35, 3);
+      wc(p.ox,-10,  5,10, '#555555', 0.45, 3);
+      wc(p.ox,-46, 10,10, p.headCol, 0.62, 4);
+      wc(p.ox,-51,  8, 5, p.hairCol, 0.60, 3);
+      wc(p.ox-3,-45, 2,2, '#1a1a3e', 0.85, 1);
+      wc(p.ox+3,-45, 2,2, '#1a1a3e', 0.85, 1);
     }
-    ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1.5;
+    // Radio / hope arcs
     for (let i = 1; i <= 3; i++) {
-      ctx.globalAlpha = 0.2 + i * 0.2;
+      ctx.save();
+      ctx.globalAlpha = 0.12 + i * 0.10;
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 1.5;
+      ctx.filter = `blur(${i}px)`;
       ctx.beginPath();
-      ctx.arc(0, -36, i * 9, -Math.PI * 0.75, Math.PI * 0.75);
+      ctx.arc(0, -36, i * 12, -Math.PI * 0.72, Math.PI * 0.72);
       ctx.stroke();
+      ctx.filter = 'none';
+      ctx.restore();
     }
-    ctx.globalAlpha = 1;
+    // Warm unified glow
+    wc(0,-32, 34,42, '#FFDD88', 0.05, 14);
   }
 }

@@ -1,4 +1,4 @@
-// ── Arena Builder ──────────────────────────────────────────────────────────────
+﻿// â”€â”€ Arena Builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const B_GRID_W  = 40;   // tile width  (px)
 const B_GRID_H  = 20;   // tile height (px)
@@ -67,7 +67,7 @@ function slotToArena(slot) {
     groundColor: gnd.color,
     groundLine: gnd.line,
     obstacles,
-    badge: '★ CUSTOM',
+    badge: 'â˜… CUSTOM',
     badgeColor: 'rgba(255,215,0,0.9)',
     badgeTextColor: '#333',
     _custom: true,   // flag so we can remove them on reload
@@ -83,7 +83,7 @@ function reloadCustomArenas() {
   } catch {}
 }
 
-// ── ArenaBuilder class ────────────────────────────────────────────────────────
+// â”€â”€ ArenaBuilder class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ArenaBuilder {
   constructor(canvas) {
     this.canvas = canvas;
@@ -92,7 +92,7 @@ class ArenaBuilder {
 
     this.skyIdx   = 0;
     this.gndIdx   = 0;
-    this.tiles    = {};   // "col,row" → 'platform' | 'absorb'
+    this.tiles    = {};   // "col,row" â†’ 'platform' | 'absorb'
     this.tool     = 'platform';
     this._md      = false;   // mouse down
     this._erase   = false;   // right-click erase mode
@@ -104,7 +104,7 @@ class ArenaBuilder {
     this._setupMouse();
   }
 
-  // ── Mouse ────────────────────────────────────────────────────────────────
+  // â”€â”€ Mouse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _setupMouse() {
     this._onDown  = e => this._mouseDown(e);
     this._onMove  = e => this._mouseMove(e);
@@ -161,11 +161,11 @@ class ArenaBuilder {
     else this.tiles[key] = this.tool;
   }
 
-  // ── Toolbar hit-testing ───────────────────────────────────────────────────
+  // â”€â”€ Toolbar hit-testing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _hitToolbar(x, y) {
     const ty = y - C.GROUND;   // 0-80 within toolbar
 
-    // ── Section 1: Tools (x 0-210) ──
+    // â”€â”€ Section 1: Tools (x 0-210) â”€â”€
     if (x < 210) {
       if (x < 70)        this.tool = 'platform';
       else if (x < 140)  this.tool = 'absorb';
@@ -173,28 +173,28 @@ class ArenaBuilder {
       return;
     }
 
-    // ── Section 2: Sky (x 210-400) ──
+    // â”€â”€ Section 2: Sky (x 210-400) â”€â”€
     if (x >= 210 && x < 400) {
       if (ty < 40) {
-        // top half = sky ◄►
+        // top half = sky â—„â–º
         if (x < 305) this.skyIdx = (this.skyIdx - 1 + B_SKY.length) % B_SKY.length;
         else         this.skyIdx = (this.skyIdx + 1) % B_SKY.length;
       } else {
-        // bottom half = ground ◄►
+        // bottom half = ground â—„â–º
         if (x < 305) this.gndIdx = (this.gndIdx - 1 + B_GND.length) % B_GND.length;
         else         this.gndIdx = (this.gndIdx + 1) % B_GND.length;
       }
       return;
     }
 
-    // ── Section 3: Actions (x 400-800) ──
+    // â”€â”€ Section 3: Actions (x 400-800) â”€â”€
     if (x >= 400 && x < 540)  { this._clear(); return; }
     if (x >= 540 && x < 670)  { this._save();  return; }
     if (x >= 670 && x < 760)  { this._loadLast(); return; }
     if (x >= 760)              { this.destroy(); this.returnToMenu = true; }
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _clear() {
     this.tiles = {};
     this._flash('Cleared!');
@@ -231,7 +231,7 @@ class ArenaBuilder {
     this._msgTimer = 2200;
   }
 
-  // ── Persistence ──────────────────────────────────────────────────────────
+  // â”€â”€ Persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _loadSlots() {
     try { this._slots = JSON.parse(localStorage.getItem('dodgxel_builder_slots') || '[]'); }
     catch { this._slots = []; }
@@ -241,13 +241,13 @@ class ArenaBuilder {
     catch {}
   }
 
-  // ── Update ───────────────────────────────────────────────────────────────
+  // â”€â”€ Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   update(dt) {
     if (this._msgTimer > 0) this._msgTimer -= dt;
     if (Input.wasPressed('Escape')) { this.destroy(); this.returnToMenu = true; }
   }
 
-  // ── Draw ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Draw â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   draw() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, C.W, C.H);
@@ -306,7 +306,7 @@ class ArenaBuilder {
     Sprites.drawGirl(ctx, 670, C.GROUND, 'idle', -1, Math.PI / 8, false);
     ctx.globalAlpha = 1;
     ctx.fillStyle = C.COL.P1_HUD;
-    ctx.font = '8px "Courier New"'; ctx.textAlign = 'center';
+    ctx.font = '11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('P1', 130, C.GROUND - 50);
     ctx.fillStyle = C.COL.P2_HUD;
     ctx.fillText('P2', 670, C.GROUND - 50);
@@ -325,7 +325,7 @@ class ArenaBuilder {
 
     ctx.textAlign = 'center';
 
-    // ── Tools (x 0-210) ──
+    // â”€â”€ Tools (x 0-210) â”€â”€
     const toolDefs = [
       { key: 'platform', label: 'PLATFORM', col: '#C8854A', x: 35 },
       { key: 'absorb',   label: 'ABSORB',   col: '#3A9A3A', x: 105 },
@@ -339,10 +339,10 @@ class ArenaBuilder {
       ctx.lineWidth = sel ? 2 : 1;
       ctx.strokeRect(t.x - 32, ty + 8, 64, th - 16);
       ctx.fillStyle = sel ? '#fff' : '#666';
-      ctx.font = `${sel ? 'bold ' : ''}9px "Courier New"`;
+      ctx.font = `${sel ? 'bold ' : ''}9px Segoe UI, Arial, sans-serif`;
       ctx.fillText(t.label, t.x, ty + th / 2 + 4);
       if (sel) {
-        ctx.fillStyle = t.col; ctx.font = '6px "Courier New"';
+        ctx.fillStyle = t.col; ctx.font = '11px Segoe UI, Arial, sans-serif';
         ctx.fillText('ACTIVE', t.x, ty + th - 10);
       }
     }
@@ -351,7 +351,7 @@ class ArenaBuilder {
     ctx.fillStyle = '#333';
     ctx.fillRect(212, ty + 6, 1, th - 12);
 
-    // ── Sky / Ground (x 214-398) ──
+    // â”€â”€ Sky / Ground (x 214-398) â”€â”€
     const sky = B_SKY[this.skyIdx];
     const gnd = B_GND[this.gndIdx];
     const mid = 306;
@@ -361,51 +361,51 @@ class ArenaBuilder {
     const sg = ctx.createLinearGradient(222, 0, 290, 0);
     sg.addColorStop(0, sky.top); sg.addColorStop(1, sky.bot);
     ctx.fillStyle = sg; ctx.fillRect(222, ty + 8, 68, th / 2 - 14);
-    ctx.fillStyle = '#aaa'; ctx.font = '9px "Courier New"';
+    ctx.fillStyle = '#aaa'; ctx.font = '11px Segoe UI, Arial, sans-serif';
     ctx.fillText('SKY: ' + sky.label, mid + 22, ty + th / 4 + 4);
     ctx.fillStyle = '#555';
-    ctx.fillText('◄', 218, ty + th / 4 + 4);
-    ctx.fillText('►', mid + 76, ty + th / 4 + 4);
+    ctx.fillText('â—„', 218, ty + th / 4 + 4);
+    ctx.fillText('â–º', mid + 76, ty + th / 4 + 4);
 
     // Ground row (bottom half)
     ctx.fillStyle = '#111'; ctx.fillRect(214, ty + th / 2 + 2, 184, th / 2 - 6);
     ctx.fillStyle = gnd.color; ctx.fillRect(222, ty + th / 2 + 6, 68, th / 2 - 14);
-    ctx.fillStyle = '#aaa'; ctx.font = '9px "Courier New"';
+    ctx.fillStyle = '#aaa'; ctx.font = '11px Segoe UI, Arial, sans-serif';
     ctx.fillText('GND: ' + gnd.label, mid + 22, ty + 3 * th / 4 + 4);
     ctx.fillStyle = '#555';
-    ctx.fillText('◄', 218, ty + 3 * th / 4 + 4);
-    ctx.fillText('►', mid + 76, ty + 3 * th / 4 + 4);
+    ctx.fillText('â—„', 218, ty + 3 * th / 4 + 4);
+    ctx.fillText('â–º', mid + 76, ty + 3 * th / 4 + 4);
 
     // Divider
     ctx.fillStyle = '#333'; ctx.fillRect(400, ty + 6, 1, th - 12);
 
-    // ── Action buttons (x 402-800) ──
+    // â”€â”€ Action buttons (x 402-800) â”€â”€
     const actions = [
       { label: 'CLEAR',    x: 470, col: '#442222' },
       { label: 'SAVE',     x: 605, col: '#224422' },
       { label: 'LOAD',     x: 717, col: '#222244' },
-      { label: '← BACK',  x: 780, col: '#333333' },
+      { label: 'â† BACK',  x: 780, col: '#333333' },
     ];
     // Recalculate widths to fit
     const actionData = [
       { label: 'CLEAR',   x: 402, w: 130, col: '#442222' },
       { label: 'SAVE',    x: 534, w: 130, col: '#1A3A1A' },
       { label: 'LOAD',    x: 666, w: 68,  col: '#1A1A3A' },
-      { label: '← BACK', x: 736, w: 62,  col: '#2A2A2A' },
+      { label: 'â† BACK', x: 736, w: 62,  col: '#2A2A2A' },
     ];
     for (const a of actionData) {
       ctx.fillStyle = a.col;
       ctx.fillRect(a.x + 2, ty + 8, a.w - 4, th - 16);
       ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
       ctx.strokeRect(a.x + 2, ty + 8, a.w - 4, th - 16);
-      ctx.fillStyle = '#ccc'; ctx.font = 'bold 10px "Courier New"';
+      ctx.fillStyle = '#ccc'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
       ctx.fillText(a.label, a.x + a.w / 2, ty + th / 2 + 4);
     }
 
     // Builder title
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = 'bold 8px "Courier New"';
-    ctx.fillText('ARENA BUILDER  ·  click/drag to place  ·  right-click to erase', C.W / 2, ty - 4);
+    ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
+    ctx.fillText('ARENA BUILDER  Â·  click/drag to place  Â·  right-click to erase', C.W / 2, ty - 4);
 
     ctx.textAlign = 'left';
   }
@@ -416,7 +416,7 @@ class ArenaBuilder {
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(C.W / 2 - 160, C.H / 2 - 20, 320, 40);
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 14px "Courier New"';
+    ctx.font = 'bold 14px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(this._msg, C.W / 2, C.H / 2 + 5);
     ctx.globalAlpha = 1;

@@ -1,14 +1,14 @@
-// ── Salvo — turn-based dodgeball mode ────────────────────────────────────────
-// 3 actions per turn. Movement = preview → commit. Jump = 1 AP instant.
+﻿// â”€â”€ Salvo â€” turn-based dodgeball mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// 3 actions per turn. Movement = preview â†’ commit. Jump = 1 AP instant.
 // Throw = free, always ends the turn.
-// World is 3× canvas width with horizontal camera scroll.
-// ─────────────────────────────────────────────────────────────────────────────
+// World is 3Ã— canvas width with horizontal camera scroll.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const WORMS_WORLD_W = C.W * 3;   // 2400px
 const AP_MAX        = 3;
 const STEP_DIST     = 100;        // pixels per committed step
 
-// ── Platform draw helpers ─────────────────────────────────────────────────────
+// â”€â”€ Platform draw helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _drawBunkerPlatform(ctx, obs) {
   ctx.fillStyle = '#2E2E3E';
@@ -63,13 +63,13 @@ function _drawForestBranch(ctx, obs) {
   }
 }
 
-// ── Map definitions (2400px wide) ─────────────────────────────────────────────
+// â”€â”€ Map definitions (2400px wide) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _makeBunkerMap() {
   const mk = (x, y, w) => new Obstacle(x, y, w, 18, _drawBunkerPlatform);
   const W = WORMS_WORLD_W;
   return {
-    name: '🏚️ UNDERGROUND BUNKER',
+    name: 'ðŸšï¸ UNDERGROUND BUNKER',
     skyTop: '#0E0E30', skyBot: '#1C2060',
     groundColor: '#1A1A2E', groundLine: '#2A2A4A',
     p1Start: [90,  148],
@@ -96,7 +96,7 @@ function _makeForestMap() {
   const mk = (x, y, w) => new Obstacle(x, y, w, 18, _drawForestBranch);
   const W = WORMS_WORLD_W;
   return {
-    name: '🌲 FOREST CANOPY',
+    name: 'ðŸŒ² FOREST CANOPY',
     skyTop: '#0D2A0D', skyBot: '#1A5A1A',
     groundColor: '#3A5A1A', groundLine: '#4A6A2A',
     p1Start: [70,  118],
@@ -122,27 +122,27 @@ function _makeDesertMap() {
   const rock = (x, y, w, h = 22) => new Obstacle(x, y, w, h, _drawDesertRock);
   const W = WORMS_WORLD_W;
   return {
-    name: '🏜️ SCORCHED DESERT',
+    name: 'ðŸœï¸ SCORCHED DESERT',
     skyTop: '#5B8FCA', skyBot: '#E8A83A',
     groundColor: '#C4903A', groundLine: '#A07028',
     p1Start: [90,  148],
     p2Start: [W - 90, 148],
     obstacles: [
-      // Left flank — tall pillar cluster
+      // Left flank â€” tall pillar cluster
       rock(0,    148, 210, 26), rock(30,   106, 150, 22), rock(80,   72,  90, 18),
       rock(250,  200, 140, 22), rock(120,  285, 170, 18),
       // Left-centre formations
       rock(420,  148, 130, 26), rock(460,  104, 65,  22),
       rock(620,  175, 155, 22), rock(660,  133, 80,  18),
       rock(790,  260, 130, 18), rock(870,  152, 110, 22),
-      // Centre mesa — layered sandstone butte
+      // Centre mesa â€” layered sandstone butte
       rock(1040, 195, 320, 26), rock(1060, 153, 190, 22), rock(1100, 113, 100, 18),
       // Centre-right (mirror)
       rock(W - 1360, 195, 320, 26), rock(W - 1250, 153, 190, 22), rock(W - 1200, 113, 100, 18),
       // Right-centre
       rock(W - 980, 152, 110, 22), rock(W - 920,  260, 130, 18),
       rock(W - 815, 133, 80,  18), rock(W - 775,  175, 155, 22),
-      // Right flank — mirror of left
+      // Right flank â€” mirror of left
       rock(W - 550, 104, 65,  22), rock(W - 550,  148, 130, 26),
       rock(W - 290, 285, 170, 18), rock(W - 390,  200, 140, 22),
       rock(W - 210, 148, 210, 26), rock(W - 180,  106, 150, 22), rock(W - 170, 72, 90, 18),
@@ -152,7 +152,7 @@ function _makeDesertMap() {
 
 const WORMS_MAPS = [ _makeBunkerMap(), _makeForestMap(), _makeDesertMap() ];
 
-// ── WormsGame ─────────────────────────────────────────────────────────────────
+// â”€â”€ WormsGame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class WormsGame {
   constructor(canvas, mapIndex, p1Data, p2Data) {
@@ -208,7 +208,7 @@ class WormsGame {
     this._snapCamera();
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   get _active()   { return this.turn === 0 ? this.p1 : this.p2; }
   get _inactive() { return this.turn === 0 ? this.p2 : this.p1; }
@@ -246,7 +246,7 @@ class WormsGame {
     this._snapCamera();
   }
 
-  // ── Update ────────────────────────────────────────────────────────────────
+  // â”€â”€ Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   update(dt) {
     if (Input.wasPressed('Escape') && this._phase !== 'end') {
@@ -303,7 +303,7 @@ class WormsGame {
     Input.flush();
   }
 
-  // ── Physics helper (no input) ─────────────────────────────────────────────
+  // â”€â”€ Physics helper (no input) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _physicsOnly(p, obs) {
     if (!p.onGround) p.vy += C.GRAVITY * (p.gravityMult || 1);
@@ -313,21 +313,21 @@ class WormsGame {
     if (p.y >= C.GROUND)  { p.y = C.GROUND; p.vy = 0; p.onGround = true; }
     else p.onGround = false;
     if (p.y < 92)          { p.y = 92; p.vy = Math.max(0, p.vy); }
-    // World bounds (3× wide)
+    // World bounds (3Ã— wide)
     if (p.x < C.P_W / 2)                 { p.x = C.P_W / 2;                 p.vx = 0; }
     if (p.x > WORMS_WORLD_W - C.P_W / 2) { p.x = WORMS_WORLD_W - C.P_W / 2; p.vx = 0; }
     const ph = p.crouching ? C.CROUCH_H : C.P_H;
     for (const o of obs) if (!o.ballOnly) p._collideObstacle(o.rect, ph);
   }
 
-  // ── Active player input ───────────────────────────────────────────────────
+  // â”€â”€ Active player input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _updateActive(dt, obs) {
     const p    = this._active;
     const k    = p.keys;
     const canAct = this._apLeft > 0;
 
-    // ── Throwing (free — ends turn) ───────────────────────────────────────
+    // â”€â”€ Throwing (free â€” ends turn) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const isThrowing = Input.isDown(k.throw);
     if (p.hasBall && isThrowing) {
       this._preview = null;   // cancel any move preview while charging
@@ -347,7 +347,7 @@ class WormsGame {
       p.throwing = false; p.throwCharge = 0;
     }
 
-    // ── Movement preview & commit ─────────────────────────────────────────
+    // â”€â”€ Movement preview & commit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (!p.throwing && !p.hasBall) { /* no movement without ball */ }
 
     if (!p.throwing) {
@@ -356,15 +356,15 @@ class WormsGame {
 
       if (canAct && (pressLeft || pressRight)) {
         const dir = pressLeft ? -1 : 1;
-        // If we already have a preview in the same direction → COMMIT
+        // If we already have a preview in the same direction â†’ COMMIT
         if (this._preview && this._preview.dir === dir) {
           p.x = this._preview.destX;
           p.vx = 0;
           this._apLeft--;
           this._preview = null;
-          if (this._apLeft === 0) this._setStatus('No AP left — aim and throw!');
+          if (this._apLeft === 0) this._setStatus('No AP left â€” aim and throw!');
         } else {
-          // New direction → set preview
+          // New direction â†’ set preview
           const destX = Math.max(C.P_W / 2, Math.min(WORMS_WORLD_W - C.P_W / 2, p.x + dir * STEP_DIST));
           this._preview = { dir, destX };
           p.dir = dir;
@@ -377,7 +377,7 @@ class WormsGame {
         p.vx = 0;
         this._apLeft--;
         this._preview = null;
-        if (this._apLeft === 0) this._setStatus('No AP left — aim and throw!');
+        if (this._apLeft === 0) this._setStatus('No AP left â€” aim and throw!');
       }
 
       // Cancel preview
@@ -455,7 +455,7 @@ class WormsGame {
     }
   }
 
-  // ── Draw helpers ──────────────────────────────────────────────────────────
+  // â”€â”€ Draw helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _drawScaledPlayer(ctx, p) {
     ctx.save();
@@ -466,7 +466,7 @@ class WormsGame {
     ctx.restore();
   }
 
-  // ── Draw ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Draw â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   draw() {
     const ctx = this.ctx;
@@ -498,9 +498,9 @@ class WormsGame {
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
       ctx.fillRect(lx - 28, ly - 12, 56, 18);
       ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 10px "Courier New"';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('-1 AP  · ENTER', lx, ly);
+      ctx.fillText('-1 AP  Â· ENTER', lx, ly);
       ctx.textAlign = 'left';
     }
 
@@ -523,7 +523,7 @@ class WormsGame {
       this._statusTimer -= 16;
       ctx.globalAlpha = Math.min(1, this._statusTimer / 300);
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(C.W/2-140, C.H-30, 280, 20);
-      ctx.fillStyle = '#FFD700'; ctx.font = '9px "Courier New"'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFD700'; ctx.font = '11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(this._statusMsg || '', C.W/2, C.H-17);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
     }
@@ -553,22 +553,22 @@ class WormsGame {
     const p2Name = this.p2.charName || C.P2_NAME;
 
     // P1 HP (left)
-    ctx.textAlign = 'left'; ctx.fillStyle = C.COL.P1_HUD; ctx.font = 'bold 9px "Courier New"';
+    ctx.textAlign = 'left'; ctx.fillStyle = C.COL.P1_HUD; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
     ctx.fillText(p1Name, 10, 14);
-    ctx.font = '18px serif';
-    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p1.hp ? '❤️' : '🖤', 10 + i*24, 44);
+    ctx.font = '18px Segoe UI, Arial, sans-serif';
+    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p1.hp ? 'â¤ï¸' : 'ðŸ–¤', 10 + i*24, 44);
 
     // P2 HP (right)
-    ctx.textAlign = 'right'; ctx.fillStyle = C.COL.P2_HUD; ctx.font = 'bold 9px "Courier New"';
+    ctx.textAlign = 'right'; ctx.fillStyle = C.COL.P2_HUD; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
     ctx.fillText(p2Name, C.W-10, 14);
-    ctx.font = '18px serif';
-    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p2.hp ? '❤️' : '🖤', C.W-10-(2-i)*24, 44);
+    ctx.font = '18px Segoe UI, Arial, sans-serif';
+    for (let i = 0; i < 3; i++) ctx.fillText(i < this.p2.hp ? 'â¤ï¸' : 'ðŸ–¤', C.W-10-(2-i)*24, 44);
 
     // Whose turn + AP pips (centre)
     const turnCol = this.turn === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
     const tName   = (this.turn === 0 ? p1Name : p2Name);
     ctx.textAlign = 'center';
-    ctx.fillStyle = turnCol; ctx.font = 'bold 10px "Courier New"';
+    ctx.fillStyle = turnCol; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
     ctx.fillText(tName + "'s turn", C.W/2, 14);
 
     // AP pips
@@ -583,18 +583,18 @@ class WormsGame {
         ctx.fillRect(px0 + i*(PW+PG), 22, PW, 4);
       }
       // AP number
-      ctx.fillStyle = lit ? '#fff' : '#555'; ctx.font = 'bold 8px "Courier New"';
+      ctx.fillStyle = lit ? '#fff' : '#555'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
       ctx.fillText(i+1, px0 + i*(PW+PG) + PW/2, 22 + PH - 2);
     }
 
     // Action hints
     ctx.fillStyle = this._apLeft > 0 ? '#aaa' : '#444';
-    ctx.font = '8px "Courier New"';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
     const hint = this._preview
-      ? '← → same dir = commit  ·  ENTER commit  ·  ESC cancel'
+      ? 'â† â†’ same dir = commit  Â·  ENTER commit  Â·  ESC cancel'
       : this._apLeft > 0
-        ? `← → move preview (-1 AP)  ·  ${Controls.p1.jump.slice(-1)} jump (-1 AP)  ·  hold throw`
-        : 'No AP — hold throw to end turn';
+        ? `â† â†’ move preview (-1 AP)  Â·  ${Controls.p1.jump.slice(-1)} jump (-1 AP)  Â·  hold throw`
+        : 'No AP â€” hold throw to end turn';
     ctx.fillText(hint, C.W/2 - ctx.measureText(hint).width/2, 50);
 
     // Minimap position indicator
@@ -615,7 +615,7 @@ class WormsGame {
 
   _drawIntro(ctx) {
     const t = Math.max(0, this._introTimer / 2200);
-    // Subtle dark vignette — no full-screen color fill
+    // Subtle dark vignette â€” no full-screen color fill
     ctx.fillStyle = `rgba(0,0,0,${0.5 * Math.min(1, t * 4)})`;
     ctx.fillRect(0, 0, C.W, C.H);
 
@@ -626,18 +626,18 @@ class WormsGame {
     ctx.strokeRect(C.W/2-220, C.H/2-52, 440, 92);
     ctx.textAlign = 'center';
     ctx.fillStyle = col;
-    ctx.font = 'bold 26px "Courier New"';
+    ctx.font = 'bold 26px Segoe UI, Arial, sans-serif';
     const nm = this.turn === 0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME);
-    ctx.fillText(`${nm}'S TURN 💣`, C.W/2, C.H/2 + 2);
-    ctx.fillStyle = '#aaa'; ctx.font = '10px "Courier New"';
-    ctx.fillText(`${AP_MAX} AP  ·  A/D preview move  ·  ENTER commit  ·  hold F to throw`, C.W/2, C.H/2 + 22);
+    ctx.fillText(`${nm}'S TURN ðŸ’£`, C.W/2, C.H/2 + 2);
+    ctx.fillStyle = '#aaa'; ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`${AP_MAX} AP  Â·  A/D preview move  Â·  ENTER commit  Â·  hold F to throw`, C.W/2, C.H/2 + 22);
     ctx.textAlign = 'left';
   }
 
   _drawTurnEnd(ctx) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, C.H/2-28, C.W, 48);
-    ctx.textAlign = 'center'; ctx.fillStyle = '#FFD700'; ctx.font = 'bold 16px "Courier New"';
-    ctx.fillText('⏳ Turn ending…', C.W/2, C.H/2+8); ctx.textAlign = 'left';
+    ctx.textAlign = 'center'; ctx.fillStyle = '#FFD700'; ctx.font = 'bold 16px Segoe UI, Arial, sans-serif';
+    ctx.fillText('â³ Turn endingâ€¦', C.W/2, C.H/2+8); ctx.textAlign = 'left';
   }
 
   _drawEnd(ctx) {
@@ -645,9 +645,9 @@ class WormsGame {
     ctx.textAlign = 'center';
     const wN = this._winner===0 ? (this.p1.charName||C.P1_NAME) : (this.p2.charName||C.P2_NAME);
     ctx.fillStyle = this._winner===0 ? C.COL.P1_HUD : C.COL.P2_HUD;
-    ctx.font = 'bold 38px "Courier New"';
-    ctx.fillText(`${wN} WINS! 🏆`, C.W/2, C.H/2-16);
-    ctx.fillStyle = '#888'; ctx.font = '13px "Courier New"';
+    ctx.font = 'bold 38px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`${wN} WINS! ðŸ†`, C.W/2, C.H/2-16);
+    ctx.fillStyle = '#888'; ctx.font = '13px Segoe UI, Arial, sans-serif';
     ctx.fillText('ENTER / SPACE to return', C.W/2, C.H/2+28);
     ctx.textAlign = 'left';
   }
