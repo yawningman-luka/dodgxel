@@ -46,10 +46,27 @@ class EnemyBall {
   draw(ctx) {
     if (this.dead) return;
     ctx.save();
-    ctx.shadowColor = '#FF4444'; ctx.shadowBlur = 6;
-    ctx.fillStyle = '#AA0000';
-    ctx.beginPath(); ctx.arc(this.x, this.y, C.BALL_R * 0.85, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0; ctx.strokeStyle = '#FF6666'; ctx.lineWidth = 1.5; ctx.stroke();
+    if (this.rock || this.bigRock) {
+      const r = C.BALL_R * (this.bigRock ? 1.5 : 1.0);
+      ctx.shadowColor = '#8B7355'; ctx.shadowBlur = 4;
+      ctx.fillStyle = '#8B7355';
+      ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#A89060';
+      ctx.beginPath(); ctx.arc(this.x - r*0.25, this.y - r*0.25, r*0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6B5335'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI * 2); ctx.stroke();
+      // crack lines
+      ctx.beginPath();
+      ctx.moveTo(this.x - r*0.1, this.y - r*0.6);
+      ctx.lineTo(this.x + r*0.2, this.y + r*0.1);
+      ctx.stroke();
+    } else {
+      ctx.shadowColor = '#FF4444'; ctx.shadowBlur = 6;
+      ctx.fillStyle = '#AA0000';
+      ctx.beginPath(); ctx.arc(this.x, this.y, C.BALL_R * 0.85, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.strokeStyle = '#FF6666'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
     ctx.restore();
   }
 }

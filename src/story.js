@@ -71,10 +71,13 @@ class StoryEnemy {
       const dx = target.x - this.x;
       const dy = (target.y - 22) - (this.y - this.h * 0.55);
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      enemyBalls.push(new EnemyBall(
+      const eb = new EnemyBall(
         this.x + Math.sign(dx) * this.w * 0.45, this.y - this.h * 0.6,
         (dx / len) * def.throwSpeed, (dy / len) * def.throwSpeed - 1.5
-      ));
+      );
+      if (this.type === 'golem') eb.rock = true;
+      if (this.type === 'stone_guardian') { eb.rock = true; eb.bigRock = true; }
+      enemyBalls.push(eb);
     }
   }
 
@@ -971,6 +974,7 @@ class StoryGame {
 
     this._extraBalls = [];
     this.enemyBalls = [];
+    this._blazeHazards = [];
     this.p1Hp = 5; this.p2Hp = 5;
     this.p1Fallen = false; this.p2Fallen = false;
     this._camX = 0;
@@ -1088,6 +1092,11 @@ class StoryGame {
       this.p1Ball.splitCb = (x,y,vx,vy,thr) => this._spawnSplitBalls(x,y,vx,vy,thr);
     if (this.coop && this.p2Ball && this.p2Ball.split && !this.p2Ball.splitCb)
       this.p2Ball.splitCb = (x,y,vx,vy,thr) => this._spawnSplitBalls(x,y,vx,vy,thr);
+    // Wire blaze callback so blaze power burns the floor briefly
+    if (this.p1Ball.blaze && !this.p1Ball.blazeDeathCb)
+      this.p1Ball.blazeDeathCb = (x,y) => this._blazeHazards.push({ x, y, timer: 1600 });
+    if (this.coop && this.p2Ball && this.p2Ball.blaze && !this.p2Ball.blazeDeathCb)
+      this.p2Ball.blazeDeathCb = (x,y) => this._blazeHazards.push({ x, y, timer: 1600 });
 
     this.p1Ball.update(dt, []);
     if (this.coop && this.p2Ball) this.p2Ball.update(dt, []);
@@ -1101,6 +1110,8 @@ class StoryGame {
       this._checkBallVsEnemies(b);
       if (b.dead) this._extraBalls.splice(i, 1);
     }
+
+    this._tickBlazeHazards(dt);
 
     if (this.p1Ball.inFlight && !this.p1Ball.dead) this._checkBallVsEnemies(this.p1Ball);
     if (this.coop && this.p2Ball && this.p2Ball.inFlight && !this.p2Ball.dead)
@@ -1145,6 +1156,35 @@ class StoryGame {
     if (!ball.inFlight && !ball.dead && player.hasBall) {
       ball.x = player.x + player.dir * 22;
       ball.y = player.y - 34;
+    }
+  }
+
+  _tickBlazeHazards(dt) {
+    for (let i = this._blazeHazards.length - 1; i >= 0; i--) {
+      const h = this._blazeHazards[i];
+      h.timer -= dt;
+      if (h.timer <= 0) { this._blazeHazards.splice(i, 1); continue; }
+      Particles.emit(h.x, h.y, 1, ['#FF4400','#FF8800','#FFCC00'], { upBias:1.8, minSpeed:0.5, maxSpeed:2.0, gravity:0.04 });
+      // Damage enemies standing in the fire
+      const allEnemies = this._bossEnemy && !this._bossEnemy.dead
+        ? [...this.enemies, this._bossEnemy]
+        : this.enemies;
+      for (const e of allEnemies) {
+        if (e.dead || !e._awake) continue;
+        const ex = e.x, ey = e.y;
+        if (Math.abs(ex - h.x) < 28 && ey >= h.y - 10) {
+          if (!h._enemyHitCd) h._enemyHitCd = {};
+          const cd = h._enemyHitCd[e] || 0;
+          if (cd <= 0) {
+            e.hp = Math.max(0, e.hp - 1);
+            e._flashTimer = 200;
+            h._enemyHitCd[e] = 900; // hit once per ~second
+            if (e.hp <= 0) { e.dead = true; }
+          } else {
+            h._enemyHitCd[e] = cd - dt;
+          }
+        }
+      }
     }
   }
 
@@ -1650,6 +1690,19 @@ class StoryGame {
     }
 
     for (const b of this._extraBalls) b.draw(ctx);
+
+    // Blaze hazards — brief fire pool on the floor damaging enemies
+    for (const h of this._blazeHazards) {
+      const alpha = Math.min(1, h.timer / 400) * 0.85;
+      const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 110);
+      ctx.globalAlpha = alpha * pulse;
+      ctx.fillStyle = '#FF4400';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, 24, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#FFCC00';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     Particles.draw(ctx);
 
     this._drawPlayerQuips(ctx);
@@ -1844,6 +1897,30 @@ class StoryGame {
     const isGirl = npc.portrait === 'wendy' || npc.portrait === 'princesses';
     if (isGirl) Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, colors);
     else        Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, false, colors);
+
+    // Biff is "hiding" behind a boulder — poorly
+    if (npc.portrait === 'biff') {
+      // Large boulder in front, covering torso + legs (head clearly visible above)
+      ctx.fillStyle = '#9B8360';
+      ctx.beginPath();
+      ctx.ellipse(6, -16, 33, 22, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#B89E78';
+      ctx.beginPath();
+      ctx.ellipse(-4, -24, 14, 9, -0.2, 0, Math.PI); // highlight
+      ctx.fill();
+      ctx.strokeStyle = '#6B5330'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(6, -16, 33, 22, -0.1, 0, Math.PI * 2);
+      ctx.stroke();
+      // Crack lines
+      ctx.beginPath(); ctx.moveTo(2, -34); ctx.lineTo(8, -10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(14, -28); ctx.lineTo(18, -14); ctx.stroke();
+      // Feet peeking out from right side — "poorly hidden"
+      ctx.fillStyle = '#5A3D1A';
+      ctx.fillRect(28, -8, 12, 6);
+      ctx.fillRect(31, -4, 9, 4);
+    }
     ctx.restore();
 
     // Prompt hint above NPC when player is nearby but hasn't talked yet
