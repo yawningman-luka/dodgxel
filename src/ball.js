@@ -103,11 +103,16 @@ class Ball {
     this.y += this.vy;
 
     // Wall bounce (respects worldW for wide arenas)
-    if (this.x - R < 0)            { this.x = R;              this.vx =  Math.abs(this.vx) * 0.8; }
-    if (this.x + R > this.worldW)  { this.x = this.worldW - R; this.vx = -Math.abs(this.vx) * 0.8; }
+    // Shadow ball phases through walls and ceiling — it exits the world and dies
+    if (!this.shadow) {
+      if (this.x - R < 0)            { this.x = R;              this.vx =  Math.abs(this.vx) * 0.8; }
+      if (this.x + R > this.worldW)  { this.x = this.worldW - R; this.vx = -Math.abs(this.vx) * 0.8; }
+    } else {
+      if (this.x + R < 0 || this.x - R > this.worldW) { this.dead = true; this.inFlight = false; }
+    }
 
     if (gravityMult >= 0) {
-      if (this.y - R < 42) { this.y = R + 42; this.vy = Math.abs(this.vy) * 0.65; }
+      if (!this.shadow && this.y - R < 42) { this.y = R + 42; this.vy = Math.abs(this.vy) * 0.65; }
       if (this.y + R >= C.GROUND) {
         this.y = C.GROUND - R;
         this.lastThrower = -1;

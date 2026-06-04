@@ -397,7 +397,8 @@ class StoryBoss extends StoryEnemy {
 
   _takeBallDualHit(ball) {
     const now = Date.now();
-    if (this._hitReady && (now - this._lastHitTime) <= 400) {
+    const dualWindow = this._coop ? 400 : 900;
+    if (this._hitReady && (now - this._lastHitTime) <= dualWindow) {
       this._hitReady = false;
       this._bossMsg = 'DUAL HIT!';
       this._bossMsgTimer = 1000;
@@ -448,7 +449,8 @@ class StoryBoss extends StoryEnemy {
       if (this.hp <= 0) { this.dead = true; return true; }
       return false;
     }
-    if (this._lastAbsorbTime > 0 && (now - this._lastAbsorbTime) <= 300) {
+    const simultaneousWindow = this._coop ? 300 : 700;
+    if (this._lastAbsorbTime > 0 && (now - this._lastAbsorbTime) <= simultaneousWindow) {
       this._bossMsg = 'OVERLOADED!';
       this._bossMsgTimer = 1000;
       this._lastAbsorbTime = 0;
@@ -1008,6 +1010,7 @@ class StoryGame {
     const level = this._buildLevel(idx);
     this.enemies = level.enemies;
     this._bossEnemy = level.boss;
+    if (this._bossEnemy) this._bossEnemy._coop = this.coop;
     this._levelState = 'playing';
     this._levelTimer = 0;
     this._introTimer = 2600;
@@ -1279,11 +1282,19 @@ class StoryGame {
   _checkBallVsEnemies(ball) {
     for (const e of this.enemies) {
       if (e.dead) continue;
+      // Rocket piercing: skip already-pierced enemies
+      if (ball.isRocket && ball._piercedEnemies && ball._piercedEnemies.has(e)) continue;
+
       const r = e.rect;
       const hit = (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
                    ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h);
 
       if (hit) {
+        // Rocket pierces through regular (non-boss) enemies: save velocity, restore after hit
+        const piercing = ball.isRocket && e !== this._bossEnemy;
+        const savedVx = piercing ? ball.vx : 0;
+        const savedVy = piercing ? ball.vy : 0;
+
         const killed = e.takeBall(ball);
         if (killed) {
           Particles.emit(e.x, e.y - e.h / 2, 18,
@@ -1293,6 +1304,15 @@ class StoryGame {
           if (thrower) thrower.spCharge = Math.min(C.SP_CHARGE_MAX, thrower.spCharge + C.SP_CHARGE_HIT);
         }
         if (ball.exploding) this._doExplosionSplash(ball, e);
+
+        if (piercing && ball.dead) {
+          // Revive the rocket ball to continue flying through
+          ball.dead = false; ball.inFlight = true;
+          ball.vx = savedVx; ball.vy = savedVy;
+          if (!ball._piercedEnemies) ball._piercedEnemies = new Set();
+          ball._piercedEnemies.add(e);
+          continue; // keep checking other enemies
+        }
         break;
       }
 
