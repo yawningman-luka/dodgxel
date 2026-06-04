@@ -203,6 +203,7 @@ class Player {
     const useHeavy    = usePower && this.currentPower === 'heavy';
     const useSeeker   = usePower && this.currentPower === 'seeker';
     const useSplit    = usePower && this.currentPower === 'split';
+    const useExplode  = usePower && this.currentPower === 'explode';
 
     const heavySpeedMult = useHeavy ? 0.52 : 1;
     ball.throw(armX, armY, vx * (useRocket ? 2.2 : heavySpeedMult), vy * (useRocket ? 1 : heavySpeedMult), useRocket, useShadow);
@@ -215,6 +216,7 @@ class Player {
     if (useHeavy)     { ball.heavy = true; ball.radius = C.BALL_R * 3; }
     if (useSeeker)    { ball.seeker = true; }
     if (useSplit)     { ball.split = true; ball._splitT = 0; ball._splitDone = false; }
+    if (useExplode)   { ball.exploding = true; }
 
     if (useDouble && this.extraThrowCallback) {
       const vx2 = this.dir * Math.cos(this.aimAngle - 0.22) * speed;

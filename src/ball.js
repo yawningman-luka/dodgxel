@@ -34,6 +34,7 @@ class Ball {
     this._splitDone    = false;
     this.splitCb       = null;   // set by game: (x,y,vx,vy,thr) => spawn minis
     this.mini          = false;
+    this.exploding     = false;
     this.worldW        = C.W;
     this.styleId       = 'default'; // cosmetic throw style
   }
@@ -48,7 +49,7 @@ class Ball {
     this.blaze = false; this._blazeTimer = 0; this.blazeDeathCb = null;
     this.heavy = false; this.seeker = false; this._seekerTargetFn = null;
     this.split = false; this._splitT = 0; this._splitDone = false; this.splitCb = null;
-    this.mini = false; this.radius = C.BALL_R; this.worldW = C.W; this.styleId = 'default';
+    this.mini = false; this.exploding = false; this.radius = C.BALL_R; this.worldW = C.W; this.styleId = 'default';
   }
 
   update(dt, obstacles, gravityMult = 1) {
@@ -240,6 +241,14 @@ class Ball {
       const pulse = 0.2 + 0.2 * Math.sin(Date.now() / 50);
       ctx.globalAlpha = pulse; ctx.fillStyle = C.COL.SP_SPLIT;
       ctx.beginPath(); ctx.arc(this.x, this.y, R + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (this.exploding && this.inFlight) {
+      const pulse = 0.3 + 0.25 * Math.sin(Date.now() / 35);
+      ctx.globalAlpha = pulse; ctx.fillStyle = C.COL.SP_EXPLODE;
+      ctx.beginPath(); ctx.arc(this.x, this.y, R + 7, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = pulse * 0.6; ctx.strokeStyle = '#FFCC00'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(this.x, this.y, R + 11, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
     }
 

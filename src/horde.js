@@ -1,4 +1,4 @@
-﻿// â”€â”€ Horde mode: wave-based co-op survival â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+﻿// ── Horde mode: wave-based co-op survival ────────────────────────────────────
 
 const HORDE_WAVES = [
   { label: 'ZOMBIES',          spawnInterval: 1500, enemies: [{ type: 'zombie',      count: 6  }] },
@@ -21,7 +21,7 @@ const ENEMY_DEFS = {
   fsm:         { speed: 0.9,  hp: 2, w: 32, h: 44, throwInterval: 1800, throwSpeed: 7.0, color: '#C8A060', pants: '#A06030', floats: true },
 };
 
-// â”€â”€ Enemy ball â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Enemy ball ────────────────────────────────────────────────────────────────
 class EnemyBall {
   constructor(x, y, vx, vy) {
     this.x = x; this.y = y;
@@ -54,7 +54,7 @@ class EnemyBall {
   }
 }
 
-// â”€â”€ Enemy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Enemy ─────────────────────────────────────────────────────────────────────
 class Enemy {
   constructor(x, type, waveNum = 1) {
     this.x = x; this.y = C.GROUND; this.type = type;
@@ -190,7 +190,7 @@ class Enemy {
   }
 }
 
-// â”€â”€ Boss enemy â€” THE OVERLORD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Boss enemy — THE OVERLORD ─────────────────────────────────────────────────
 class BossEnemy {
   constructor() {
     this.x = C.W + 100;
@@ -355,7 +355,7 @@ class BossEnemy {
   }
 }
 
-// â”€â”€ HordeGame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HordeGame ─────────────────────────────────────────────────────────────────
 class HordeGame {
   constructor(canvas, solo = false) {
     this.canvas = canvas;
@@ -735,7 +735,7 @@ class HordeGame {
     }
   }
 
-  // â”€â”€ HUD: players left/right, wave info center â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── HUD: players left/right, wave info center ─────────────────────────────
   _drawHUD(ctx) {
     ctx.fillStyle = 'rgba(0,0,0,0.82)';
     ctx.fillRect(0, 0, C.W, 52);
@@ -751,7 +751,7 @@ class HordeGame {
     const cx = C.W / 2;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#FFD700'; ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
-    ctx.fillText(`WAVE ${this.wave || 'â€”'} / ${HORDE_WAVES.length}`, cx, 16);
+    ctx.fillText(`WAVE ${this.wave || '—'} / ${HORDE_WAVES.length}`, cx, 16);
 
     // Wave progress bar
     ctx.fillStyle = '#1A1A1A'; ctx.fillRect(cx - 48, 20, 96, 5);
@@ -779,13 +779,13 @@ class HordeGame {
       ctx.globalAlpha = 1;
       ctx.strokeStyle = '#880000'; ctx.lineWidth = 1; ctx.strokeRect(bx, 38, bw, bh);
       ctx.fillStyle = '#FF4444'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
-      ctx.fillText('âš¡ OVERLORD', cx, 36);
+      ctx.fillText('⚡ OVERLORD', cx, 36);
     }
 
     // ESC hint
     ctx.fillStyle = 'rgba(255,255,255,0.13)';
     ctx.font =  '11px Segoe UI, Arial, sans-serif';
-    ctx.fillText('ESC Â· menu', cx, C.H - 6);
+    ctx.fillText('ESC · menu', cx, C.H - 6);
     ctx.textAlign = 'left';
   }
 
@@ -840,14 +840,14 @@ class HordeGame {
       ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 200);
       ctx.fillStyle = pcol; ctx.font = '11px Segoe UI, Arial, sans-serif';
       ctx.textAlign = right ? 'right' : 'left';
-      ctx.fillText(`â˜… ${C.POWER_NAMES[player.currentPower]}`, right ? C.W - 8 : x0, 46);
+      ctx.fillText(`★ ${C.POWER_NAMES[player.currentPower]}`, right ? C.W - 8 : x0, 46);
       ctx.globalAlpha = 1;
     }
 
     ctx.textAlign = 'left';
   }
 
-  // â”€â”€ Overlays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Overlays ──────────────────────────────────────────────────────────────
   _drawOverlay(ctx) {
     const isCountdown = this.waveState === 'countdown';
     const isWaveEnd   = this.waveState === 'wave_end';
@@ -863,7 +863,7 @@ class HordeGame {
         ctx.fillStyle = '#ccc'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
         ctx.fillText('Survive all 10 waves together!', C.W / 2, C.H / 2 + 10);
         ctx.fillStyle = '#666'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
-        ctx.fillText('Each player has their own ball Â· 3 hits each', C.W / 2, C.H / 2 + 30);
+        ctx.fillText('Each player has their own ball · 3 hits each', C.W / 2, C.H / 2 + 30);
       } else if (isWaveEnd) {
         ctx.fillStyle = '#88FF88'; ctx.font = 'bold 22px Segoe UI, Arial, sans-serif';
         ctx.fillText(`WAVE ${this.wave}  CLEAR!`, C.W / 2, C.H / 2 - 14);
@@ -872,14 +872,14 @@ class HordeGame {
       } else {
         const nextDef = HORDE_WAVES[this.wave];
         ctx.fillStyle = '#FFD700'; ctx.font = 'bold 19px Segoe UI, Arial, sans-serif';
-        ctx.fillText(`WAVE ${this.wave + 1}  Â·  ${nextDef ? nextDef.label : ''}`, C.W / 2, C.H / 2 - 16);
+        ctx.fillText(`WAVE ${this.wave + 1}  ·  ${nextDef ? nextDef.label : ''}`, C.W / 2, C.H / 2 - 16);
         if (nextDef) {
           const total = nextDef.enemies.reduce((s, g) => s + g.count, 0);
           ctx.fillStyle = '#FF9999'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
           ctx.fillText(`${total} enemies incoming`, C.W / 2, C.H / 2 + 8);
         }
         ctx.fillStyle = '#555'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
-        ctx.fillText(`Starting in ${Math.ceil(this.waveTimer / 1000)}â€¦`, C.W / 2, C.H / 2 + 28);
+        ctx.fillText(`Starting in ${Math.ceil(this.waveTimer / 1000)}…`, C.W / 2, C.H / 2 + 28);
       }
       ctx.textAlign = 'left';
     }
@@ -898,9 +898,9 @@ class HordeGame {
       ctx.fillText('BOSS FIGHT!', C.W / 2, C.H / 2 - 10);
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
       ctx.fillStyle = '#FF8888'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
-      ctx.fillText('THE OVERLORD AWAKENSâ€¦', C.W / 2, C.H / 2 + 18);
+      ctx.fillText('THE OVERLORD AWAKENS…', C.W / 2, C.H / 2 + 18);
       ctx.fillStyle = '#555'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
-      ctx.fillText(`Incoming in ${Math.ceil(this.waveTimer / 1000)}â€¦`, C.W / 2, C.H / 2 + 42);
+      ctx.fillText(`Incoming in ${Math.ceil(this.waveTimer / 1000)}…`, C.W / 2, C.H / 2 + 42);
       ctx.textAlign = 'left';
     }
 
@@ -926,8 +926,8 @@ class HordeGame {
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#ccc'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
       const statusLine = this.boss
-        ? `Wave ${this.wave}  Â·  Fell to The Overlord`
-        : `Wave ${this.wave}  Â·  ${HORDE_WAVES.length - this.wave} waves remaining`;
+        ? `Wave ${this.wave}  ·  Fell to The Overlord`
+        : `Wave ${this.wave}  ·  ${HORDE_WAVES.length - this.wave} waves remaining`;
       ctx.fillText(statusLine, C.W / 2, C.H / 2);
       ctx.fillStyle = '#FFF'; ctx.font =  '11px Segoe UI, Arial, sans-serif'; ctx.fillText(`Score: ${this.score}`, C.W / 2, C.H / 2 + 36);
       ctx.fillStyle = '#555'; ctx.font =  '11px Segoe UI, Arial, sans-serif'; ctx.fillText('ENTER  to return to menu', C.W / 2, C.H / 2 + 72);
