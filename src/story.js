@@ -75,9 +75,11 @@ class StoryEnemy {
         this.x + Math.sign(dx) * this.w * 0.45, this.y - this.h * 0.6,
         (dx / len) * def.throwSpeed, (dy / len) * def.throwSpeed - 1.5
       );
-      if (this.type === 'golem') eb.rock = true;
-      if (this.type === 'stone_guardian') { eb.rock = true; eb.bigRock = true; }
-      enemyBalls.push(eb);
+      if (this.type !== 'mech_fluffkins') {
+        if (this.type === 'golem') eb.rock = true;
+        if (this.type === 'stone_guardian') { eb.rock = true; eb.bigRock = true; }
+        enemyBalls.push(eb);
+      }
     }
   }
 
@@ -299,6 +301,7 @@ class StoryBoss extends StoryEnemy {
     if (type === 'mech_fluffkins') {
       this._shieldOn = true;
       this._shieldTimer = 2500;
+      this._lightningTimer = 2000;
     }
     if (type === 'iron_champion') {
       this._phase = 'walk';
@@ -311,7 +314,7 @@ class StoryBoss extends StoryEnemy {
     }
   }
 
-  update(dt, players, enemyBalls) {
+  update(dt, players, enemyBalls, camX, lightningBolts) {
     if (this.dead) return;
     if (this._bossMsgTimer > 0) this._bossMsgTimer -= dt;
 
@@ -320,6 +323,22 @@ class StoryBoss extends StoryEnemy {
       if (this._shieldTimer <= 0) {
         this._shieldOn = !this._shieldOn;
         this._shieldTimer = this._shieldOn ? 2500 : 2000;
+      }
+      // Spawn arching lightning bolt instead of throwing a ball
+      if (lightningBolts) {
+        this._lightningTimer -= dt;
+        if (this._lightningTimer <= 0) {
+          this._lightningTimer = 1800 + Math.random() * 1200;
+          const target = players[0];
+          if (target) {
+            lightningBolts.push({
+              x1: this.x, y1: this.y - this.h * 0.7,
+              x2: target.x, y2: target.y - 20,
+              timer: 1100, maxTimer: 1100,
+              width: 2.5 + Math.random() * 1.5,
+            });
+          }
+        }
       }
     }
 
@@ -975,6 +994,7 @@ class StoryGame {
     this._extraBalls = [];
     this.enemyBalls = [];
     this._blazeHazards = [];
+    this._lightningBolts = [];
     this.p1Hp = 5; this.p2Hp = 5;
     this.p1Fallen = false; this.p2Fallen = false;
     this._camX = 0;
@@ -1007,15 +1027,30 @@ class StoryGame {
         everyone:   ['SERIOUSLY?!','WE\'RE ON\nYOUR SIDE!!','OW!!','COME ON!!','THAT\'S NOT HELPFUL!','DODGEBALL\nFRIENDLY FIRE!'],
       };
       this._sceneNpc = {
-        x: 380, y: C.GROUND,
+        x: actDef.id === 'castle' ? 350 : 380, y: C.GROUND,
         portrait: actDef.npc.portrait,
         reactionTimer: 0, reactionText: '', wobble: 0,
         _talked: false,
         _hitQuips: npcQuips[actDef.npc.portrait] || ['OW!!'],
         _hitCount: 0,
       };
+      // Act 4 has two princess NPCs
+      if (actDef.id === 'castle') {
+        this._sceneNpc2 = {
+          x: 430, y: C.GROUND,
+          dir: 1, // faces left (toward companion)
+          portrait: 'princesses',
+          reactionTimer: 0, reactionText: '', wobble: 0,
+          _talked: true, // doesn't trigger dialogue independently
+          _hitQuips: ['DOT — DID YOU\nSEE THAT?!','MY CROWN!!','HOW RUDE!!','SECTION 4.7.2!!','EXCUSE ME?!','INCREDIBLE RUDENESS!'],
+          _hitCount: 0,
+        };
+      } else {
+        this._sceneNpc2 = null;
+      }
     } else {
       this._sceneNpc = null;
+      this._sceneNpc2 = null;
     }
 
     this.subState = 'sidescroll';
@@ -1112,6 +1147,7 @@ class StoryGame {
     }
 
     this._tickBlazeHazards(dt);
+    this._tickLightningBolts(dt);
 
     if (this.p1Ball.inFlight && !this.p1Ball.dead) this._checkBallVsEnemies(this.p1Ball);
     if (this.coop && this.p2Ball && this.p2Ball.inFlight && !this.p2Ball.dead)
@@ -1126,7 +1162,7 @@ class StoryGame {
     if (this._levelState === 'playing') {
       const alive = this._alivePlayers();
       for (const e of this.enemies) {
-        e.update(dt, alive, this.enemyBalls, this._camX);
+        e.update(dt, alive, this.enemyBalls, this._camX, this._lightningBolts);
         if (!e.dead) this._checkEnemyContact(e);
       }
       this.enemies = this.enemies.filter(e => !e.dead);
@@ -1182,6 +1218,36 @@ class StoryGame {
             if (e.hp <= 0) { e.dead = true; }
           } else {
             h._enemyHitCd[e] = cd - dt;
+          }
+        }
+      }
+    }
+  }
+
+  _tickLightningBolts(dt) {
+    for (let i = this._lightningBolts.length - 1; i >= 0; i--) {
+      const lb = this._lightningBolts[i];
+      lb.timer -= dt;
+      if (lb.timer <= 0) { this._lightningBolts.splice(i, 1); continue; }
+      // Damage players that are within striking distance of any point along the bolt
+      const players = [
+        { ball: null, p: this.p1, fallen: this.p1Fallen, hpKey: 'p1Hp' },
+        ...(this.coop && this.p2 ? [{ ball: null, p: this.p2, fallen: this.p2Fallen, hpKey: 'p2Hp' }] : []),
+      ];
+      for (const { p, fallen, hpKey } of players) {
+        if (fallen || !p) continue;
+        // Check if player is near the bolt line (simple AABB vs line test)
+        const minX = Math.min(lb.x1, lb.x2) - 18, maxX = Math.max(lb.x1, lb.x2) + 18;
+        const minY = Math.min(lb.y1, lb.y2) - 18, maxY = Math.max(lb.y1, lb.y2) + 18;
+        if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) {
+          if (!lb._hitCd) lb._hitCd = {};
+          const cd = lb._hitCd[hpKey] || 0;
+          if (cd <= 0) {
+            this[hpKey] = Math.max(0, this[hpKey] - 1);
+            lb._hitCd[hpKey] = 1000;
+            Particles.emit(p.x, p.y - 30, 10, ['#00FFFF','#88EEFF','#FFFFFF'], { upBias: 2, maxSpeed: 4 });
+          } else {
+            lb._hitCd[hpKey] = cd - dt;
           }
         }
       }
@@ -1380,10 +1446,9 @@ class StoryGame {
 
   // ── Friendly NPC in first scene ───────────────────────────────────────────────
   _tickSceneNpc(dt) {
+    if (this._sceneNpc2) this._tickNpcReactions(dt, this._sceneNpc2);
     const npc = this._sceneNpc;
     if (!npc) return;
-    if (npc.reactionTimer > 0) npc.reactionTimer -= dt;
-    if (npc.wobble > 0) npc.wobble -= dt * 0.008;
 
     // Trigger intro dialogue when player walks/jumps close to the NPC
     if (!npc._talked && this.p1) {
@@ -1398,7 +1463,13 @@ class StoryGame {
       }
     }
 
-    // Check player balls (hit reaction — only after already talked or pre-talk)
+    // Check player balls (hit reaction)
+    this._tickNpcReactions(dt, npc);
+  }
+
+  _tickNpcReactions(dt, npc) {
+    if (npc.reactionTimer > 0) npc.reactionTimer -= dt;
+    if (npc.wobble > 0) npc.wobble -= dt * 0.008;
     const allBalls = [this.p1Ball, this.p2Ball, ...this._extraBalls].filter(b => b && b.inFlight && !b.dead);
     for (const ball of allBalls) {
       const nx = npc.x, ny = npc.y - 34;
@@ -1674,6 +1745,7 @@ class StoryGame {
     this._drawScenery(ctx, act.id);
 
     this._drawSceneNpc(ctx);
+    if (this._sceneNpc2) this._drawOneNpc(ctx, this._sceneNpc2);
     for (const e of this.enemies) e.draw(ctx);
     for (const eb of this.enemyBalls) eb.draw(ctx);
 
@@ -1701,6 +1773,41 @@ class StoryGame {
       ctx.fillStyle = '#FFCC00';
       ctx.beginPath(); ctx.ellipse(h.x, h.y, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
+    }
+
+    // Lightning bolts from mech_fluffkins
+    for (const lb of this._lightningBolts) {
+      const fade = Math.min(1, lb.timer / 300);
+      const flicker = 0.55 + 0.45 * Math.sin(Date.now() * 0.03 + lb.x1);
+      ctx.save();
+      ctx.globalAlpha = fade * flicker;
+      // Draw a jagged arching bolt from (x1,y1) to (x2,y2)
+      const segs = 10;
+      const pts = [];
+      for (let s = 0; s <= segs; s++) {
+        const t = s / segs;
+        // Quadratic arc: midpoint pulled upward
+        const mx = lb.x1 + (lb.x2 - lb.x1) * t;
+        const myBase = lb.y1 + (lb.y2 - lb.y1) * t - Math.sin(t * Math.PI) * 55;
+        const jitter = s > 0 && s < segs ? (Math.random() - 0.5) * 22 : 0;
+        pts.push({ x: mx + jitter, y: myBase + jitter * 0.4 });
+      }
+      // Outer glow
+      ctx.strokeStyle = 'rgba(0,200,255,0.35)'; ctx.lineWidth = lb.width * 4;
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let s = 1; s <= segs; s++) ctx.lineTo(pts[s].x, pts[s].y);
+      ctx.stroke();
+      // Core bolt
+      ctx.strokeStyle = '#AAEEFF'; ctx.lineWidth = lb.width;
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let s = 1; s <= segs; s++) ctx.lineTo(pts[s].x, pts[s].y);
+      ctx.stroke();
+      // Bright core
+      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = lb.width * 0.4;
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let s = 1; s <= segs; s++) ctx.lineTo(pts[s].x, pts[s].y);
+      ctx.stroke();
+      ctx.restore();
     }
 
     Particles.draw(ctx);
@@ -1888,40 +1995,7 @@ class StoryGame {
   _drawSceneNpc(ctx) {
     const npc = this._sceneNpc;
     if (!npc) return;
-    ctx.save();
-    // Gentle idle bob
-    const bob = Math.sin(Date.now() * 0.002) * 2;
-    const wobbleX = npc.wobble > 0 ? Math.sin(Date.now() * 0.04) * npc.wobble * 6 : 0;
-    ctx.translate(npc.x + wobbleX, npc.y + bob);
-    const colors = this._npcColors(npc.portrait);
-    const isGirl = npc.portrait === 'wendy' || npc.portrait === 'princesses';
-    if (isGirl) Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, colors);
-    else        Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, false, colors);
-
-    // Biff is "hiding" behind a boulder — poorly
-    if (npc.portrait === 'biff') {
-      // Large boulder in front, covering torso + legs (head clearly visible above)
-      ctx.fillStyle = '#9B8360';
-      ctx.beginPath();
-      ctx.ellipse(6, -16, 33, 22, -0.1, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#B89E78';
-      ctx.beginPath();
-      ctx.ellipse(-4, -24, 14, 9, -0.2, 0, Math.PI); // highlight
-      ctx.fill();
-      ctx.strokeStyle = '#6B5330'; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.ellipse(6, -16, 33, 22, -0.1, 0, Math.PI * 2);
-      ctx.stroke();
-      // Crack lines
-      ctx.beginPath(); ctx.moveTo(2, -34); ctx.lineTo(8, -10); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(14, -28); ctx.lineTo(18, -14); ctx.stroke();
-      // Feet peeking out from right side — "poorly hidden"
-      ctx.fillStyle = '#5A3D1A';
-      ctx.fillRect(28, -8, 12, 6);
-      ctx.fillRect(31, -4, 9, 4);
-    }
-    ctx.restore();
+    this._drawOneNpc(ctx, npc);
 
     // Prompt hint above NPC when player is nearby but hasn't talked yet
     if (!npc._talked && this.p1 && Math.abs(this.p1.x - npc.x) < 160) {
@@ -1935,6 +2009,63 @@ class StoryGame {
       ctx.fillText('▶ WALK CLOSE TO TALK', bx, npc.y - 80);
       ctx.restore();
     }
+  }
+
+  _drawOneNpc(ctx, npc) {
+    ctx.save();
+    const bob = Math.sin(Date.now() * 0.002 + npc.x * 0.01) * 2;
+    const wobbleX = npc.wobble > 0 ? Math.sin(Date.now() * 0.04) * npc.wobble * 6 : 0;
+    ctx.translate(npc.x + wobbleX, npc.y + bob);
+    const colors = this._npcColors(npc.portrait);
+    const dir = npc.dir || -1;
+    const isGirl = npc.portrait === 'wendy' || npc.portrait === 'princesses';
+    if (isGirl) Sprites.drawGirl(ctx, 0, 0, 'idle', dir, 0, false, colors);
+    else        Sprites.drawBoy (ctx, 0, 0, 'idle', dir, 0, false, colors);
+
+    // Biff is "hiding" behind a boulder — poorly
+    if (npc.portrait === 'biff') {
+      ctx.fillStyle = '#9B8360';
+      ctx.beginPath(); ctx.ellipse(6, -16, 33, 22, -0.1, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#B89E78';
+      ctx.beginPath(); ctx.ellipse(-4, -24, 14, 9, -0.2, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = '#6B5330'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(6, -16, 33, 22, -0.1, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(2, -34); ctx.lineTo(8, -10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(14, -28); ctx.lineTo(18, -14); ctx.stroke();
+      ctx.fillStyle = '#5A3D1A';
+      ctx.fillRect(28, -8, 12, 6); ctx.fillRect(31, -4, 9, 4);
+    }
+
+    // Fluffkins NPC wears a cat costume — ears, whiskers, tail
+    if (npc.portrait === 'fluffkins') {
+      const furCol = '#FFCC88', earCol = '#FFAA66', innerEar = '#FF99BB';
+      // Tail — curves behind and upward from lower back
+      ctx.strokeStyle = furCol; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(8, -18);
+      ctx.bezierCurveTo(28, -10, 36, -40, 22, -52);
+      ctx.stroke();
+      ctx.strokeStyle = '#FFDDAA'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(8, -18);
+      ctx.bezierCurveTo(28, -10, 36, -40, 22, -52);
+      ctx.stroke();
+      // Ear base triangles on head (head top is ~y=-65)
+      ctx.fillStyle = earCol;
+      ctx.beginPath(); ctx.moveTo(-10, -64); ctx.lineTo(-6, -78); ctx.lineTo(2, -64); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(10, -64); ctx.lineTo(14, -78); ctx.lineTo(20, -64); ctx.closePath(); ctx.fill();
+      // Inner ear
+      ctx.fillStyle = innerEar;
+      ctx.beginPath(); ctx.moveTo(-8, -65); ctx.lineTo(-6, -73); ctx.lineTo(0, -65); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(12, -65); ctx.lineTo(14, -73); ctx.lineTo(18, -65); ctx.closePath(); ctx.fill();
+      // Whiskers
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-4, -54); ctx.lineTo(-18, -52); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4, -51); ctx.lineTo(-18, -51); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -54); ctx.lineTo(26, -52); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -51); ctx.lineTo(26, -51); ctx.stroke();
+    }
+    ctx.restore();
 
     // Reaction speech bubble
     if (npc.reactionTimer > 0) {
@@ -1945,22 +2076,13 @@ class StoryGame {
       const by = npc.y - 80;
       const lines = npc.reactionText.split('\n');
       const bw = 96, bh = 14 + lines.length * 16;
-      // Bubble
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#FF6688';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(bx - bw/2, by - bh, bw, bh, 6);
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#FF6688'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(bx - bw/2, by - bh, bw, bh, 6);
       ctx.fill(); ctx.stroke();
-      // Tail
-      ctx.beginPath();
-      ctx.moveTo(bx - 6, by); ctx.lineTo(bx + 6, by); ctx.lineTo(bx + 2, by + 12);
+      ctx.beginPath(); ctx.moveTo(bx - 6, by); ctx.lineTo(bx + 6, by); ctx.lineTo(bx + 2, by + 12);
       ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
       ctx.strokeStyle = '#FF6688'; ctx.lineWidth = 2; ctx.stroke();
-      // Text
-      ctx.fillStyle = '#CC2255';
-      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
-      ctx.textAlign = 'center';
+      ctx.fillStyle = '#CC2255'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'center';
       lines.forEach((l, i) => ctx.fillText(l, bx, by - bh + 14 + i * 16));
       ctx.restore();
     }
