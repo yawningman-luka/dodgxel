@@ -42,3 +42,19 @@ body {
 #controls-hint span {
   flex: 1;
 }
+
+#controls-hint kbd {
+  display: inline-block;
+  background: #2a2a2a;
+  color: #fff;
+  border: 1px solid #555;
+  border-bottom: 2px solid #333;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  line-height: 1.5;
+  min-width: 16px;
+  text-align: center;
+}

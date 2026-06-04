@@ -169,9 +169,6 @@
     ctx.shadowColor = '#FF6600'; ctx.shadowBlur = 9;
     ctx.fillText('Dodge. Throw. Save the World.', C.W/2, 71);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#555';
-    ctx.font = '11px "Segoe UI Emoji","Segoe UI Symbol",Segoe UI,Arial,sans-serif';
-    ctx.fillText('🏐 Catch  ·  🛡️ Shield  ·  ⚡ Superpowers  ·  First to 11', C.W/2, 84);
 
     // 7 menu buttons — narrower to leave room for characters on each side
     const BTNS = [
@@ -1125,24 +1122,6 @@
           '  🔥 Wave 10 boss: THE OVERLORD',
           '  15 HP, spread shots, charge attacks.',
           '  Defeat him to achieve total victory.',
-        ],
-      },
-      {
-        title: '💣 SALVO MODE', col: '#88CC44',
-        lines: [
-          '  Turn-based dodgeball strategy.',
-          '',
-          '  ⚡ 3 ACTION POINTS per turn:',
-          '     • Walk uses movement budget (bar below AP)',
-          '     • Jump costs 1 AP',
-          '     • Throwing ENDS your turn',
-          '',
-          '  ❤️ Each player starts with 3 HP.',
-          '  A direct hit deals 1 damage.',
-          '',
-          '  🗺️  Two maps:',
-          '  🏚️  Underground Bunker — industrial cover',
-          '  🌲  Forest Canopy — branch platforms',
         ],
       },
       {

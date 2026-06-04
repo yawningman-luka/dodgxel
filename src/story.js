@@ -21,17 +21,15 @@ class StoryEnemy {
     this._awake = false;
   }
 
-  update(dt, players, enemyBalls) {
+  update(dt, players, enemyBalls, camX = 0) {
     if (this.dead) return;
     if (this._flashTimer > 0) this._flashTimer -= dt;
     if (this.contactCooldown > 0) this.contactCooldown -= dt;
     this._legAnim += dt * 0.012;
 
-    // Stand idle until a player ventures close (tighter threshold so enemies are off-screen at start)
+    // Wake when enemy enters camera view
     if (!this._awake) {
-      for (const p of players) {
-        if (p && Math.abs(this.x - p.x) < 160) { this._awake = true; break; }
-      }
+      if (this.x > camX - 80 && this.x < camX + C.W + 80) { this._awake = true; }
       if (!this._awake) return;
     }
 
@@ -908,22 +906,23 @@ class StoryGame {
       this.p2 = null;
     }
 
-    this.p1Ball = new Ball(); this.p1Ball.reset(0); this.p1.hasBall = true;
+    this.p1Ball = new Ball(); this.p1Ball.worldW = STORY_WORLD_W; this.p1Ball.reset(0); this.p1.hasBall = true;
     this._p1BallTimer = 0;
     if (this.coop) {
-      this.p2Ball = new Ball(); this.p2Ball.reset(1); this.p2.hasBall = true;
+      this.p2Ball = new Ball(); this.p2Ball.worldW = STORY_WORLD_W; this.p2Ball.reset(1); this.p2.hasBall = true;
       this._p2BallTimer = 0;
     } else {
       this.p2Ball = null;
     }
 
+    const _mkBall = () => { const b = new Ball(); b.worldW = STORY_WORLD_W; return b; };
     this.p1.extraThrowCallback = (x, y, vx, vy, i) => {
-      const b = new Ball(); b.throw(x, y, vx, vy, false, false);
+      const b = _mkBall(); b.throw(x, y, vx, vy, false, false);
       b.lastThrower = i; this._extraBalls.push(b);
     };
     if (this.coop) {
       this.p2.extraThrowCallback = (x, y, vx, vy, i) => {
-        const b = new Ball(); b.throw(x, y, vx, vy, false, false);
+        const b = _mkBall(); b.throw(x, y, vx, vy, false, false);
         b.lastThrower = i; this._extraBalls.push(b);
       };
     }
@@ -944,6 +943,28 @@ class StoryGame {
     this._battleCryTimer = 2000;
     const _cryLines = ["LET'S GO!", "MOVE OUT!", "SHOW 'EM WHAT YOU'VE GOT!", "FOR THE SURVIVORS!"];
     this._battleCryText = _cryLines[idx % _cryLines.length];
+
+    // Act 1: friendly NPC (Dr. Wendy) is visible at the start of the world
+    if (idx === 0) {
+      this._sceneNpc = {
+        x: 380, y: C.GROUND,
+        portrait: 'wendy',
+        reactionTimer: 0,
+        reactionText: '',
+        wobble: 0,
+        _hitQuips: [
+          'OW!!',
+          'I\'M A DOCTOR!!!',
+          'MY THESIS!!!',
+          'KINETIC IMPACT\nNOTED.',
+          'THAT\'S GOING IN\nMY REPORT!!',
+          'STATISTICALLY\nOUCH!',
+        ],
+        _hitCount: 0,
+      };
+    } else {
+      this._sceneNpc = null;
+    }
 
     this.subState = 'sidescroll';
   }
@@ -1033,12 +1054,13 @@ class StoryGame {
     if (this._levelState === 'playing') {
       const alive = this._alivePlayers();
       for (const e of this.enemies) {
-        e.update(dt, alive, this.enemyBalls);
+        e.update(dt, alive, this.enemyBalls, this._camX);
         if (!e.dead) this._checkEnemyContact(e);
       }
       this.enemies = this.enemies.filter(e => !e.dead);
     }
 
+    this._tickSceneNpc(dt);
     this._tickLevel(dt);
 
     const cx = this.coop && this.p2
@@ -1212,6 +1234,32 @@ class StoryGame {
     return { enemies, boss };
   }
 
+  // ── Friendly NPC in first scene ───────────────────────────────────────────────
+  _tickSceneNpc(dt) {
+    const npc = this._sceneNpc;
+    if (!npc) return;
+    if (npc.reactionTimer > 0) npc.reactionTimer -= dt;
+    if (npc.wobble > 0) npc.wobble -= dt * 0.008;
+
+    // Check player balls
+    const allBalls = [this.p1Ball, this.p2Ball, ...this._extraBalls].filter(b => b && b.inFlight && !b.dead);
+    for (const ball of allBalls) {
+      const nx = npc.x, ny = npc.y - 34;
+      if (Math.abs(ball.x - nx) < 18 && Math.abs(ball.y - ny) < 36) {
+        // Ball hits the NPC — funny reaction, ball bounces back
+        const quip = npc._hitQuips[npc._hitCount % npc._hitQuips.length];
+        npc._hitCount++;
+        npc.reactionText = quip;
+        npc.reactionTimer = 2200;
+        npc.wobble = 1;
+        ball.vx = -ball.vx * 0.8;
+        ball.vy = Math.min(ball.vy - 4, -3);
+        Particles.emit(nx, ny, 12, ['#FFD700','#FF8800','#FFAAAA','#FF6688'], { upBias: 3, maxSpeed: 4 });
+        break;
+      }
+    }
+  }
+
   // ── Tick the territory level state each frame ─────────────────────────────────
   _tickLevel(dt) {
     if (this._levelState !== 'playing') return;
@@ -1378,6 +1426,7 @@ class StoryGame {
 
     this._drawScenery(ctx, act.id);
 
+    this._drawSceneNpc(ctx);
     for (const e of this.enemies) e.draw(ctx);
     for (const eb of this.enemyBalls) eb.draw(ctx);
 
@@ -1476,6 +1525,46 @@ class StoryGame {
         ctx.beginPath();ctx.arc(1125,18,br*3,0,Math.PI*2);ctx.fill();
         break;
       }
+    }
+  }
+
+  _drawSceneNpc(ctx) {
+    const npc = this._sceneNpc;
+    if (!npc) return;
+    ctx.save();
+    // Wobble when hit
+    const wobbleX = npc.wobble > 0 ? Math.sin(Date.now() * 0.04) * npc.wobble * 6 : 0;
+    ctx.translate(npc.x + wobbleX, npc.y);
+    Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, false, ['#66CCBB','#E8E8F0','#E8E8F0','#FDBCB4','#8B4513']);
+    ctx.restore();
+
+    // Reaction speech bubble
+    if (npc.reactionTimer > 0) {
+      const alpha = Math.min(1, npc.reactionTimer / 400);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const bx = npc.x - this._camX;
+      const by = npc.y - 80;
+      const lines = npc.reactionText.split('\n');
+      const bw = 96, bh = 14 + lines.length * 16;
+      // Bubble
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#FF6688';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(bx - bw/2, by - bh, bw, bh, 6);
+      ctx.fill(); ctx.stroke();
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(bx - 6, by); ctx.lineTo(bx + 6, by); ctx.lineTo(bx + 2, by + 12);
+      ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = '#FF6688'; ctx.lineWidth = 2; ctx.stroke();
+      // Text
+      ctx.fillStyle = '#CC2255';
+      ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      lines.forEach((l, i) => ctx.fillText(l, bx, by - bh + 14 + i * 16));
+      ctx.restore();
     }
   }
 
