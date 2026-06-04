@@ -1911,21 +1911,6 @@ class StoryGame {
     this._drawDlgNpcArena(ctx, act.npc.portrait);
     ctx.restore();
 
-    // ── Comic portrait — player (bottom-left panel) ──────────────────
-    const feetY = C.H - 8;
-    if (_p1Name === 'Lucy') this._drawComicPortraitLucy(ctx, 55, feetY);
-    else this._drawComicPortraitJaco(ctx, 55, feetY);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.70)';
-    ctx.font = 'bold 10px Segoe UI, Arial, sans-serif';
-    ctx.fillText('YOU', 55, C.H - 2);
-
-    // ── Comic portrait — NPC (bottom-right panel) ────────────────────
-    this._drawDlgNpc(ctx, act.npc.portrait, C.W - 55, feetY);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.70)';
-    ctx.font = 'bold 10px Segoe UI, Arial, sans-serif';
-    ctx.fillText(act.npc.name.split(' ').slice(-1)[0], C.W - 55, C.H - 2);
   }
 
   // ── NPC dialogue avatar dispatcher (comic portrait) ─────────────────────────
