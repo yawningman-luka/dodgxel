@@ -124,7 +124,7 @@
 
   // ---- Menu ----
   _updateMenu() {
-    const N = 7;
+    const N = 6;
     if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor - 1 + N) % N;
     if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % N;
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
@@ -135,12 +135,10 @@
         case 3: this._startOnlineLobby();             break;
         case 4: this.state = C.STATE.HOW_TO_PLAY;    break;
         case 5: this.state = C.STATE.CONTROLS;        break;
-        case 6: this._startBuilder();                 break;
       }
     }
     if (Input.wasPressed('KeyH')) this._startCharSelect('horde');
     if (Input.wasPressed('KeyC')) this.state = C.STATE.CONTROLS;
-    if (Input.wasPressed('KeyB')) this._startBuilder();
   }
 
   _drawMenu(ctx) {
@@ -179,7 +177,6 @@
       { label:'🌐 ONLINE MATCH',  sub:'play over LAN or internet with a friend',    col:'#00CCFF',     bh:42 },
       { label:'❓ HOW TO PLAY',   sub:'rules, modes & controls guide',               col:'#AAAAAA',     bh:30 },
       { label:'⚙️ CONTROLS',     sub:'remap keys for both players',                 col:'#888888',     bh:30 },
-      { label:'🔨 ARENA BUILDER', sub:'design & save your own stages',               col:'#00CC88',     bh:30 },
     ];
     const bw = 270, bx = C.W/2 - bw/2;
     let by = 92;
@@ -189,7 +186,7 @@
       const b = BTNS[i];
       const sel = i === this.menuCursor;
       const gap = 4;
-      if (i === 5) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
+      if (i === 4) { ctx.fillStyle = '#2a2a3a'; ctx.fillRect(bx, by, bw, 1); by += 5; }
 
       ctx.fillStyle = sel ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.45)';
       ctx.fillRect(bx, by, bw, b.bh);

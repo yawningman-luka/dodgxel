@@ -1023,7 +1023,7 @@ class StoryGame {
         wendy:      ['OW!!','I\'M A DOCTOR!!!','MY THESIS!!!','KINETIC IMPACT\nNOTED.','THAT\'S GOING IN\nMY REPORT!!','STATISTICALLY\nOUCH!'],
         biff:       ['WATCH THE HAT!','THAT\'S AN ARTEFACT!','OUCH — SCIENTIFICALLY!','THE TOME!!\nSAFE THOUGH.','MY GLASSES!!','UNACCEPTABLE SIR!'],
         fluffkins:  ['*HISS*','INSUBORDINATION!','MY WHISKERS!!','*ANGRY MEOW*','THAT IS A\nCOURT MARTIAL.','UNACCEPTABLE.'],
-        princesses: ['EXCUSE ME?!','OUR GOWNS!!','HOW DARE YOU!!','RUDE!!','VAL — DID YOU\nSEE THAT?!','SECTION 4.7.2\nFORBIDS THIS!'],
+        princesses: ['EXCUSE ME?!','WE SAID SORRY!!','HOW DARE YOU!!','WE\'RE ALREADY\nGROUNDED!!','VAL — DID YOU\nSEE THAT?!','THE BOOK WAS\nVERY CONVINCING!'],
         everyone:   ['SERIOUSLY?!','WE\'RE ON\nYOUR SIDE!!','OW!!','COME ON!!','THAT\'S NOT HELPFUL!','DODGEBALL\nFRIENDLY FIRE!'],
       };
       this._sceneNpc = {
@@ -1042,7 +1042,7 @@ class StoryGame {
           portrait: 'princesses',
           reactionTimer: 0, reactionText: '', wobble: 0,
           _talked: true, // doesn't trigger dialogue independently
-          _hitQuips: ['DOT — DID YOU\nSEE THAT?!','MY CROWN!!','HOW RUDE!!','SECTION 4.7.2!!','EXCUSE ME?!','INCREDIBLE RUDENESS!'],
+          _hitQuips: ['DOT — DID YOU\nSEE THAT?!','MY CROWN!!','WE\'RE SORRY,\nOKAY?!','IT WAS ONE BOOK!!','EXCUSE ME?!','MUM IS GOING\nTO HEAR THIS!'],
           _hitCount: 0,
         };
       } else {
@@ -1579,10 +1579,11 @@ class StoryGame {
       }
     }
 
-    // Trigger boss wake + taunt when player gets close
+    // Trigger boss wake + taunt when player gets close — but only after all regular enemies are dead
     if (this._bossEnemy && !this._bossEnemy._awake && !this._bossEnemy.dead) {
+      const regularsDead = this.enemies.every(e => e === this._bossEnemy || e.dead);
       const p = this.p1;
-      if (p && Math.abs(p.x - this._bossEnemy.x) < 340) {
+      if (regularsDead && p && Math.abs(p.x - this._bossEnemy.x) < 340) {
         this._bossEnemy._awake = true;
         this._bossDlgTimer = 3200;
       }
