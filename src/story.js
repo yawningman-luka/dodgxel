@@ -1083,6 +1083,12 @@ class StoryGame {
       if (b) b.worldW = rightBound;
     }
 
+    // Wire split callback so split power spawns 3 mini balls
+    if (this.p1Ball.split && !this.p1Ball.splitCb)
+      this.p1Ball.splitCb = (x,y,vx,vy,thr) => this._spawnSplitBalls(x,y,vx,vy,thr);
+    if (this.coop && this.p2Ball && this.p2Ball.split && !this.p2Ball.splitCb)
+      this.p2Ball.splitCb = (x,y,vx,vy,thr) => this._spawnSplitBalls(x,y,vx,vy,thr);
+
     this.p1Ball.update(dt, []);
     if (this.coop && this.p2Ball) this.p2Ball.update(dt, []);
 
@@ -1139,6 +1145,20 @@ class StoryGame {
     if (!ball.inFlight && !ball.dead && player.hasBall) {
       ball.x = player.x + player.dir * 22;
       ball.y = player.y - 34;
+    }
+  }
+
+  _spawnSplitBalls(x, y, vx, vy, throwerIndex) {
+    const angles = [-0.32, 0, 0.32];
+    const spd = Math.sqrt(vx*vx + vy*vy) * 1.1;
+    const baseAngle = Math.atan2(vy, vx);
+    for (const offset of angles) {
+      const b = new Ball();
+      b.throw(x, y, Math.cos(baseAngle+offset)*spd, Math.sin(baseAngle+offset)*spd, false, false);
+      b.lastThrower = throwerIndex;
+      b.mini = true;
+      b.radius = C.BALL_R * 0.45;
+      this._extraBalls.push(b);
     }
   }
 
