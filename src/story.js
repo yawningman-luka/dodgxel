@@ -1984,16 +1984,26 @@ class StoryGame {
   _drawStoryIntro(ctx) {
     const W = C.W, H = C.H;
 
-    // ── Paper background ──────────────────────────────────────────────────────
+    // ── B&W paper background ──────────────────────────────────────────────────
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#e8e0c8'); bg.addColorStop(1, '#d4c8a4');
+    bg.addColorStop(0, '#f2f0ec'); bg.addColorStop(1, '#dddad2');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    const vig = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.8);
-    vig.addColorStop(0, 'rgba(210,190,120,0)'); vig.addColorStop(1, 'rgba(140,110,50,0.38)');
+
+    // Subtle halftone grain
+    ctx.globalAlpha = 0.035;
+    for (let i = 0; i < 400; i++) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect((i * 97) % W, (i * 61) % H, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // Vignette (B&W)
+    const vig = ctx.createRadialGradient(W/2, H/2, H*0.15, W/2, H/2, H*0.82);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.22)');
     ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
 
-    // Torn edges
-    ctx.fillStyle = '#cfc0a0';
+    // Torn top/bottom edges
+    ctx.fillStyle = '#c8c4bc';
     ctx.beginPath(); ctx.moveTo(0, 0);
     for (let x = 0; x <= W; x += 18) ctx.lineTo(x, 2 + Math.sin(x * 0.31 + 1) * 4);
     ctx.lineTo(W, 0); ctx.closePath(); ctx.fill();
@@ -2002,125 +2012,164 @@ class StoryGame {
     ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
 
     // ── Masthead ──────────────────────────────────────────────────────────────
-    ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(20, 52); ctx.lineTo(W-20, 52); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(20, 55); ctx.lineTo(W-20, 55); ctx.stroke();
-    ctx.textAlign = 'center'; ctx.fillStyle = '#1a1000';
-    ctx.font = 'bold 20px Georgia, serif';
-    ctx.fillText('THE  DODGEVILLE  GAZETTE', W/2, 46);
-    ctx.beginPath(); ctx.moveTo(20, 58); ctx.lineTo(W-20, 58); ctx.stroke();
-    ctx.fillStyle = '#3a2c10'; ctx.font = '9px Georgia, serif';
-    ctx.textAlign = 'left';  ctx.fillText('VOL. CLXXXVII  ·  No. 47', 22, 70);
-    ctx.textAlign = 'right'; ctx.fillText('SPECIAL EMERGENCY EDITION  ·  FREE', W-22, 70);
-    ctx.strokeStyle = '#3a2c10'; ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(20, 73); ctx.lineTo(W-20, 73); ctx.stroke();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(18, 52); ctx.lineTo(W-18, 52); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18, 55); ctx.lineTo(W-18, 55); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.fillStyle = '#080808';
+    ctx.font = 'bold 21px Georgia, serif';
+    ctx.fillText('THE  DODGEVILLE  GAZETTE', W/2, 47);
+    ctx.beginPath(); ctx.moveTo(18, 58); ctx.lineTo(W-18, 58); ctx.stroke();
+    ctx.fillStyle = '#333'; ctx.font = '9px Georgia, serif';
+    ctx.textAlign = 'left';  ctx.fillText('VOL. CLXXXVII  ·  No. 47', 20, 70);
+    ctx.textAlign = 'right'; ctx.fillText('SPECIAL EMERGENCY EDITION  ·  FREE', W-20, 70);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(18, 73); ctx.lineTo(W-18, 73); ctx.stroke();
 
     // Headline
-    ctx.textAlign = 'center'; ctx.fillStyle = '#0e0800';
+    ctx.textAlign = 'center'; ctx.fillStyle = '#050505';
     ctx.font = 'bold 22px Georgia, serif';
     ctx.fillText('MYSTERIOUS SIGNAL INFECTS CITY', W/2, 96);
-    ctx.font = 'bold 14px Georgia, serif';
-    ctx.fillText('— ATHLETES IMMUNE — HEROES NEEDED NOW —', W/2, 114);
-    ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(20, 119); ctx.lineTo(W-20, 119); ctx.stroke();
+    ctx.font = 'bold 13px Georgia, serif';
+    ctx.fillText('— ATHLETES IMMUNE — HEROES NEEDED NOW —', W/2, 113);
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(18, 118); ctx.lineTo(W-18, 118); ctx.stroke();
 
-    // ── Column layout ─────────────────────────────────────────────────────────
-    const colX = 390;
-    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(colX, 125); ctx.lineTo(colX, H - 32); ctx.stroke();
+    // ── Layout: left = text, right = portrait box ─────────────────────────────
+    const colX = 490;
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(colX, 124); ctx.lineTo(colX, H-30); ctx.stroke();
 
-    // ── Left column: city scene ───────────────────────────────────────────────
-    const lx = 22, lW = colX - 34;
-    const boxX = lx, boxY = 126, boxW = lW, boxH = 210;
-
-    // Render a section of the Act 1 city scenery inside a clipped box
-    ctx.save();
-    ctx.beginPath(); ctx.rect(boxX, boxY, boxW, boxH); ctx.clip();
-
-    // Sky + ground background
-    const skyG = ctx.createLinearGradient(boxX, boxY, boxX, boxY + boxH);
-    skyG.addColorStop(0, '#1a1a2e'); skyG.addColorStop(1, '#2a2a3e');
-    ctx.fillStyle = skyG; ctx.fillRect(boxX, boxY, boxW, boxH);
-    // Map: world x=[0..480], world y=[C.GROUND-210..C.GROUND] → box
-    const sceneW = 480, sceneH = 210;
-    const sx = boxW / sceneW, sy = boxH / sceneH;
-    // After transform, world (0, C.GROUND) → (boxX, boxY+boxH)
-    ctx.translate(boxX, boxY + boxH - C.GROUND * sy);
-    ctx.scale(sx, sy);
-    ctx.fillStyle = '#3a2a1a';
-    ctx.fillRect(0, C.GROUND, sceneW / sx, (H - C.GROUND) / sy);
-    this._drawScenery(ctx, 'city');
-    ctx.restore();
-
-    // Box border
-    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 1.2;
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-    // Caption
-    ctx.fillStyle = '#3a2808'; ctx.font = 'italic 8px Georgia, serif'; ctx.textAlign = 'center';
-    ctx.fillText('Dodgeville, Tuesday morning.', boxX + boxW/2, boxY + boxH + 11);
-
-    // Short text
-    ctx.fillStyle = '#1a1000'; ctx.textAlign = 'left';
-    ctx.font = '9.5px Georgia, serif';
-    const drawWrap = (text, x, y, maxW, lineH) => {
+    // ── Left column: article text ─────────────────────────────────────────────
+    const lx = 20, lW = colX - 32;
+    const drawWrap = (text, x, y, maxW, lineH, style) => {
+      ctx.font = style; ctx.fillStyle = '#111';
       const words = text.split(' '); let row = '';
       for (const word of words) {
         const test = row ? row + ' ' + word : word;
         if (ctx.measureText(test).width > maxW) { ctx.fillText(row, x, y); y += lineH; row = word; }
         else row = test;
       }
-      ctx.fillText(row, x, y); return y + lineH;
+      if (row) ctx.fillText(row, x, y);
+      return y + lineH;
     };
-    drawWrap('A rogue NEXUS signal has overwritten Dodgeville. Only athletes with fast-twitch reflexes remain immune. The city needs heroes.',
-      lx, boxY + boxH + 24, lW, 13);
 
-    // ── Right column: player portrait(s) ─────────────────────────────────────
-    const rx = colX + 14, rW = W - colX - 34;
+    ctx.textAlign = 'left';
+    let ty = 135;
+    // Drop cap 'A'
+    ctx.font = 'bold 32px Georgia, serif'; ctx.fillStyle = '#050505';
+    ctx.fillText('A', lx, ty + 20);
+    const capW = ctx.measureText('A').width + 4;
+    ty = drawWrap(
+      'rogue transmission broadcast across every screen, speaker and device in Dodgeville simultaneously. Within minutes, thousands of residents fell into a trance-like stupor — motionless, eyes blank.',
+      lx + capW, ty, lW - capW, 13, '9.5px Georgia, serif');
+    ty += 4;
+    ty = drawWrap(
+      'Emergency services were among the first to fall. The signal, later identified as a NEXUS-class override frequency, appears to exploit ordinary human neural pathways — rendering its victims docile and obedient.',
+      lx, ty, lW, 13, '9.5px Georgia, serif');
+    ty += 4;
+    ty = drawWrap(
+      'Remarkably, competitive athletes appear fully immune. Scientists believe intense fast-twitch muscle conditioning creates a neural firewall the signal cannot penetrate.',
+      lx, ty, lW, 13, '9.5px Georgia, serif');
+    ty += 4;
+    ty = drawWrap(
+      '"We need someone who can move, dodge and fight,"  said Dr. Reyes of the Dodgeville Institute. "The signal towers must be destroyed before the city is lost forever."',
+      lx, ty, lW, 13, 'italic 9.5px Georgia, serif');
+    ty += 4;
+    ctx.font = 'bold 9px Georgia, serif'; ctx.fillStyle = '#222';
+    ctx.fillText('The tower chain originates in the mountains. Whoever reaches the peak', lx, ty); ty += 13;
+    ctx.fillText('may be able to shut it all down.', lx, ty); ty += 13;
 
-    ctx.fillStyle = '#1a1000'; ctx.font = 'bold 10px Georgia, serif'; ctx.textAlign = 'center';
-    ctx.fillText('— OUR HEROES —', rx + rW/2, 137);
-    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(rx, 141); ctx.lineTo(rx + rW, 141); ctx.stroke();
+    // Divider
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(lx, H-30); ctx.lineTo(colX-14, H-30); ctx.stroke();
+
+    // Byline
+    ctx.font = 'italic 8px Georgia, serif'; ctx.fillStyle = '#444'; ctx.textAlign = 'left';
+    ctx.fillText('By GAZETTE STAFF  ·  Special Report', lx, H-18);
+
+    // ── Right column: character portrait box ──────────────────────────────────
+    const rx = colX + 12, rW = W - colX - 30;
+
+    ctx.font = 'bold 10px Georgia, serif'; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
+    ctx.fillText('— OUR HERO —', rx + rW/2, 136);
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(rx, 140); ctx.lineTo(rx + rW, 140); ctx.stroke();
 
     const p1d = this._p1Data || {};
     const p2d = this._p2Data || {};
-    const p1Name   = p1d.charName   || 'Player';
+    const p1Name   = p1d.charName || 'Player';
     const p1Colors = p1d.charColors || null;
     const p2Name   = p2d.charName;
     const p2Colors = p2d.charColors || null;
+
+    // Portrait box dimensions
     const portraitScale = 3.5;
-    const groundBase = H - 50;
+    const pCharH = 28 * portraitScale; // approx sprite height
 
     if (this.coop && p2Name) {
-      const p1cx = rx + rW * 0.3, p2cx = rx + rW * 0.72;
-      ctx.save(); ctx.translate(p1cx, groundBase); ctx.scale(portraitScale, portraitScale);
+      // Two portrait boxes stacked or side by side
+      const boxH = 130, boxY1 = 146, boxY2 = 286;
+      const boxX = rx, boxW = rW;
+
+      // Box 1 — p1
+      ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY1, boxW, boxH);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.strokeRect(boxX, boxY1, boxW, boxH);
+      ctx.save();
+      ctx.filter = 'grayscale(1) contrast(1.1)';
+      const p1cx = rx + rW/2, p1base = boxY1 + boxH - 14;
+      ctx.translate(p1cx, p1base); ctx.scale(portraitScale, portraitScale);
       if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle',  1, 0, true, p1Colors);
       else                   Sprites.drawBoy (ctx, 0, 0, 'idle',  1, 0, true, p1Colors);
       ctx.restore();
-      ctx.save(); ctx.translate(p2cx, groundBase); ctx.scale(portraitScale, portraitScale);
+      ctx.fillStyle = '#f0eeea';
+      ctx.fillRect(boxX+1, boxY1 + boxH - 16, boxW-2, 15);
+      ctx.font = 'bold 9px Georgia, serif'; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
+      ctx.fillText(p1Name.toUpperCase(), rx + rW/2, boxY1 + boxH - 4);
+
+      // Box 2 — p2
+      ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY2, boxW, boxH);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.strokeRect(boxX, boxY2, boxW, boxH);
+      ctx.save();
+      ctx.filter = 'grayscale(1) contrast(1.1)';
+      const p2cx = rx + rW/2, p2base = boxY2 + boxH - 14;
+      ctx.translate(p2cx, p2base); ctx.scale(portraitScale, portraitScale);
       if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
       else                   Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
       ctx.restore();
-      ctx.fillStyle = '#1a1000'; ctx.font = 'bold 9px Georgia, serif'; ctx.textAlign = 'center';
-      ctx.fillText(p1Name, p1cx, groundBase + 14);
-      ctx.fillText(p2Name, p2cx, groundBase + 14);
+      ctx.fillStyle = '#f0eeea';
+      ctx.fillRect(boxX+1, boxY2 + boxH - 16, boxW-2, 15);
+      ctx.font = 'bold 9px Georgia, serif'; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
+      ctx.fillText(p2Name.toUpperCase(), rx + rW/2, boxY2 + boxH - 4);
     } else {
-      const pcx = rx + rW / 2;
-      ctx.save(); ctx.translate(pcx, groundBase); ctx.scale(portraitScale, portraitScale);
+      // Single portrait box — tall, centred
+      const boxH = 230, boxY = 148;
+      ctx.fillStyle = '#e8e6e0'; ctx.fillRect(rx, boxY, rW, boxH);
+      ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.strokeRect(rx, boxY, rW, boxH);
+
+      ctx.save();
+      ctx.filter = 'grayscale(1) contrast(1.15)';
+      const pcx = rx + rW/2, pbase = boxY + boxH - 18;
+      ctx.translate(pcx, pbase); ctx.scale(portraitScale, portraitScale);
       if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
       else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
       ctx.restore();
-      ctx.fillStyle = '#1a1000'; ctx.font = 'bold 9px Georgia, serif'; ctx.textAlign = 'center';
-      ctx.fillText(p1Name, pcx, groundBase + 14);
+
+      // Name plate inside box
+      ctx.fillStyle = '#111'; ctx.fillRect(rx+1, boxY + boxH - 20, rW-2, 19);
+      ctx.font = 'bold 10px Georgia, serif'; ctx.fillStyle = '#f0eeea'; ctx.textAlign = 'center';
+      ctx.fillText(p1Name.toUpperCase(), rx + rW/2, boxY + boxH - 7);
+
+      // Caption below box
+      ctx.font = 'italic 8px Georgia, serif'; ctx.fillStyle = '#444';
+      ctx.fillText(`${p1Name} — Dodgeville's last hope.`, rx + rW/2, boxY + boxH + 12);
     }
 
     // ── Bottom prompt ─────────────────────────────────────────────────────────
-    ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(20, H-26); ctx.lineTo(W-20, H-26); ctx.stroke();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(18, H-26); ctx.lineTo(W-18, H-26); ctx.stroke();
     const adv = 0.45 + 0.55 * Math.sin(Date.now() / 500);
     ctx.globalAlpha = adv;
-    ctx.fillStyle = '#1a1000'; ctx.font = 'bold 10px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#050505'; ctx.font = 'bold 10px Georgia, serif'; ctx.textAlign = 'center';
     ctx.fillText('— PRESS  ENTER  TO  BEGIN —', W/2, H-12);
     ctx.globalAlpha = 1;
   }
