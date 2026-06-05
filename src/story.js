@@ -1114,42 +1114,9 @@ class StoryGame {
     const _cryLines = ["LET'S GO!", "MOVE OUT!", "SHOW 'EM WHAT YOU'VE GOT!", "FOR THE SURVIVORS!"];
     this._battleCryText = _cryLines[idx % _cryLines.length];
 
-    // Friendly NPC stands at start of each act; dialogue fires on player contact
-    if (!opts || !opts.skipNpc) {
-      const actDef = STORY_ACTS[idx];
-      const npcQuips = {
-        wendy:      ['OW!!','I\'M A DOCTOR!!!','MY THESIS!!!','KINETIC IMPACT\nNOTED.','THAT\'S GOING IN\nMY REPORT!!','STATISTICALLY\nOUCH!'],
-        biff:       ['WATCH THE HAT!','THAT\'S AN ARTEFACT!','OUCH — SCIENTIFICALLY!','THE TOME!!\nSAFE THOUGH.','MY GLASSES!!','UNACCEPTABLE SIR!'],
-        fluffkins:  ['*HISS*','INSUBORDINATION!','MY WHISKERS!!','*ANGRY MEOW*','THAT IS A\nCOURT MARTIAL.','UNACCEPTABLE.'],
-        princesses: ['EXCUSE ME?!','WE SAID SORRY!!','HOW DARE YOU!!','WE\'RE ALREADY\nGROUNDED!!','VAL — DID YOU\nSEE THAT?!','THE BOOK WAS\nVERY CONVINCING!'],
-        everyone:   ['SERIOUSLY?!','WE\'RE ON\nYOUR SIDE!!','OW!!','COME ON!!','THAT\'S NOT HELPFUL!','DODGEBALL\nFRIENDLY FIRE!'],
-      };
-      this._sceneNpc = {
-        x: actDef.id === 'castle' ? 350 : 380, y: C.GROUND,
-        portrait: actDef.npc.portrait,
-        reactionTimer: 0, reactionText: '', wobble: 0,
-        _talked: false,
-        _hitQuips: npcQuips[actDef.npc.portrait] || ['OW!!'],
-        _hitCount: 0,
-      };
-      // Act 4 has two princess NPCs
-      if (actDef.id === 'castle') {
-        this._sceneNpc2 = {
-          x: 430, y: C.GROUND,
-          dir: 1, // faces left (toward companion)
-          portrait: 'princesses',
-          reactionTimer: 0, reactionText: '', wobble: 0,
-          _talked: true, // doesn't trigger dialogue independently
-          _hitQuips: ['DOT — DID YOU\nSEE THAT?!','MY CROWN!!','WE\'RE SORRY,\nOKAY?!','IT WAS ONE BOOK!!','EXCUSE ME?!','MUM IS GOING\nTO HEAR THIS!'],
-          _hitCount: 0,
-        };
-      } else {
-        this._sceneNpc2 = null;
-      }
-    } else {
-      this._sceneNpc = null;
-      this._sceneNpc2 = null;
-    }
+    // NPC dialogue removed — combat starts immediately
+    this._sceneNpc = null;
+    this._sceneNpc2 = null;
 
     this.subState = 'sidescroll';
   }
@@ -1206,12 +1173,10 @@ class StoryGame {
     if (this._levelState === 'game_over' || this._levelState === 'act_clear') {
       if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
         if (this._levelState === 'act_clear') {
-          const act = STORY_ACTS[this.actIndex];
-          this._dlgPhase = 'outro';
-          this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.outroLines });
+          this._completeAct();
         } else {
-          // Retry: skip NPC intro, go straight to combat
-          this._startActCombat(this.actIndex, { skipNpc: true });
+          // Retry: go straight to combat
+          this._startActCombat(this.actIndex);
         }
       }
       return;
@@ -1370,10 +1335,11 @@ class StoryGame {
   }
 
   _spawnSplitBalls(x, y, vx, vy, throwerIndex) {
-    const angles = [-0.32, 0, 0.32];
-    const spd = Math.sqrt(vx*vx + vy*vy) * 1.1;
+    // 3 mini balls — same forward direction with very slight vertical spread
+    const spd = Math.sqrt(vx*vx + vy*vy) * 1.15;
     const baseAngle = Math.atan2(vy, vx);
-    for (const offset of angles) {
+    const offsets = [-0.10, 0, 0.10]; // tight spread, mostly same direction
+    for (const offset of offsets) {
       const b = new Ball();
       b.throw(x, y, Math.cos(baseAngle+offset)*spd, Math.sin(baseAngle+offset)*spd, false, false);
       b.lastThrower = throwerIndex;

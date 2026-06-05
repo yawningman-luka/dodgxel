@@ -1257,11 +1257,11 @@
   }
 
   _spawnSplitBalls(x, y, vx, vy, throwerIndex) {
-    // 3 small balls fanning out from the split point
-    const angles = [-0.32, 0, 0.32];
-    const spd = Math.sqrt(vx*vx + vy*vy) * 1.1;
+    // 3 mini balls — same forward direction with very slight vertical spread
+    const spd = Math.sqrt(vx*vx + vy*vy) * 1.15;
     const baseAngle = Math.atan2(vy, vx);
-    for (const offset of angles) {
+    const offsets = [-0.10, 0, 0.10];
+    for (const offset of offsets) {
       const b = new Ball();
       b.throw(x, y, Math.cos(baseAngle+offset)*spd, Math.sin(baseAngle+offset)*spd, false, false);
       b.lastThrower = throwerIndex;

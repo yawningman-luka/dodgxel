@@ -75,11 +75,23 @@ class Ball {
       this.vx += (tx - this.x) * 0.0006;
     }
 
-    // Split — after 440ms, fire callback to spawn mini balls then die
+    // Split — pulse for 700ms then burst into mini balls
     if (this.split && !this._splitDone) {
       this._splitT += dt;
-      if (this._splitT >= 440) {
+      const prog = this._splitT / 700; // 0→1 over 700ms
+      // Emit expanding ring particles as it charges
+      if (Math.floor((this._splitT - dt) / 60) < Math.floor(this._splitT / 60)) {
+        const ring = Math.min(1, prog);
+        Particles.emit(this.x, this.y, 4,
+          [C.COL.SP_SPLIT, '#FFFFFF', '#FFAAFF'],
+          { upBias: 0, minSpeed: 0.8 * ring + 0.5, maxSpeed: 2.5 * ring + 0.5, gravity: 0 });
+      }
+      if (this._splitT >= 700) {
         this._splitDone = true;
+        // Burst flash particles
+        Particles.emit(this.x, this.y, 20,
+          [C.COL.SP_SPLIT, '#FFFFFF', '#FF88FF', '#FFAAFF'],
+          { upBias: 0, minSpeed: 2, maxSpeed: 6, gravity: 0.04 });
         if (this.splitCb) this.splitCb(this.x, this.y, this.vx, this.vy, this.lastThrower);
         this.dead = true; this.inFlight = false; return;
       }
@@ -242,10 +254,16 @@ class Ball {
       ctx.beginPath(); ctx.arc(this.x, this.y, R + 4, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
-    if (this.split && this.inFlight) {
-      const pulse = 0.2 + 0.2 * Math.sin(Date.now() / 50);
+    if (this.split && this.inFlight && !this._splitDone) {
+      const prog = Math.min(1, this._splitT / 700);
+      const pulse = (0.25 + prog * 0.5) * (0.7 + 0.3 * Math.sin(Date.now() / (55 - prog * 30)));
+      const extraR = 4 + prog * 10;
+      // Outer ring grows with charge
+      ctx.globalAlpha = pulse * 0.55; ctx.fillStyle = C.COL.SP_SPLIT;
+      ctx.beginPath(); ctx.arc(this.x, this.y, R + extraR + 4, 0, Math.PI * 2); ctx.fill();
+      // Inner glow
       ctx.globalAlpha = pulse; ctx.fillStyle = C.COL.SP_SPLIT;
-      ctx.beginPath(); ctx.arc(this.x, this.y, R + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(this.x, this.y, R + extraR, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
     if (this.exploding && this.inFlight) {
