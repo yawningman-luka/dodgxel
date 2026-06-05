@@ -35,6 +35,7 @@ class Ball {
     this.splitCb       = null;   // set by game: (x,y,vx,vy,thr) => spawn minis
     this.mini          = false;
     this.exploding     = false;
+    this.fragile       = false;  // burst power: dies on first wall/ground contact
     this.worldW        = C.W;
     this.styleId       = 'default'; // cosmetic throw style
   }
@@ -49,7 +50,7 @@ class Ball {
     this.blaze = false; this._blazeTimer = 0; this.blazeDeathCb = null;
     this.heavy = false; this.seeker = false; this._seekerTargetFn = null;
     this.split = false; this._splitT = 0; this._splitDone = false; this.splitCb = null;
-    this.mini = false; this.exploding = false; this.radius = C.BALL_R; this.worldW = C.W; this.styleId = 'default';
+    this.mini = false; this.exploding = false; this.fragile = false; this.radius = C.BALL_R; this.worldW = C.W; this.styleId = 'default';
   }
 
   update(dt, obstacles, gravityMult = 1) {
@@ -117,28 +118,30 @@ class Ball {
     // Wall bounce (respects worldW for wide arenas)
     // Shadow ball phases through walls and ceiling — it exits the world and dies
     if (!this.shadow) {
-      if (this.x - R < 0)            { this.x = R;              this.vx =  Math.abs(this.vx) * 0.8; }
-      if (this.x + R > this.worldW)  { this.x = this.worldW - R; this.vx = -Math.abs(this.vx) * 0.8; }
+      if (this.x - R < 0)            { this.x = R;              this.vx =  Math.abs(this.vx) * 0.8; if (this.fragile) { this.dead = true; this.inFlight = false; return; } }
+      if (this.x + R > this.worldW)  { this.x = this.worldW - R; this.vx = -Math.abs(this.vx) * 0.8; if (this.fragile) { this.dead = true; this.inFlight = false; return; } }
     } else {
       if (this.x + R < 0 || this.x - R > this.worldW) { this.dead = true; this.inFlight = false; }
     }
 
     if (gravityMult >= 0) {
-      if (!this.shadow && this.y - R < 42) { this.y = R + 42; this.vy = Math.abs(this.vy) * 0.65; }
+      if (!this.shadow && this.y - R < 42) { this.y = R + 42; this.vy = Math.abs(this.vy) * 0.65; if (this.fragile) { this.dead = true; this.inFlight = false; return; } }
       if (this.y + R >= C.GROUND) {
         this.y = C.GROUND - R;
         this.lastThrower = -1;
         if (this.blazeDeathCb) { this.blazeDeathCb(this.x, this.y); this.blazeDeathCb = null; }
-        if (this.groundBounces < 1) {
+        if (this.fragile) { this.dead = true; this.inFlight = false; this.vx = 0; this.vy = 0; this.spinning = false; }
+        else if (this.groundBounces < 1) {
           this.vy = -Math.abs(this.vy) * 0.58; this.vx *= 0.75; this.groundBounces++;
           if (Math.abs(this.vy) < 1.2) { this.dead = true; this.inFlight = false; this.vx = 0; this.vy = 0; this.spinning = false; }
         } else { this.dead = true; this.inFlight = false; this.vx = 0; this.vy = 0; this.spinning = false; }
       }
     } else {
-      if (this.y + R > C.GROUND - 5) { this.y = C.GROUND - 5 - R; this.vy = -Math.abs(this.vy) * 0.65; }
+      if (this.y + R > C.GROUND - 5) { this.y = C.GROUND - 5 - R; this.vy = -Math.abs(this.vy) * 0.65; if (this.fragile) { this.dead = true; this.inFlight = false; return; } }
       if (this.y - R <= 90) {
         this.y = 90 + R; this.lastThrower = -1;
-        if (this.groundBounces < 1) {
+        if (this.fragile) { this.dead = true; this.inFlight = false; this.vx = 0; this.vy = 0; this.spinning = false; }
+        else if (this.groundBounces < 1) {
           this.vy = Math.abs(this.vy) * 0.58; this.vx *= 0.75; this.groundBounces++;
           if (Math.abs(this.vy) < 1.2) { this.dead = true; this.inFlight = false; this.vx = 0; this.vy = 0; this.spinning = false; }
         } else { this.dead = true; this.inFlight = false; this.vx = 0; this.vy = 0; this.spinning = false; }

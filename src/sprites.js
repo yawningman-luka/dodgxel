@@ -671,7 +671,7 @@ const Sprites = {
     const spPct = player.spCharge / C.SP_CHARGE_MAX;
     const ready = spPct >= 1;
     const pColors = { rocket:C.COL.SP_ROCKET, double:C.COL.SP_DOUBLE, shadow:C.COL.SP_SHADOW, curve:C.COL.SP_CURVE,
-                       boomerang:C.COL.SP_BOOMERANG, blaze:C.COL.SP_BLAZE, heavy:C.COL.SP_HEAVY, seeker:C.COL.SP_SEEKER, split:C.COL.SP_SPLIT };
+                       boomerang:C.COL.SP_BOOMERANG, blaze:C.COL.SP_BLAZE, heavy:C.COL.SP_HEAVY, seeker:C.COL.SP_SEEKER, split:C.COL.SP_SPLIT, burst:C.COL.SP_BURST };
     const pCol = pColors[player.currentPower] || '#FFD700';
     const pfx = dir > 0 ? x + IW : x, pfw = BW - IW;
 

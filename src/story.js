@@ -1041,10 +1041,8 @@ class StoryGame {
   _startAct(idx) {
     this.actIndex = idx;
     this._dlgPhase = 'intro';
-    this._gazetteActIdx = idx;
-    this._gazettePrevActIdx = idx > 0 ? idx - 1 : -1;
-    this._gazetteMode = 'pre_act';
-    this.subState = 'story_intro';
+    const act = STORY_ACTS[idx];
+    this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
   }
 
   // ── Combat setup ─────────────────────────────────────────────────────────────

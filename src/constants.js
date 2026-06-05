@@ -63,6 +63,7 @@ const C = {
     SP_BOOMERANG: '#E8A020',
     SP_BLAZE:     '#FF4400',
     SP_HEAVY:     '#A08060',
+    SP_BURST:     '#88DDFF',
     SP_SEEKER:    '#FF00CC',
     SP_SPLIT:     '#44FF88',
     SP_EXPLODE:   '#FF6B00',
@@ -103,9 +104,9 @@ const C = {
   },
 
   // Superpowers — all shoot-based, randomly assigned when bar fills
-  POWERS: ['rocket', 'double', 'shadow', 'curve', 'boomerang', 'blaze', 'heavy', 'seeker', 'split', 'explode'],
+  POWERS: ['rocket', 'double', 'shadow', 'curve', 'boomerang', 'blaze', 'heavy', 'seeker', 'split', 'explode', 'burst'],
   POWER_NAMES: { rocket:'ROCKET', double:'DOUBLE', shadow:'SHADOW', curve:'CURVE',
-                 boomerang:'BOOMERANG', blaze:'BLAZE', heavy:'HEAVY', seeker:'SEEKER', split:'SPLIT', explode:'EXPLODE' },
+                 boomerang:'BOOMERANG', blaze:'BLAZE', heavy:'HEAVY', seeker:'SEEKER', split:'SPLIT', explode:'EXPLODE', burst:'BURST' },
 
   // Controls screen action list and labels
   CTRL_ACTIONS: ['left','right','jump','crouch','throw','catch','shield'],
@@ -135,9 +136,9 @@ const CHARACTERS = [
   { id:'blaze', name:'BLAZE',  type:'boy',  power:'blaze',
     colors:{ shirt:'#CC2200', pants:'#881100', hair:'#FF9900', hairDark:'#CC6600', hairType:'spiky',    accessory:'none',     shirtSymbol:'⚡' },
     bio:'Fire trail on every throw. Burns the floor.', accentCol:'#FF4400' },
-  { id:'tank',  name:'TANK',   type:'boy',  power:'heavy',
+  { id:'tank',  name:'TANK',   type:'boy',  power:'burst',
     colors:{ shirt:'#556677', pants:'#334455', hair:'#3A3A3A', hairDark:'#222222', hairType:'buzz',     accessory:'none',     shirtSymbol:'♥' },
-    bio:'Massive slow ball. Almost undodgeable.', accentCol:'#A08060' },
+    bio:'Fires a rapid burst of tiny balls. Vanish on contact.', accentCol:'#88DDFF' },
   { id:'iris',  name:'IRIS',   type:'girl', power:'seeker',
     colors:{ shirt:'#CC0088', pants:'#880055', hair:'#00DDAA', hairDark:'#00AA88', hairType:'long',     accessory:'glasses',  shirtSymbol:'★' },
     bio:'Homes in on the opponent. No escape.', accentCol:'#FF00CC' },
