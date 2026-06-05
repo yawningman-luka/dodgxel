@@ -5,7 +5,7 @@ const STORY_WORLD_W = 2400;
 // Per-act enemy definitions
 const STORY_ENEMY_DEFS = {
   // Act 2 — Ancients
-  golem:      { speed: 0.55, hp: 3, w: 34, h: 58, throwInterval: 3500, throwSpeed: 4.0, color: '#8B7355', pants: '#6B5335' },
+  golem:      { speed: 0.55, hp: 3, w: 34, h: 58, throwInterval: 3500, throwSpeed: 1.0, color: '#8B7355', pants: '#6B5335' },
   hex_spirit: { speed: 1.3,  hp: 1, w: 18, h: 40, throwInterval: 1500, throwSpeed: 5.5, color: '#9955CC', pants: '#7733AA', teleports: true },
   // Act 3 — Military
   soldier:    { speed: 1.5,  hp: 1, w: 20, h: 44, throwInterval: 1800, throwSpeed: 6.5, color: '#556677', pants: '#334455' },
@@ -98,10 +98,10 @@ const STORY_ACTS = [
       [{ type: 'golem',      count: 3 }],
       [{ type: 'golem',      count: 4 }],
       [{ type: 'golem',      count: 3 }, { type: 'hex_spirit', count: 1 }],
+      [{ type: 'hex_spirit', count: 1 }],
       [{ type: 'hex_spirit', count: 2 }],
-      [{ type: 'hex_spirit', count: 3 }],
-      [{ type: 'golem',      count: 2 }, { type: 'hex_spirit', count: 2 }],
-      [{ type: 'golem',      count: 3 }, { type: 'hex_spirit', count: 2 }],
+      [{ type: 'golem',      count: 2 }, { type: 'hex_spirit', count: 1 }],
+      [{ type: 'golem',      count: 3 }, { type: 'hex_spirit', count: 1 }],
       // Wave 10: BOSS — Stone Guardian (DUAL HIT within 400ms)
       [{ type: 'stone_guardian', count: 1 }],
     ],
