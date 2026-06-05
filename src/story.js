@@ -68,13 +68,22 @@ class StoryEnemy {
     this.throwTimer -= dt;
     if (this.throwTimer <= 0) {
       this.throwTimer = def.throwInterval * (0.8 + Math.random() * 0.4);
-      const dx = target.x - this.x;
-      const dy = (target.y - 22) - (this.y - this.h * 0.55);
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const eb = new EnemyBall(
-        this.x + Math.sign(dx) * this.w * 0.45, this.y - this.h * 0.6,
-        (dx / len) * def.throwSpeed, (dy / len) * def.throwSpeed - 1.5
-      );
+      const sx = this.x + Math.sign(target.x - this.x) * this.w * 0.45;
+      const sy = this.y - this.h * 0.6;
+      const dx = target.x - sx;
+      const dy = (target.y - 22) - sy;
+      let evx, evy;
+      if (this.type === 'golem' || this.type === 'stone_guardian') {
+        // Lob in a parabolic arc toward the player
+        const T = Math.max(45, Math.abs(dx) / 5);
+        evx = dx / T;
+        evy = (dy - 0.5 * C.BALL_GRAVITY * T * T) / T;
+      } else {
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        evx = (dx / len) * def.throwSpeed;
+        evy = (dy / len) * def.throwSpeed - 1.5;
+      }
+      const eb = new EnemyBall(sx, sy, evx, evy);
       if (this.type !== 'mech_fluffkins') {
         if (this.type === 'golem') eb.rock = true;
         if (this.type === 'stone_guardian') { eb.rock = true; eb.bigRock = true; }
