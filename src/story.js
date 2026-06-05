@@ -2160,6 +2160,158 @@ class StoryGame {
         for(let c=0;c<3;c++) ctx.fillRect(1600+c*36, C.GROUND-80, 20, 80);
         drawDodgeSymbol(1655, C.GROUND-105, 11, '#BB9933', pulse*0.9);
 
+        // ── Monkey on each temple — progressively more infected ──────────────
+        // infectionLevel: 0=healthy, 1=infected, 2=heavily infected+glitch
+        const drawMonkey = (mx, my, infectionLevel) => {
+          ctx.save();
+          ctx.translate(mx, my);
+
+          // Glitch at level 2: randomly shift the entire drawing
+          const glitching = infectionLevel === 2;
+          const glitchX = glitching ? (Math.sin(T*0.031)*4 + (Math.random()-0.5)*3) : 0;
+          const glitchY = glitching ? (Math.cos(T*0.027)*2) : 0;
+          ctx.translate(glitchX, glitchY);
+
+          // Body / fur colour based on infection
+          const furCol  = infectionLevel===0 ? '#8B5E3C'
+                        : infectionLevel===1 ? '#6B6B2E'
+                        :                      '#3D2855';
+          const furDark = infectionLevel===0 ? '#6B3E1C'
+                        : infectionLevel===1 ? '#4B4B0E'
+                        :                      '#1D0835';
+          const faceCol = infectionLevel===0 ? '#C89060'
+                        : infectionLevel===1 ? '#909040'
+                        :                      '#5A2080';
+          const eyeCol  = infectionLevel===0 ? '#1a1a10'
+                        : infectionLevel===1 ? '#440000'
+                        :                      '#00FF88';
+
+          // Scratch anim — arm oscillates up toward head
+          const scratchCycle = Math.sin(T * 0.006);
+          const scratchY = -4 + scratchCycle * 4;   // arm tip Y
+
+          // --- Body (sitting) ---
+          ctx.fillStyle=furCol;
+          ctx.fillRect(-7, -22, 14, 14);            // torso
+          // belly patch
+          ctx.fillStyle=faceCol;
+          ctx.fillRect(-4, -20, 8, 10);
+
+          // --- Head ---
+          ctx.fillStyle=furCol;
+          ctx.beginPath(); ctx.ellipse(0, -30, 9, 8, 0, 0, Math.PI*2); ctx.fill();
+          // face
+          ctx.fillStyle=faceCol;
+          ctx.beginPath(); ctx.ellipse(0, -27, 6, 5, 0, 0, Math.PI*2); ctx.fill();
+
+          // Ears
+          ctx.fillStyle=furDark;
+          ctx.beginPath(); ctx.ellipse(-9, -32, 4, 3, -0.3, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse( 9, -32, 4, 3,  0.3, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle=faceCol;
+          ctx.beginPath(); ctx.ellipse(-9, -32, 2, 1.5, -0.3, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse( 9, -32, 2, 1.5,  0.3, 0, Math.PI*2); ctx.fill();
+
+          // Eyes
+          ctx.fillStyle=eyeCol;
+          ctx.fillRect(-5, -31, 3, 3);
+          ctx.fillRect( 2, -31, 3, 3);
+          // Eye pupils / shine
+          ctx.fillStyle='#ffffff';
+          ctx.fillRect(-4, -30, 1, 1);
+          ctx.fillRect( 3, -30, 1, 1);
+
+          // Infection eyes: level 1 one droops, level 2 both flicker offset
+          if(infectionLevel===1){
+            // Left eye drooping — eyelid
+            ctx.fillStyle='#6B6B2E'; ctx.fillRect(-5,-31,3,2);
+          }
+          if(infectionLevel===2){
+            // Twitching — draw a second eye ghost offset
+            ctx.globalAlpha=0.45;
+            ctx.fillStyle='#FF00CC';
+            ctx.fillRect(-5+Math.floor(Math.sin(T*0.05)*3), -31, 3, 3);
+            ctx.fillRect( 2+Math.floor(Math.cos(T*0.04)*3), -31, 3, 3);
+            ctx.globalAlpha=1;
+          }
+
+          // Nose / mouth
+          ctx.fillStyle=furDark;
+          ctx.fillRect(-1, -26, 3, 2);              // nostrils
+          // Mouth — level 0: neutral, 1: grimace, 2: open wide
+          ctx.strokeStyle=furDark; ctx.lineWidth=1;
+          if(infectionLevel===0){
+            ctx.beginPath(); ctx.moveTo(-3,-23); ctx.quadraticCurveTo(0,-22, 3,-23); ctx.stroke();
+          } else if(infectionLevel===1){
+            ctx.beginPath(); ctx.moveTo(-4,-24); ctx.quadraticCurveTo(0,-26, 4,-24); ctx.stroke();
+          } else {
+            ctx.fillStyle='#110022';
+            ctx.beginPath(); ctx.ellipse(0,-23, 4, 3, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#ffffff'; ctx.fillRect(-3,-24,2,2); ctx.fillRect(1,-24,2,2); // teeth
+          }
+
+          // Tail (curled behind)
+          ctx.strokeStyle=furCol; ctx.lineWidth=4; ctx.lineCap='round';
+          ctx.beginPath();
+          ctx.moveTo(7,-10); ctx.quadraticCurveTo(20,-2, 16, 8); ctx.quadraticCurveTo(10,14,4,8);
+          ctx.stroke();
+
+          // --- Left arm (idle, resting) ---
+          ctx.strokeStyle=furCol; ctx.lineWidth=4;
+          ctx.beginPath(); ctx.moveTo(-7,-16); ctx.lineTo(-14,-18); ctx.stroke();
+          ctx.fillStyle=faceCol;
+          ctx.beginPath(); ctx.ellipse(-15,-19, 3, 3, 0, 0, Math.PI*2); ctx.fill();
+
+          // --- Right arm (scratching head) ---
+          ctx.strokeStyle=furCol; ctx.lineWidth=4;
+          ctx.beginPath(); ctx.moveTo(7,-18); ctx.lineTo(12, scratchY-26); ctx.stroke();
+          ctx.fillStyle=faceCol;
+          ctx.beginPath(); ctx.ellipse(12, scratchY-27, 3, 3, 0, 0, Math.PI*2); ctx.fill();
+
+          // --- Legs (sitting, dangling) ---
+          ctx.strokeStyle=furCol; ctx.lineWidth=5;
+          ctx.beginPath(); ctx.moveTo(-4,-8); ctx.lineTo(-6,2); ctx.lineTo(-10,4); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( 4,-8); ctx.lineTo( 6,2); ctx.lineTo(10,4); ctx.stroke();
+          ctx.fillStyle=furDark;
+          ctx.beginPath(); ctx.ellipse(-10,5,3,2,0,0,Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse( 10,5,3,2,0,0,Math.PI*2); ctx.fill();
+
+          // Infection overlays
+          if(infectionLevel>=1){
+            // Vein lines on face
+            ctx.strokeStyle='rgba(180,40,40,0.55)'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(-3,-29); ctx.lineTo(-6,-24); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo( 2,-29); ctx.lineTo( 4,-25); ctx.stroke();
+          }
+          if(infectionLevel>=2){
+            // Dark spreading blotches on body
+            ctx.fillStyle='rgba(80,0,120,0.55)';
+            ctx.beginPath(); ctx.ellipse(-3,-18, 5, 4, 0.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(4,-13, 4, 3, -0.3, 0, Math.PI*2); ctx.fill();
+            // Digital corruption bars
+            const numBars = 3+Math.floor(Math.sin(T*0.009)*2);
+            for(let bi=0; bi<numBars; bi++){
+              const barY = -34 + bi*7 + Math.floor(Math.sin(T*0.02+bi)*2);
+              const barOff = Math.floor((Math.sin(T*0.033+bi*1.3))*6);
+              ctx.fillStyle = bi%2===0 ? 'rgba(0,255,180,0.35)' : 'rgba(180,0,255,0.30)';
+              ctx.fillRect(-9+barOff, barY, 18, 4);
+            }
+            // Scanline ghost — displaced copy
+            ctx.globalAlpha=0.25;
+            ctx.fillStyle='#00FFCC';
+            ctx.beginPath(); ctx.ellipse(Math.sin(T*0.04)*5, -30, 9, 8, 0, 0, Math.PI*2); ctx.fill();
+            ctx.globalAlpha=1;
+          }
+          ctx.restore();
+        };
+
+        // Left small temple — healthy monkey
+        drawMonkey(365, C.GROUND-96, 0);
+        // Main temple — infected monkey
+        drawMonkey(1000, C.GROUND-134, 1);
+        // Right temple — glitching monkey
+        drawMonkey(1655, C.GROUND-108, 2);
+
         // 5 half-buried skeletons at specific distances
         const skeletons = [
           { x: 180,  variant: 0 }, // arm pointing up
