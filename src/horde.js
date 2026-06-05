@@ -33,7 +33,8 @@ class EnemyBall {
   update() {
     this.vy += C.BALL_GRAVITY;
     this.x += this.vx; this.y += this.vy;
-    if (this.x < -40 || this.x > C.W + 40) { this.dead = true; return; }
+    const _worldW = this.worldW || C.W;
+    if (this.x < -40 || this.x > _worldW + 40) { this.dead = true; return; }
     if (this.y + C.BALL_R >= C.GROUND) {
       this.y = C.GROUND - C.BALL_R;
       if (this.groundBounces < 1) {

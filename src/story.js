@@ -84,6 +84,7 @@ class StoryEnemy {
         evy = (dy / len) * def.throwSpeed - 1.5;
       }
       const eb = new EnemyBall(sx, sy, evx, evy);
+      eb.worldW = STORY_WORLD_W;
       if (this.type !== 'mech_fluffkins') {
         if (this.type === 'golem') eb.rock = true;
         if (this.type === 'stone_guardian') { eb.rock = true; eb.bigRock = true; }
@@ -2072,7 +2073,7 @@ class StoryGame {
       lx, ty, lW, 13, '9.5px Georgia, serif');
     ty += 3;
     ty = drawWrap(
-      '"Honestly we have no idea why they\'re immune," admitted Dr. Reyes. "But the towers need destroying, and these are the only people awake. So. Good luck, champ."',
+      '"Patient Zero is somewhere out there, spreading this thing like free samples at a mall," confirmed Dr. Wendy via fax from an undisclosed bunker. "Stop him, and the infection collapses. Also, please use the dodgeballs. We have so many dodgeballs."',
       lx, ty, lW, 13, 'italic 9.5px Georgia, serif');
 
     // ── City scene box ────────────────────────────────────────────────────────
