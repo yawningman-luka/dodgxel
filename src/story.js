@@ -1040,9 +1040,10 @@ class StoryGame {
   // ── Act start: show gazette first, then NPC intro dialogue, then combat ──────
   _startAct(idx) {
     this.actIndex = idx;
-    this._dlgPhase = 'intro';
-    const act = STORY_ACTS[idx];
-    this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
+    this._gazetteMode = 'pre_act';
+    this._gazetteActIdx = idx;
+    this._gazettePrevActIdx = idx - 1;
+    this.subState = 'story_intro';
   }
 
   // ── Combat setup ─────────────────────────────────────────────────────────────
@@ -2182,94 +2183,248 @@ class StoryGame {
     ty += 3;
     if (_gc.paras[3]) ty = drawWrap(_gc.paras[3], lx, ty, lW, 13, '9.5px Georgia, serif');
 
-    // ── City scene box ────────────────────────────────────────────────────────
+    // ── Act scene box ─────────────────────────────────────────────────────────
     const cityBoxY = ty + 8, cityBoxH = H - 34 - cityBoxY - 14;
     const cityBoxW = lW;
+    const _actScene = this._gazetteActIdx;
 
-    // Clip to box
     ctx.save();
     ctx.beginPath(); ctx.rect(lx, cityBoxY, cityBoxW, cityBoxH); ctx.clip();
 
-    // Sky gradient (B&W)
     const csg = ctx.createLinearGradient(lx, cityBoxY, lx, cityBoxY + cityBoxH);
-    csg.addColorStop(0, '#1c1c1c'); csg.addColorStop(0.7, '#383838'); csg.addColorStop(1, '#505050');
-    ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, cityBoxW, cityBoxH);
+    const _ground = cityBoxY + cityBoxH;
+    const _sceneW = cityBoxW;
 
-    // Moon
-    ctx.fillStyle = '#d8d8d8'; ctx.beginPath(); ctx.arc(lx + cityBoxW - 38, cityBoxY + 16, 11, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(lx + cityBoxW - 34, cityBoxY + 14, 9, 0, Math.PI*2); ctx.fill();
+    if (_actScene === 0) {
+      // ── Act 1: City Ruins ──────────────────────────────────────────────────
+      csg.addColorStop(0, '#1c1c1c'); csg.addColorStop(0.7, '#383838'); csg.addColorStop(1, '#505050');
+      ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, _sceneW, cityBoxH);
+      ctx.fillStyle = '#d8d8d8'; ctx.beginPath(); ctx.arc(lx + _sceneW - 38, cityBoxY + 16, 11, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(lx + _sceneW - 34, cityBoxY + 14, 9, 0, Math.PI*2); ctx.fill();
+      const bx = lx;
+      const buildings = [
+        { x:bx+0,   w:52, h:88, crack:true  }, { x:bx+50,  w:38, h:60, crack:false },
+        { x:bx+86,  w:60, h:102,crack:true  }, { x:bx+144, w:34, h:74, crack:false },
+        { x:bx+176, w:46, h:90, crack:true  }, { x:bx+220, w:30, h:58, crack:false },
+        { x:bx+248, w:68, h:112,crack:true  }, { x:bx+314, w:36, h:68, crack:false },
+        { x:bx+348, w:52, h:96, crack:true  }, { x:bx+398, w:42, h:72, crack:false },
+        { x:bx+438, w:24, h:50, crack:false },
+      ];
+      for (const b of buildings) {
+        const by = _ground - b.h;
+        ctx.fillStyle = '#2e2e2e'; ctx.fillRect(b.x, by, b.w, b.h);
+        const cols = Math.floor(b.w / 10), rows = Math.floor(b.h / 12);
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const lit = ((b.x + c * 3 + r * 7) % 5) !== 0;
+            ctx.fillStyle = lit ? '#aaaaaa' : '#1a1a1a';
+            ctx.fillRect(b.x + 3 + c * 10, by + 4 + r * 12, 5, 7);
+          }
+        }
+        if (b.crack) {
+          ctx.fillStyle = '#1c1c1c';
+          ctx.beginPath(); ctx.moveTo(b.x, by); ctx.lineTo(b.x + b.w*0.2, by-6);
+          ctx.lineTo(b.x + b.w*0.35, by+2); ctx.lineTo(b.x + b.w*0.55, by-10);
+          ctx.lineTo(b.x + b.w*0.75, by-3); ctx.lineTo(b.x + b.w, by);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#404040'; ctx.fillRect(b.x, _ground - 8, b.w, 8);
+        }
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 0.6; ctx.strokeRect(b.x, by, b.w, b.h);
+      }
+      for (let i = 0; i < 3; i++) {
+        const sx = lx + 90 + i*140, sy = _ground - 105 - i*15;
+        ctx.globalAlpha = 0.18; ctx.fillStyle = '#aaa';
+        ctx.beginPath(); ctx.ellipse(sx, sy, 12, 22, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(sx+8, sy-18, 10, 18, 0.3, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
 
-    // Buildings (static B&W silhouettes)
-    const ground = cityBoxY + cityBoxH;
-    const bx = lx;
-    const buildings = [
-      // x, w, h, damage
-      { x:bx+0,   w:52, h:88, crack:true  },
-      { x:bx+50,  w:38, h:60, crack:false },
-      { x:bx+86,  w:60, h:102,crack:true  },
-      { x:bx+144, w:34, h:74, crack:false },
-      { x:bx+176, w:46, h:90, crack:true  },
-      { x:bx+220, w:30, h:58, crack:false },
-      { x:bx+248, w:68, h:112,crack:true  },
-      { x:bx+314, w:36, h:68, crack:false },
-      { x:bx+348, w:52, h:96, crack:true  },
-      { x:bx+398, w:42, h:72, crack:false },
-      { x:bx+438, w:24, h:50, crack:false },
-    ];
-    for (const b of buildings) {
-      const by = ground - b.h;
-      // Building body
-      ctx.fillStyle = '#2e2e2e';
-      ctx.fillRect(b.x, by, b.w, b.h);
-      // Windows (lit = light, dark = off)
-      const cols = Math.floor(b.w / 10), rows = Math.floor(b.h / 12);
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const lit = ((b.x + c * 3 + r * 7) % 5) !== 0;
-          ctx.fillStyle = lit ? '#aaaaaa' : '#1a1a1a';
-          ctx.fillRect(b.x + 3 + c * 10, by + 4 + r * 12, 5, 7);
+    } else if (_actScene === 1) {
+      // ── Act 2: Jungle Ruins ────────────────────────────────────────────────
+      csg.addColorStop(0, '#0e0e0e'); csg.addColorStop(0.6, '#1a1a1a'); csg.addColorStop(1, '#282828');
+      ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, _sceneW, cityBoxH);
+      // Moon through canopy
+      ctx.fillStyle = '#c8c8c8'; ctx.beginPath(); ctx.arc(lx + _sceneW*0.6, cityBoxY + 18, 10, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(lx + _sceneW*0.6 + 3, cityBoxY + 15, 8, 0, Math.PI*2); ctx.fill();
+      // Background trees
+      const bgTrees = [
+        {x:lx+20, h:80}, {x:lx+70, h:95}, {x:lx+130, h:70}, {x:lx+190, h:90},
+        {x:lx+250, h:75}, {x:lx+310, h:100}, {x:lx+370, h:85}, {x:lx+420, h:78},
+      ];
+      for (const t of bgTrees) {
+        ctx.fillStyle = '#1e1e1e';
+        ctx.fillRect(t.x - 6, _ground - t.h, 12, t.h);
+        ctx.beginPath(); ctx.moveTo(t.x, _ground-t.h-28); ctx.lineTo(t.x-18, _ground-t.h+10); ctx.lineTo(t.x+18, _ground-t.h+10); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(t.x, _ground-t.h-40); ctx.lineTo(t.x-13, _ground-t.h-14); ctx.lineTo(t.x+13, _ground-t.h-14); ctx.closePath(); ctx.fill();
+      }
+      // Vines
+      for (let i = 0; i < 4; i++) {
+        const vx = lx + 50 + i * 110;
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(vx, cityBoxY);
+        ctx.bezierCurveTo(vx+15, cityBoxY+30, vx-10, cityBoxY+60, vx+8, cityBoxY+100); ctx.stroke();
+        ctx.fillStyle = '#252525';
+        ctx.beginPath(); ctx.ellipse(vx+12, cityBoxY+40, 8, 5, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(vx-5, cityBoxY+70, 7, 4, -0.3, 0, Math.PI*2); ctx.fill();
+      }
+      // Stone ruins at ground
+      for (let i = 0; i < 5; i++) {
+        const rx2 = lx + 20 + i*90, rw2 = 25 + (i%3)*10, rh2 = 12 + (i%2)*8;
+        ctx.fillStyle = '#2a2a2a'; ctx.fillRect(rx2, _ground - rh2, rw2, rh2);
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 0.5; ctx.strokeRect(rx2, _ground - rh2, rw2, rh2);
+      }
+      // Ground foliage blobs
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = '#1a1a1a'; ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.ellipse(lx + 15 + i*78, _ground, 28, 14, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+    } else if (_actScene === 2) {
+      // ── Act 3: Snow Highlands ──────────────────────────────────────────────
+      csg.addColorStop(0, '#0a0a14'); csg.addColorStop(0.5, '#141420'); csg.addColorStop(1, '#282830');
+      ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, _sceneW, cityBoxH);
+      // Stars
+      for (const s of [7,19,31,43,61,73,89,97,103,127,151]) {
+        const sx2 = lx + (s*37) % (_sceneW-10) + 5, sy2 = cityBoxY + (s*23) % (cityBoxH*0.5);
+        ctx.fillStyle = '#cccccc'; ctx.globalAlpha = 0.5 + (s%4)*0.12;
+        ctx.fillRect(sx2, sy2, 1, 1); ctx.globalAlpha = 1;
+      }
+      // Back mountains
+      ctx.fillStyle = '#1e1e28';
+      ctx.beginPath(); ctx.moveTo(lx, _ground);
+      ctx.lineTo(lx+60, _ground-80); ctx.lineTo(lx+140, _ground-50); ctx.lineTo(lx+220, _ground-105);
+      ctx.lineTo(lx+300, _ground-60); ctx.lineTo(lx+380, _ground-90); ctx.lineTo(lx+_sceneW, _ground-40);
+      ctx.lineTo(lx+_sceneW, _ground); ctx.closePath(); ctx.fill();
+      // Snow caps
+      ctx.fillStyle = '#888898';
+      ctx.beginPath(); ctx.moveTo(lx+50,_ground-70); ctx.lineTo(lx+60,_ground-80); ctx.lineTo(lx+70,_ground-70); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(lx+208,_ground-93); ctx.lineTo(lx+220,_ground-105); ctx.lineTo(lx+232,_ground-93); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(lx+368,_ground-78); ctx.lineTo(lx+380,_ground-90); ctx.lineTo(lx+392,_ground-78); ctx.closePath(); ctx.fill();
+      // Front hills
+      ctx.fillStyle = '#282830';
+      ctx.beginPath(); ctx.moveTo(lx, _ground);
+      ctx.lineTo(lx+80, _ground-55); ctx.lineTo(lx+160, _ground-30); ctx.lineTo(lx+260, _ground-65);
+      ctx.lineTo(lx+340, _ground-40); ctx.lineTo(lx+420, _ground-70); ctx.lineTo(lx+_sceneW, _ground-20);
+      ctx.lineTo(lx+_sceneW, _ground); ctx.closePath(); ctx.fill();
+      // Pine trees
+      for (const p of [{x:lx+30,h:50},{x:lx+100,h:62},{x:lx+175,h:45},{x:lx+320,h:58},{x:lx+400,h:42}]) {
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(p.x - 3, _ground - p.h, 6, p.h);
+        for (let layer = 0; layer < 3; layer++) {
+          const ly = _ground - p.h + layer*(p.h*0.25), lw = 12 + layer*8;
+          ctx.beginPath(); ctx.moveTo(p.x, ly-14+layer*2); ctx.lineTo(p.x-lw/2, ly+8); ctx.lineTo(p.x+lw/2, ly+8); ctx.closePath(); ctx.fill();
         }
       }
-      // Crumbled top
-      if (b.crack) {
-        ctx.fillStyle = '#1c1c1c';
-        ctx.beginPath();
-        ctx.moveTo(b.x, by);
-        ctx.lineTo(b.x + b.w * 0.2, by - 6);
-        ctx.lineTo(b.x + b.w * 0.35, by + 2);
-        ctx.lineTo(b.x + b.w * 0.55, by - 10);
-        ctx.lineTo(b.x + b.w * 0.75, by - 3);
-        ctx.lineTo(b.x + b.w, by);
-        ctx.closePath(); ctx.fill();
-        // Rubble at base
-        ctx.fillStyle = '#404040';
-        ctx.fillRect(b.x, ground - 8, b.w, 8);
-      }
-      // Building outline
-      ctx.strokeStyle = '#555'; ctx.lineWidth = 0.6;
-      ctx.strokeRect(b.x, by, b.w, b.h);
-    }
+      // Snow ground
+      ctx.fillStyle = '#606068'; ctx.fillRect(lx, _ground-10, _sceneW, 10);
+      ctx.fillStyle = '#888898'; ctx.fillRect(lx, _ground-4, _sceneW, 4);
 
-    // Smoke wisps
-    for (let i = 0; i < 3; i++) {
-      const sx = lx + 90 + i * 140, sy = ground - 105 - i * 15;
-      ctx.globalAlpha = 0.18;
-      ctx.fillStyle = '#aaa';
-      ctx.beginPath(); ctx.ellipse(sx, sy, 12, 22, 0, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(sx + 8, sy - 18, 10, 18, 0.3, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
+    } else if (_actScene === 3) {
+      // ── Act 4: Castle ─────────────────────────────────────────────────────
+      csg.addColorStop(0, '#10080e'); csg.addColorStop(0.6, '#1a100a'); csg.addColorStop(1, '#282010');
+      ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, _sceneW, cityBoxH);
+      // Moon
+      ctx.fillStyle = '#b0a890'; ctx.beginPath(); ctx.arc(lx+_sceneW*0.5, cityBoxY+22, 18, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#888070'; ctx.globalAlpha = 0.4;
+      ctx.beginPath(); ctx.arc(lx+_sceneW*0.5-4, cityBoxY+19, 14, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      // Back wall
+      ctx.fillStyle = '#1e1810'; ctx.fillRect(lx, _ground-40, _sceneW, 40);
+      for (let i = 0; i < 14; i++) {
+        if (i%2===0) ctx.fillRect(lx+i*34, _ground-55, 22, 15);
+      }
+      // Left tower
+      ctx.fillStyle = '#181008'; ctx.fillRect(lx+10, _ground-120, 60, 120);
+      for (let i = 0; i < 4; i++) {
+        if (i%2===0) ctx.fillRect(lx+10+i*16, _ground-135, 12, 15);
+      }
+      ctx.fillStyle = '#888060'; ctx.globalAlpha = 0.7;
+      ctx.fillRect(lx+30, _ground-90, 14, 20); ctx.globalAlpha = 1;
+      // Right tower
+      ctx.fillStyle = '#181008'; ctx.fillRect(lx+_sceneW-70, _ground-140, 62, 140);
+      for (let i = 0; i < 4; i++) {
+        if (i%2===0) ctx.fillRect(lx+_sceneW-70+i*16, _ground-155, 12, 15);
+      }
+      ctx.fillStyle = '#ffcc44'; ctx.globalAlpha = 0.5;
+      ctx.fillRect(lx+_sceneW-52, _ground-110, 12, 18);
+      ctx.fillRect(lx+_sceneW-52, _ground-70, 12, 18); ctx.globalAlpha = 1;
+      // Gate arch
+      ctx.fillStyle = '#0e0808';
+      const gx = lx + _sceneW/2 - 22;
+      ctx.fillRect(gx, _ground-55, 44, 55);
+      ctx.beginPath(); ctx.arc(lx+_sceneW/2, _ground-55, 22, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = '#2a2020'; ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(gx+7+i*10, _ground-72); ctx.lineTo(gx+7+i*10, _ground); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(gx, _ground-30); ctx.lineTo(gx+44, _ground-30); ctx.stroke();
+      // Banner
+      ctx.fillStyle = '#2a1818';
+      ctx.fillRect(lx+_sceneW*0.5-1, _ground-145, 2, 25);
+      ctx.beginPath(); ctx.moveTo(lx+_sceneW*0.5+1, _ground-145);
+      ctx.lineTo(lx+_sceneW*0.5+22, _ground-136); ctx.lineTo(lx+_sceneW*0.5+1, _ground-128);
+      ctx.closePath(); ctx.fill();
+
+    } else {
+      // ── Act 5: Broadcast Tower ─────────────────────────────────────────────
+      csg.addColorStop(0, '#020210'); csg.addColorStop(0.5, '#05051a'); csg.addColorStop(1, '#0a0a20');
+      ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, _sceneW, cityBoxH);
+      // Grid lines
+      ctx.strokeStyle = '#181830'; ctx.lineWidth = 0.5;
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath(); ctx.moveTo(lx, cityBoxY+i*(cityBoxH/6)); ctx.lineTo(lx+_sceneW, cityBoxY+i*(cityBoxH/6)); ctx.stroke();
+      }
+      // City skyline
+      ctx.fillStyle = '#0e0e1e'; ctx.fillRect(lx, _ground-28, _sceneW, 28);
+      for (let i = 0; i < 9; i++) {
+        const bh2 = 25 + (i*13)%50;
+        ctx.fillRect(lx+10+i*50, _ground-28-bh2, 32, bh2);
+      }
+      // Tower
+      ctx.fillStyle = '#151528';
+      ctx.fillRect(lx+_sceneW/2-28, _ground-130, 56, 130);
+      ctx.fillRect(lx+_sceneW/2-18, _ground-180, 36, 60);
+      ctx.fillRect(lx+_sceneW/2-10, _ground-200, 20, 30);
+      ctx.strokeStyle = '#383858'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(lx+_sceneW/2, _ground-200); ctx.lineTo(lx+_sceneW/2, cityBoxY+8); ctx.stroke();
+      // Energy rings
+      for (let ring = 0; ring < 3; ring++) {
+        ctx.strokeStyle = '#303060'; ctx.lineWidth = 1; ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.ellipse(lx+_sceneW/2, _ground-80-ring*45, 38-ring*6, 6, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // Red warning light
+      ctx.fillStyle = '#662222'; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(lx+_sceneW/2, cityBoxY+10, 5, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.3; ctx.fillStyle = '#ff4444';
+      ctx.beginPath(); ctx.arc(lx+_sceneW/2, cityBoxY+10, 12, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      // Building windows
+      ctx.fillStyle = '#333355';
+      for (let i = 0; i < 6; i++) {
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(lx+18+i*50, _ground-50-(i%3)*10, 5, 8);
+        ctx.fillRect(lx+30+i*50, _ground-42-(i%2)*8, 5, 8);
+        ctx.globalAlpha = 1;
+      }
     }
 
     // Ground strip
-    ctx.fillStyle = '#222'; ctx.fillRect(lx, ground - 6, cityBoxW, 6);
+    ctx.fillStyle = '#222'; ctx.fillRect(lx, _ground - 6, cityBoxW, 6);
     ctx.restore();
 
     // Box border
     ctx.strokeStyle = '#333'; ctx.lineWidth = 1.2; ctx.strokeRect(lx, cityBoxY, cityBoxW, cityBoxH);
 
-    // Caption
+    // Caption (per-act)
+    const _sceneCaptions = [
+      'Dodgeville, Tuesday. Population: mostly stationary.',
+      'The Jungle Ruins. Something moves between the trees.',
+      'Snow Highlands. Cold enough to freeze a dodgeball.',
+      'Castle Ramparts. The drawbridge is definitely up.',
+      'Broadcast Tower. Signal: strong. Situation: critical.',
+    ];
     ctx.font = 'italic 8px Georgia, serif'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
-    ctx.fillText('Dodgeville, Tuesday. Population: mostly stationary.', lx + cityBoxW/2, cityBoxY + cityBoxH + 11);
+    ctx.fillText(_sceneCaptions[_actScene] || _sceneCaptions[0], lx + cityBoxW/2, cityBoxY + cityBoxH + 11);
 
     // Divider
     ctx.strokeStyle = '#888'; ctx.lineWidth = 0.7;
@@ -2319,13 +2474,37 @@ class StoryGame {
         ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY1, boxW, boxH);
       }
       ctx.restore();
-      ctx.save();
-      ctx.filter = 'grayscale(1) contrast(1.1)';
-      const p1cx = rx + rW/2, p1base = boxY1 + boxH - 14;
-      ctx.translate(p1cx, p1base); ctx.scale(portraitScale, portraitScale);
-      if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle',  1, 0, true, p1Colors);
-      else                   Sprites.drawBoy (ctx, 0, 0, 'idle',  1, 0, true, p1Colors);
-      ctx.restore();
+      const p1cx = rx + rW/2;
+      const _prevIdx1 = this._gazettePrevActIdx;
+      if (_prevIdx1 >= 0) {
+        const _bsC = [{bw:46,bh:9,hr:7},{bw:56,bh:11,hr:9},{bw:49,bh:9,hr:7},{bw:53,bh:10,hr:8}];
+        const bs1 = _bsC[Math.min(_prevIdx1, _bsC.length-1)];
+        const bGY1 = boxY1 + boxH - 18;
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.1)';
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.ellipse(p1cx - bs1.bw*0.15, bGY1, bs1.bw*0.5, bs1.bh*0.5, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p1cx + 3, bGY1 - bs1.bh*0.3, bs1.hr, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(p1cx + bs1.bw*0.3, bGY1 + 2, bs1.bw*0.25, bs1.bh*0.4, 0.3, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        const pb1 = bGY1 - bs1.hr - 1;
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.15)';
+        ctx.translate(p1cx, pb1); ctx.scale(portraitScale, portraitScale);
+        if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'throw', 1, 0, true, p1Colors);
+        else                   Sprites.drawBoy (ctx, 0, 0, 'throw', 1, 0, true, p1Colors);
+        ctx.restore();
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.2)';
+        ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(p1cx+18, pb1-34, 6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(p1cx+12, pb1-34); ctx.lineTo(p1cx+24, pb1-34); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p1cx+18, pb1-40); ctx.lineTo(p1cx+18, pb1-28); ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.1)';
+        ctx.translate(p1cx, boxY1 + boxH - 14); ctx.scale(portraitScale, portraitScale);
+        if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+        else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+        ctx.restore();
+      }
       ctx.fillStyle = '#f0eeea';
       ctx.fillRect(boxX+1, boxY1 + boxH - 16, boxW-2, 15);
       ctx.font = 'bold 9px Georgia, serif'; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
@@ -2347,13 +2526,37 @@ class StoryGame {
         ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY2, boxW, boxH);
       }
       ctx.restore();
-      ctx.save();
-      ctx.filter = 'grayscale(1) contrast(1.1)';
-      const p2cx = rx + rW/2, p2base = boxY2 + boxH - 14;
-      ctx.translate(p2cx, p2base); ctx.scale(portraitScale, portraitScale);
-      if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
-      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
-      ctx.restore();
+      const p2cx = rx + rW/2;
+      const _prevIdx2 = this._gazettePrevActIdx;
+      if (_prevIdx2 >= 0) {
+        const _bsC2 = [{bw:46,bh:9,hr:7},{bw:56,bh:11,hr:9},{bw:49,bh:9,hr:7},{bw:53,bh:10,hr:8}];
+        const bs2 = _bsC2[Math.min(_prevIdx2, _bsC2.length-1)];
+        const bGY2 = boxY2 + boxH - 18;
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.1)';
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.ellipse(p2cx - bs2.bw*0.15, bGY2, bs2.bw*0.5, bs2.bh*0.5, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p2cx + 3, bGY2 - bs2.bh*0.3, bs2.hr, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(p2cx + bs2.bw*0.3, bGY2 + 2, bs2.bw*0.25, bs2.bh*0.4, 0.3, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        const pb2 = bGY2 - bs2.hr - 1;
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.15)';
+        ctx.translate(p2cx, pb2); ctx.scale(portraitScale, portraitScale);
+        if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'throw', -1, 0, true, p2Colors);
+        else                   Sprites.drawBoy (ctx, 0, 0, 'throw', -1, 0, true, p2Colors);
+        ctx.restore();
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.2)';
+        ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(p2cx-18, pb2-34, 6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(p2cx-24, pb2-34); ctx.lineTo(p2cx-12, pb2-34); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p2cx-18, pb2-40); ctx.lineTo(p2cx-18, pb2-28); ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.save(); ctx.filter = 'grayscale(1) contrast(1.1)';
+        ctx.translate(p2cx, boxY2 + boxH - 14); ctx.scale(portraitScale, portraitScale);
+        if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
+        else                   Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
+        ctx.restore();
+      }
       ctx.fillStyle = '#f0eeea';
       ctx.fillRect(boxX+1, boxY2 + boxH - 16, boxW-2, 15);
       ctx.font = 'bold 9px Georgia, serif'; ctx.fillStyle = '#111'; ctx.textAlign = 'center';
@@ -2379,13 +2582,55 @@ class StoryGame {
       }
       ctx.restore();
 
-      ctx.save();
-      ctx.filter = 'grayscale(1) contrast(1.15)';
-      const pcx = rx + rW/2, pbase = boxY + boxH - 18;
-      ctx.translate(pcx, pbase); ctx.scale(portraitScale, portraitScale);
-      if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
-      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
-      ctx.restore();
+      const pcx = rx + rW/2;
+      const _prevIdx = this._gazettePrevActIdx;
+      if (_prevIdx >= 0) {
+        // Victory pose: fallen boss + hero with arm raised + ball
+        const _bossShapes = [
+          { bw:58, bh:12, hr:9  },  // patient_zero (act 0)
+          { bw:72, bh:14, hr:12 },  // stone_guardian (act 1)
+          { bw:63, bh:12, hr:9  },  // mech_fluffkins (act 2)
+          { bw:68, bh:13, hr:10 },  // iron_champion (act 3)
+        ];
+        const bs = _bossShapes[Math.min(_prevIdx, _bossShapes.length - 1)];
+        const bossGY = boxY + boxH - 26;
+        ctx.save();
+        ctx.filter = 'grayscale(1) contrast(1.1)';
+        // Boss body lying on side
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.ellipse(pcx - bs.bw*0.15, bossGY, bs.bw*0.5, bs.bh*0.5, 0, 0, Math.PI*2); ctx.fill();
+        // Boss head (under hero's feet)
+        ctx.beginPath(); ctx.arc(pcx + 4, bossGY - bs.bh*0.3, bs.hr, 0, Math.PI*2); ctx.fill();
+        // Boss legs trailing off
+        ctx.beginPath(); ctx.ellipse(pcx + bs.bw*0.3, bossGY + 3, bs.bw*0.25, bs.bh*0.4, 0.3, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        // Hero standing on boss, arm raised (throw pose)
+        const pbase_v = bossGY - bs.hr - 1;
+        ctx.save();
+        ctx.filter = 'grayscale(1) contrast(1.15)';
+        ctx.translate(pcx, pbase_v); ctx.scale(portraitScale, portraitScale);
+        if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'throw', 1, 0, true, p1Colors);
+        else                   Sprites.drawBoy (ctx, 0, 0, 'throw', 1, 0, true, p1Colors);
+        ctx.restore();
+        // Dodgeball above raised arm
+        ctx.save();
+        ctx.filter = 'grayscale(1) contrast(1.2)';
+        const ballX = pcx + 20, ballY = pbase_v - 44;
+        ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(ballX, ballY, 7, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(ballX - 7, ballY); ctx.lineTo(ballX + 7, ballY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ballX, ballY - 7); ctx.lineTo(ballX, ballY + 7); ctx.stroke();
+        ctx.restore();
+      } else {
+        // Act 1: no previous boss — plain idle pose
+        ctx.save();
+        ctx.filter = 'grayscale(1) contrast(1.15)';
+        const pbase = boxY + boxH - 18;
+        ctx.translate(pcx, pbase); ctx.scale(portraitScale, portraitScale);
+        if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+        else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+        ctx.restore();
+      }
 
       // Name plate inside box
       ctx.fillStyle = '#111'; ctx.fillRect(rx+1, boxY + boxH - 20, rW-2, 19);
@@ -2394,7 +2639,8 @@ class StoryGame {
 
       // Caption below box
       ctx.font = 'italic 8px Georgia, serif'; ctx.fillStyle = '#444';
-      ctx.fillText(`${p1Name} — Dodgeville's last hope.`, rx + rW/2, boxY + boxH + 12);
+      const _victCaption = _prevIdx >= 0 ? `${p1Name} — Undefeated.` : `${p1Name} — Dodgeville's last hope.`;
+      ctx.fillText(_victCaption, rx + rW/2, boxY + boxH + 12);
     }
 
     // ── Bottom prompt ─────────────────────────────────────────────────────────
