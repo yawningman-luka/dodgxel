@@ -1983,71 +1983,88 @@ class StoryGame {
   // ── Story Intro (newspaper cutout) ─────────────────────────────────────────
   _drawStoryIntro(ctx) {
     const W = C.W, H = C.H;
-    // Parchment / newsprint background
+
+    // ── Paper background ──────────────────────────────────────────────────────
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#e8e0c8'); bg.addColorStop(1, '#d4c8a4');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-    // Slightly yellowed texture overlay (vignette)
     const vig = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.8);
     vig.addColorStop(0, 'rgba(210,190,120,0)'); vig.addColorStop(1, 'rgba(140,110,50,0.38)');
     ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
 
-    // Torn top edge
+    // Torn edges
     ctx.fillStyle = '#cfc0a0';
     ctx.beginPath(); ctx.moveTo(0, 0);
-    for (let x = 0; x <= W; x += 18) ctx.lineTo(x, 2 + Math.sin(x * 0.31 + 1) * 4 + Math.random() * 2);
+    for (let x = 0; x <= W; x += 18) ctx.lineTo(x, 2 + Math.sin(x * 0.31 + 1) * 4);
     ctx.lineTo(W, 0); ctx.closePath(); ctx.fill();
-
-    // Torn bottom edge
-    ctx.fillStyle = '#cfc0a0';
     ctx.beginPath(); ctx.moveTo(0, H);
     for (let x = 0; x <= W; x += 20) ctx.lineTo(x, H - 2 - Math.sin(x * 0.27) * 5);
     ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
 
-    // Masthead rule lines
+    // ── Masthead ──────────────────────────────────────────────────────────────
     ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(20, 52); ctx.lineTo(W-20, 52); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20, 55); ctx.lineTo(W-20, 55); ctx.stroke();
-
-    // Masthead
     ctx.textAlign = 'center'; ctx.fillStyle = '#1a1000';
     ctx.font = 'bold 20px Georgia, serif';
     ctx.fillText('THE  DODGEVILLE  GAZETTE', W/2, 46);
-
-    // Bottom masthead rule
-    ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(20, 58); ctx.lineTo(W-20, 58); ctx.stroke();
-
-    // Date / edition line
     ctx.fillStyle = '#3a2c10'; ctx.font = '9px Georgia, serif';
     ctx.textAlign = 'left';  ctx.fillText('VOL. CLXXXVII  ·  No. 47', 22, 70);
     ctx.textAlign = 'right'; ctx.fillText('SPECIAL EMERGENCY EDITION  ·  FREE', W-22, 70);
     ctx.strokeStyle = '#3a2c10'; ctx.lineWidth = 0.8;
     ctx.beginPath(); ctx.moveTo(20, 73); ctx.lineTo(W-20, 73); ctx.stroke();
 
-    // Main headline
+    // Headline
     ctx.textAlign = 'center'; ctx.fillStyle = '#0e0800';
-    ctx.font = 'bold 23px Georgia, serif';
+    ctx.font = 'bold 22px Georgia, serif';
     ctx.fillText('MYSTERIOUS SIGNAL INFECTS CITY', W/2, 96);
-    ctx.font = 'bold 15px Georgia, serif';
-    ctx.fillText('— ONLY ATHLETES REMAIN IMMUNE? —', W/2, 115);
-
+    ctx.font = 'bold 14px Georgia, serif';
+    ctx.fillText('— ATHLETES IMMUNE — HEROES NEEDED NOW —', W/2, 114);
     ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(20, 120); ctx.lineTo(W-20, 120); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20, 119); ctx.lineTo(W-20, 119); ctx.stroke();
 
-    // Subheading
-    ctx.fillStyle = '#2a1e0a'; ctx.font = 'italic 10px Georgia, serif';
-    ctx.fillText('Signal source traced to digital broadcast tower outside city limits  ·  Authorities urge citizens to remain indoors', W/2, 131);
+    // ── Column layout ─────────────────────────────────────────────────────────
+    const colX = 390;
+    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(colX, 125); ctx.lineTo(colX, H - 32); ctx.stroke();
 
-    // Column separator x
-    const colX = W/2 - 10;
+    // ── Left column: city scene ───────────────────────────────────────────────
+    const lx = 22, lW = colX - 34;
+    const boxX = lx, boxY = 126, boxW = lW, boxH = 210;
 
-    // Helper: draw wrapped text in a column
-    const drawCol = (text, x, y, maxW, lineH, font) => {
-      ctx.font = font; ctx.textAlign = 'left';
-      const words = text.split(' ');
-      let row = '';
+    // Render a section of the Act 1 city scenery inside a clipped box
+    ctx.save();
+    ctx.beginPath(); ctx.rect(boxX, boxY, boxW, boxH); ctx.clip();
+
+    // Sky + ground background
+    const skyG = ctx.createLinearGradient(boxX, boxY, boxX, boxY + boxH);
+    skyG.addColorStop(0, '#1a1a2e'); skyG.addColorStop(1, '#2a2a3e');
+    ctx.fillStyle = skyG; ctx.fillRect(boxX, boxY, boxW, boxH);
+    // Map: world x=[0..480], world y=[C.GROUND-210..C.GROUND] → box
+    const sceneW = 480, sceneH = 210;
+    const sx = boxW / sceneW, sy = boxH / sceneH;
+    // After transform, world (0, C.GROUND) → (boxX, boxY+boxH)
+    ctx.translate(boxX, boxY + boxH - C.GROUND * sy);
+    ctx.scale(sx, sy);
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(0, C.GROUND, sceneW / sx, (H - C.GROUND) / sy);
+    this._drawScenery(ctx, 'city');
+    ctx.restore();
+
+    // Box border
+    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 1.2;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    // Caption
+    ctx.fillStyle = '#3a2808'; ctx.font = 'italic 8px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillText('Dodgeville, Tuesday morning.', boxX + boxW/2, boxY + boxH + 11);
+
+    // Short text
+    ctx.fillStyle = '#1a1000'; ctx.textAlign = 'left';
+    ctx.font = '9.5px Georgia, serif';
+    const drawWrap = (text, x, y, maxW, lineH) => {
+      const words = text.split(' '); let row = '';
       for (const word of words) {
         const test = row ? row + ' ' + word : word;
         if (ctx.measureText(test).width > maxW) { ctx.fillText(row, x, y); y += lineH; row = word; }
@@ -2055,73 +2072,50 @@ class StoryGame {
       }
       ctx.fillText(row, x, y); return y + lineH;
     };
+    drawWrap('A rogue NEXUS signal has overwritten Dodgeville. Only athletes with fast-twitch reflexes remain immune. The city needs heroes.',
+      lx, boxY + boxH + 24, lW, 13);
 
-    // Left column — main story text
-    ctx.fillStyle = '#1a1000';
-    const lx = 24, lW = colX - 30;
-    let ly = 148;
-    ly = drawCol('Residents of Dodgeville awoke Tuesday to find their neighbours, friends, and coworkers moving erratically — eyes aglow with a strange digital luminescence. Emergency services report that all affected individuals have been rendered hostile to non-infected persons.',
-      lx, ly, lW, 13, '9.5px Georgia, serif');
-    ly += 4;
-    ly = drawCol('Scientists at the Dodgeville Institute of Applied Kinetics (D.I.A.K.) believe the source is an unknown broadcast signal — dubbed the "NEXUS signal" — being transmitted from an unregistered tower beyond the eastern hills.',
-      lx, ly, lW, 13, '9.5px Georgia, serif');
-    ly += 4;
-    ly = drawCol('Curiously, only individuals with exceptional athletic reflexes appear to be fully immune to the broadcast. "There\'s something about kinetic processing — fast-twitch motor neurons," said one researcher, requesting anonymity. "The signal cannot fully overwrite a brain that moves faster than it can transmit."',
-      lx, ly, lW, 13, '9.5px Georgia, serif');
-    ly += 4;
-    drawCol('Dr. Wendy Callahan of D.I.A.K. has reportedly developed a partial cure — but it must be delivered personally to the broadcast tower\'s core emitter. City officials are calling for any available athletes to step forward.',
-      lx, ly, lW, 13, '9.5px Georgia, serif');
+    // ── Right column: player portrait(s) ─────────────────────────────────────
+    const rx = colX + 14, rW = W - colX - 34;
 
-    // Vertical column rule
-    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(colX + 2, 140); ctx.lineTo(colX + 2, H - 35); ctx.stroke();
+    ctx.fillStyle = '#1a1000'; ctx.font = 'bold 10px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillText('— OUR HEROES —', rx + rW/2, 137);
+    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(rx, 141); ctx.lineTo(rx + rW, 141); ctx.stroke();
 
-    // Right column — sketch placeholder + second story
-    const rx = colX + 18, rW = W - colX - 38;
+    const p1d = this._p1Data || {};
+    const p2d = this._p2Data || {};
+    const p1Name   = p1d.charName   || 'Player';
+    const p1Colors = p1d.charColors || null;
+    const p2Name   = p2d.charName;
+    const p2Colors = p2d.charColors || null;
+    const portraitScale = 3.5;
+    const groundBase = H - 50;
 
-    // Crude sketch box
-    ctx.strokeStyle = '#5a4820'; ctx.lineWidth = 1;
-    ctx.strokeRect(rx, 148, rW, 90);
-    ctx.fillStyle = '#d0c090'; ctx.fillRect(rx+1, 149, rW-2, 88);
-    // Sketch: a stick figure fleeing a glowing orb
-    ctx.strokeStyle = '#3a2808'; ctx.lineWidth = 1.5;
-    // glowing orb
-    ctx.fillStyle = '#88aaff'; ctx.beginPath(); ctx.arc(rx+rW-38, 192, 18, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#4466cc'; ctx.beginPath(); ctx.arc(rx+rW-38, 192, 18, 0, Math.PI*2); ctx.stroke();
-    // rays
-    ctx.lineWidth = 0.8; ctx.strokeStyle = '#8899ee';
-    for (let a = 0; a < 8; a++) {
-      const ang = a / 8 * Math.PI * 2;
-      ctx.beginPath(); ctx.moveTo(rx+rW-38+Math.cos(ang)*20, 192+Math.sin(ang)*20);
-      ctx.lineTo(rx+rW-38+Math.cos(ang)*28, 192+Math.sin(ang)*28); ctx.stroke();
+    if (this.coop && p2Name) {
+      const p1cx = rx + rW * 0.3, p2cx = rx + rW * 0.72;
+      ctx.save(); ctx.translate(p1cx, groundBase); ctx.scale(portraitScale, portraitScale);
+      if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle',  1, 0, true, p1Colors);
+      else                   Sprites.drawBoy (ctx, 0, 0, 'idle',  1, 0, true, p1Colors);
+      ctx.restore();
+      ctx.save(); ctx.translate(p2cx, groundBase); ctx.scale(portraitScale, portraitScale);
+      if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
+      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
+      ctx.restore();
+      ctx.fillStyle = '#1a1000'; ctx.font = 'bold 9px Georgia, serif'; ctx.textAlign = 'center';
+      ctx.fillText(p1Name, p1cx, groundBase + 14);
+      ctx.fillText(p2Name, p2cx, groundBase + 14);
+    } else {
+      const pcx = rx + rW / 2;
+      ctx.save(); ctx.translate(pcx, groundBase); ctx.scale(portraitScale, portraitScale);
+      if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+      ctx.restore();
+      ctx.fillStyle = '#1a1000'; ctx.font = 'bold 9px Georgia, serif'; ctx.textAlign = 'center';
+      ctx.fillText(p1Name, pcx, groundBase + 14);
     }
-    // stick person fleeing
-    ctx.strokeStyle = '#2a1800'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(rx+34, 168, 7, 0, Math.PI*2); ctx.stroke(); // head
-    ctx.beginPath(); ctx.moveTo(rx+34, 175); ctx.lineTo(rx+34, 203); ctx.stroke(); // body
-    ctx.beginPath(); ctx.moveTo(rx+34, 185); ctx.lineTo(rx+22, 196); ctx.stroke(); // arm back
-    ctx.beginPath(); ctx.moveTo(rx+34, 185); ctx.lineTo(rx+46, 190); ctx.stroke(); // arm fwd
-    ctx.beginPath(); ctx.moveTo(rx+34, 203); ctx.lineTo(rx+22, 222); ctx.stroke(); // leg back
-    ctx.beginPath(); ctx.moveTo(rx+34, 203); ctx.lineTo(rx+46, 218); ctx.stroke(); // leg fwd
-    // caption
-    ctx.fillStyle = '#3a2808'; ctx.font = 'italic 8px Georgia, serif'; ctx.textAlign = 'center';
-    ctx.fillText('Artist\'s impression: a citizen flees a NEXUS pulse', rx + rW/2, 247);
 
-    // Right column text
-    ctx.fillStyle = '#1a1000'; ctx.textAlign = 'left';
-    let ry = 258;
-    ctx.font = 'bold 10px Georgia, serif';
-    ctx.fillText('ATHLETICS COMMUNITY RESPONDS', rx, ry); ry += 14;
-    ry = drawCol('Amateur dodgeball league officials have reportedly begun organising a volunteer strike team. "If dodgeballs can cure this, then we were born ready," said team captain Rex Hardin, 34. Tryouts begin immediately.',
-      rx, ry, rW, 13, '9.5px Georgia, serif');
-    ry += 6;
-    ctx.font = 'bold 10px Georgia, serif';
-    ctx.fillText('AFFECTED ZONES', rx, ry); ry += 14;
-    const zones = ['■ Downtown (ALL districts)', '■ Jungle Reserve — quarantined', '■ Arctic Research Outpost', '■ Estermont Castle — communications cut', '■ Eastern Broadcast Tower — DO NOT APPROACH'];
-    ctx.font = '9px Georgia, serif'; ctx.fillStyle = '#1a1000';
-    for (const z of zones) { ctx.fillText(z, rx, ry); ry += 12; }
-
-    // Bottom rule and ENTER prompt
+    // ── Bottom prompt ─────────────────────────────────────────────────────────
     ctx.strokeStyle = '#2a1e0a'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(20, H-26); ctx.lineTo(W-20, H-26); ctx.stroke();
     const adv = 0.45 + 0.55 * Math.sin(Date.now() / 500);
