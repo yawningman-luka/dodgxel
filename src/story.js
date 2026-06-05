@@ -1011,6 +1011,8 @@ class StoryGame {
     this._bossDlgTimer = 0;
     this._bossIntroLines = [];
     this._bossIntroIdx = 0;
+    this._bossDefeatShown = false;
+    this._bossDefeatMode = false;
     this._battleCryTimer = 0;
     this._battleCryText = '';
 
@@ -1036,11 +1038,12 @@ class StoryGame {
     this._p2RegenTimer = 0;
   }
 
-  // ── Act start: go straight to sidescroll — NPC triggers dialogue on contact ──
+  // ── Act start: NPC intro dialogue, then combat ──────────────────────────────
   _startAct(idx) {
     this.actIndex = idx;
     this._dlgPhase = 'intro';
-    this._startActCombat(idx);
+    const act = STORY_ACTS[idx];
+    this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
   }
 
   // ── Combat setup ─────────────────────────────────────────────────────────────
@@ -1110,9 +1113,8 @@ class StoryGame {
     this._levelTimer = 0;
     this._introTimer = 2600;
     this._bossDlgTimer = 0;
-    this._battleCryTimer = 2000;
-    const _cryLines = ["LET'S GO!", "MOVE OUT!", "SHOW 'EM WHAT YOU'VE GOT!", "FOR THE SURVIVORS!"];
-    this._battleCryText = _cryLines[idx % _cryLines.length];
+    this._battleCryTimer = 0;
+    this._battleCryText = '';
 
     // NPC dialogue removed — combat starts immediately
     this._sceneNpc = null;
@@ -1811,23 +1813,6 @@ class StoryGame {
       }
     }
 
-    // First-encounter cutscene: fire when enemy enters camera view for the first time
-    for (const e of this.enemies) {
-      if (e.dead || e instanceof StoryBoss) continue;
-      if (this._seenEnemyTypes.has(e.type)) continue;
-      if (e.x < this._camX + C.W + 200) {
-        this._seenEnemyTypes.add(e.type);
-        const data = this._getEncounterCutsceneLines(e.type);
-        if (data) {
-          this._encounterCutsceneEnemyType = e.type;
-          this._encounterCutsceneLines = this.coop ? data.coopLines : data.soloLines;
-          this._encounterCutsceneLine = 0;
-          this.subState = 'encounter_cutscene';
-        }
-        break;
-      }
-    }
-
     // Trigger boss wake + taunt when player gets close — but only after all regular enemies are dead
     if (this._bossEnemy && !this._bossEnemy._awake && !this._bossEnemy.dead) {
       const regularsDead = this.enemies.every(e => e === this._bossEnemy || e.dead);
@@ -1841,9 +1826,15 @@ class StoryGame {
       }
     }
 
-    // Act complete when boss dies; fallback: all enemies dead
+    // Act complete when boss dies; show defeat dialogue first
     if (this._bossEnemy) {
-      if (this._bossEnemy.dead) this._completeAct();
+      if (this._bossEnemy.dead && !this._bossDefeatShown) {
+        this._bossDefeatShown = true;
+        this._bossIntroIdx = 0;
+        this._bossIntroLines = this._getBossDefeatLines(this._bossEnemy.type);
+        this._bossDefeatMode = true;
+        this.subState = 'boss_cutscene';
+      }
     } else if (this.enemies.length === 0) {
       this._completeAct();
     }
@@ -1902,6 +1893,50 @@ class StoryGame {
     return lines[type] || ['"…"'];
   }
 
+  _getBossDefeatLines(type) {
+    const lines = {
+      patient_zero: [
+        '*coughs, collapses to one knee*',
+        'You... hit me. You actually hit me.',
+        'The signal... it\'s retreating. But it\'s not gone.',
+        'The NEXUS doesn\'t need me. It\'s already in the air. In the walls.',
+        'You won a battle. You didn\'t win anything else.',
+      ],
+      stone_guardian: [
+        '*cracks spread across the stone body*',
+        'I... fall. As all things fall eventually.',
+        'But the earth remembers. The NEXUS has already carved its code into the deep rock.',
+        'You have broken this body. The signal carved into the ground... that remains.',
+        'The mountain does not forget.',
+      ],
+      mech_fluffkins: [
+        '*suit sparks, visor cracks, a very tired meow from inside*',
+        'You... actually did it. The suit is crashing. Finally.',
+        'It\'s still transmitting. Even broken. Even sparking. It won\'t stop.',
+        'The NEXUS doesn\'t need a working vessel. It just needs a signal.',
+        'I\'m free. But it\'s still out there. Be careful, you lovely idiots.',
+      ],
+      iron_champion: [
+        '*visor shatters, armor buckles, falls to one knee with a heavy CLANG*',
+        'Well struck. I... yield.',
+        'Thirty-two years I served this castle. My will was my own.',
+        'But the NEXUS spoke through me at the end. And I let it.',
+        'It does not need the willing. It uses everyone. Forgive me.',
+        'It is still broadcasting. Don\'t let it win.',
+      ],
+      nexus_core: [
+        '*the core fractures, energy arcing wildly across the arena*',
+        'Im... impossible. The pattern... unresolvable.',
+        'You are chaos made flesh. I could not quantify you.',
+        'But understand: I am not the NEXUS. I am only a core.',
+        'I have already propagated. Across every network. Every signal.',
+        'You have destroyed the mouth. The mind remains.',
+        'It is not over. It is never... over.',
+      ],
+    };
+    return lines[type] || ['*defeated silence*', '...it\'s not over.'];
+  }
+
   _updateDialogue() {
     const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
                     Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
@@ -1931,7 +1966,12 @@ class StoryGame {
       this._bossIntroIdx++;
       if (this._bossIntroIdx >= this._bossIntroLines.length) {
         this._bossDlgTimer = 0;
-        this.subState = 'sidescroll';
+        if (this._bossDefeatMode) {
+          this._bossDefeatMode = false;
+          this._completeAct();
+        } else {
+          this.subState = 'sidescroll';
+        }
       }
     }
   }
