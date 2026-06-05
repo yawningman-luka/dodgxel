@@ -1995,6 +1995,7 @@ class StoryGame {
         if (this._bossDefeatMode) {
           this._bossDefeatMode = false;
           this._completeAct();
+          this.subState = 'sidescroll';
         } else {
           this.subState = 'sidescroll';
         }
