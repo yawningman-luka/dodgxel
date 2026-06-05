@@ -99,14 +99,37 @@ const Sprites = {
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'straight';
     switch (hairType) {
-      case 'spiky':
-        this.px(ctx, hair,     -10, headY,      22,  6);
-        this.px(ctx, hairDark, -10, headY + 4,  22,  2);
-        this.px(ctx, hair,  -8, headY - 12,  4, 14);
-        this.px(ctx, hair,  -2, headY - 16,  4, 18);
-        this.px(ctx, hair,   4, headY - 14,  4, 16);
-        this.px(ctx, hair,  10, headY - 10,  4, 12);
+      case 'spiky': {
+        // Base band across head
+        this.px(ctx, hair,     -10, headY,     22, 7);
+        this.px(ctx, hairDark, -10, headY + 4, 22, 3);
+        // Four sharp triangular spikes
+        const spikesDef = [
+          { bx: -9, bw: 8,  h: 17 },   // leftmost — medium
+          { bx: -3, bw: 9,  h: 23 },   // center-left — tallest
+          { bx:  4, bw: 8,  h: 19 },   // center-right
+          { bx: 10, bw: 6,  h: 12 },   // rightmost — short
+        ];
+        for (const s of spikesDef) {
+          const tipX = s.bx + s.bw / 2;
+          const baseY = headY + 2;
+          // Main spike fill
+          ctx.fillStyle = hair;
+          ctx.beginPath();
+          ctx.moveTo(s.bx, baseY);
+          ctx.lineTo(tipX, baseY - s.h);
+          ctx.lineTo(s.bx + s.bw, baseY);
+          ctx.closePath(); ctx.fill();
+          // Dark shading on left face of spike
+          ctx.fillStyle = hairDark;
+          ctx.beginPath();
+          ctx.moveTo(s.bx, baseY);
+          ctx.lineTo(tipX, baseY - s.h);
+          ctx.lineTo(tipX - 1, baseY);
+          ctx.closePath(); ctx.fill();
+        }
         break;
+      }
       case 'buzz':
         this.px(ctx, hair, -10, headY - 1, 22,  5);
         this.px(ctx, hair, -10, headY - 1,  3, 14);

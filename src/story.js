@@ -2001,7 +2001,10 @@ class StoryGame {
   }
 
   _drawScenery(ctx, id) {
+    const T = Date.now();
     switch (id) {
+
+      // ── ACT 1 : CITY ─────────────────────────────────────────────────────────
       case 'city': {
         const cols = ['#1e1e2e','#242434','#2a2a3e'];
         for (let i = 0; i < 7; i++) {
@@ -2013,9 +2016,94 @@ class StoryGame {
           ctx.fillStyle='rgba(0,0,0,0.5)';
           ctx.fillRect(bx+5+(i%3)*16, C.GROUND-bh+6+((i+1)%4)*18, 8, 10);
         }
+
+        // Store signs on 3 buildings
+        // Sign 1 (building i=0, bx=80): "FAST BALL" — broken, dark letters
+        {
+          const bx=80, bh=70; const sy = C.GROUND-bh-22;
+          ctx.fillStyle='#1a1a28'; ctx.fillRect(bx+2, sy, 52, 14);
+          ctx.strokeStyle='#335'; ctx.lineWidth=1; ctx.strokeRect(bx+2, sy, 52, 14);
+          ctx.font='bold 8px monospace'; ctx.textAlign='left';
+          const letters = 'FAST BALL';
+          for(let ci=0; ci<letters.length; ci++){
+            // some letters dark/broken
+            const broken = [1,4,7].includes(ci);
+            ctx.fillStyle = broken ? '#222230' : '#8899CC';
+            ctx.fillText(letters[ci], bx+4+ci*5.4, sy+10);
+          }
+        }
+        // Sign 2 (building i=2, bx=740): "DODGEBALL PRO SHOP" — dusty faded
+        {
+          const bx=740, bh=176; const sy = C.GROUND-bh-20;
+          ctx.fillStyle='#181820'; ctx.fillRect(bx+3, sy, 50, 12);
+          ctx.strokeStyle='#2a2a38'; ctx.lineWidth=1; ctx.strokeRect(bx+3, sy, 50, 12);
+          ctx.font='bold 6px monospace'; ctx.textAlign='left';
+          ctx.fillStyle='#445566';
+          ctx.fillText('DODGEBALL', bx+5, sy+7);
+          ctx.fillStyle='#334455';
+          ctx.fillText('PRO SHOP', bx+7, sy+13);
+        }
+        // Sign 3 (building i=4, bx=1400): "BALL DODGES" — neon glitching
+        {
+          const bx=1400, bh=122; const sy = C.GROUND-bh-26;
+          const glitch = Math.floor(T/120)%8;
+          const neonOn = glitch !== 3 && glitch !== 6;
+          const neonCol = neonOn ? '#00FFCC' : '#003322';
+          const glowA = neonOn ? (0.15 + 0.12*Math.sin(T*0.007)) : 0;
+          // box
+          ctx.fillStyle='#0a1a14'; ctx.fillRect(bx+2, sy, 54, 16);
+          ctx.strokeStyle = neonOn ? '#006644' : '#0a1a14'; ctx.lineWidth=1; ctx.strokeRect(bx+2, sy, 54, 16);
+          // neon glow
+          if(glowA>0){ ctx.save(); ctx.globalAlpha=glowA; ctx.fillStyle=neonCol; ctx.fillRect(bx-2,sy-3,62,22); ctx.restore(); }
+          ctx.font='bold 9px monospace'; ctx.textAlign='left';
+          const txt='BALL DODGES';
+          for(let ci=0; ci<txt.length; ci++){
+            const letterOff = (glitch===2 && ci%3===0) ? 2 : 0;
+            ctx.fillStyle = neonCol;
+            ctx.fillText(txt[ci], bx+4+ci*4.6+letterOff, sy+11);
+          }
+        }
+
+        // 3 broken cars at ground level
+        const cars = [
+          { x:280,  col:'#4a3030', bodyH:20, broken:true  },
+          { x:900,  col:'#304050', bodyH:18, broken:false },
+          { x:1700, col:'#3a2a20', bodyH:20, broken:true  },
+        ];
+        for(const car of cars){
+          const cx=car.x, gy=C.GROUND, bh2=car.bodyH;
+          // Wheels (flat)
+          ctx.fillStyle='#111';
+          ctx.beginPath(); ctx.ellipse(cx+12, gy-4, 10, car.broken?3:6, 0, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(cx+52, gy-4, 10, car.broken?3:6, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle='#333';
+          ctx.beginPath(); ctx.ellipse(cx+12, gy-4, 5, car.broken?2:3, 0, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(cx+52, gy-4, 5, car.broken?2:3, 0, 0, Math.PI*2); ctx.fill();
+          // Body
+          const tilt = car.broken ? 3 : 0;
+          ctx.save(); ctx.translate(cx+32, gy-8); ctx.rotate(tilt*Math.PI/180);
+          ctx.fillStyle=car.col;
+          ctx.fillRect(-32, -bh2, 64, bh2);
+          // Windscreen
+          ctx.fillStyle='rgba(100,150,200,0.3)';
+          ctx.beginPath();
+          ctx.moveTo(-18,-bh2); ctx.lineTo(-10,-bh2-12); ctx.lineTo(14,-bh2-12); ctx.lineTo(20,-bh2);
+          ctx.closePath(); ctx.fill();
+          ctx.strokeStyle='rgba(80,100,130,0.5)'; ctx.lineWidth=1; ctx.stroke();
+          // Cracks / damage
+          if(car.broken){
+            ctx.strokeStyle='rgba(0,0,0,0.7)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(-20,-bh2+4); ctx.lineTo(-10,-bh2+14); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(10,-bh2+2); ctx.lineTo(22,-bh2+12); ctx.stroke();
+          }
+          ctx.restore();
+        }
         break;
       }
+
+      // ── ACT 2 : JUNGLE / ANCIENT ─────────────────────────────────────────────
       case 'jungle': {
+        // Trees
         for (let i = 0; i < 13; i++) {
           const tx = 60 + i*185;
           ctx.fillStyle='#2a1a0a'; ctx.fillRect(tx-5, C.GROUND-90, 10, 90);
@@ -2025,11 +2113,109 @@ class StoryGame {
           ctx.beginPath(); ctx.arc(tx-10, C.GROUND-100, 20, 0, Math.PI*2); ctx.fill();
           ctx.beginPath(); ctx.arc(tx+12, C.GROUND-96,  18, 0, Math.PI*2); ctx.fill();
         }
+        // Main temple
         ctx.fillStyle='#3a3020'; ctx.fillRect(900,  C.GROUND-100, 200, 100);
         ctx.fillRect(880, C.GROUND-120, 240, 24);
         for(let c=0;c<5;c++) ctx.fillRect(895+c*46, C.GROUND-100, 20, 100);
+
+        // Glowing ancient dodgeball symbols on temples
+        // Symbol helper: concentric arcs + cross
+        const drawDodgeSymbol = (sx, sy, r, col, glowA) => {
+          ctx.save();
+          if(glowA>0){
+            ctx.globalAlpha=glowA*0.6;
+            ctx.fillStyle=col;
+            ctx.beginPath(); ctx.arc(sx, sy, r+8, 0, Math.PI*2); ctx.fill();
+          }
+          ctx.globalAlpha=0.85;
+          ctx.strokeStyle=col; ctx.lineWidth=2;
+          ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI*2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(sx, sy, r*0.55, 0, Math.PI*2); ctx.stroke();
+          // cross
+          ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.moveTo(sx-r,sy); ctx.lineTo(sx+r,sy); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(sx,sy-r); ctx.lineTo(sx,sy+r); ctx.stroke();
+          // diagonal marks
+          ctx.lineWidth=1;
+          for(let a=0;a<4;a++){
+            const ang=(a*Math.PI/2)+Math.PI/4;
+            ctx.beginPath(); ctx.moveTo(sx+Math.cos(ang)*r*0.6, sy+Math.sin(ang)*r*0.6);
+            ctx.lineTo(sx+Math.cos(ang)*r, sy+Math.sin(ang)*r); ctx.stroke();
+          }
+          ctx.restore();
+        };
+        const pulse = 0.15+0.12*Math.sin(T*0.002);
+        // Symbol on main temple (centre)
+        drawDodgeSymbol(1000, C.GROUND-135, 16, '#CCAA44', pulse);
+        // Symbol on left face of temple
+        drawDodgeSymbol(920,  C.GROUND-80,  12, '#CCAA44', pulse*0.8);
+        // Small secondary temple left
+        ctx.fillStyle='#342e1a'; ctx.fillRect(320, C.GROUND-70, 90, 70);
+        ctx.fillRect(305, C.GROUND-82, 120, 14);
+        for(let c=0;c<3;c++) ctx.fillRect(320+c*30, C.GROUND-70, 18, 70);
+        drawDodgeSymbol(365, C.GROUND-90,  10, '#AA8833', pulse);
+        // Secondary temple right
+        ctx.fillStyle='#342e1a'; ctx.fillRect(1600, C.GROUND-80, 110, 80);
+        ctx.fillRect(1588, C.GROUND-94, 134, 16);
+        for(let c=0;c<3;c++) ctx.fillRect(1600+c*36, C.GROUND-80, 20, 80);
+        drawDodgeSymbol(1655, C.GROUND-105, 11, '#BB9933', pulse*0.9);
+
+        // 5 half-buried skeletons at specific distances
+        const skeletons = [
+          { x: 180,  variant: 0 }, // arm pointing up
+          { x: 560,  variant: 1 }, // on its side
+          { x: 820,  variant: 2 }, // just a skull peeking out
+          { x: 1250, variant: 3 }, // two arms + skull
+          { x: 1900, variant: 4 }, // partially crawling
+        ];
+        for(const sk of skeletons){
+          const sx=sk.x; const gy=C.GROUND;
+          ctx.fillStyle='#d4c8a0';
+          if(sk.variant===0){
+            // Arm sticking up
+            ctx.fillRect(sx, gy-32, 5, 26);   // arm bone
+            ctx.fillRect(sx-2, gy-34, 9, 5);   // hand bones
+            ctx.fillRect(sx+5, gy-22, 4, 16);  // second arm fragment
+            // skull half buried
+            ctx.beginPath(); ctx.ellipse(sx+3, gy-4, 8, 6, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a10'; ctx.fillRect(sx, gy-7, 3, 3); ctx.fillRect(sx+5, gy-7, 3, 3);
+          } else if(sk.variant===1){
+            // On side, mostly buried
+            ctx.fillRect(sx-10, gy-8, 32, 4);  // spine horizontal
+            ctx.beginPath(); ctx.ellipse(sx+22, gy-10, 7, 6, 0.3, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a10'; ctx.fillRect(sx+20, gy-13, 3, 3); ctx.fillRect(sx+24, gy-13, 3, 3);
+            ctx.fillStyle='#d4c8a0';
+            ctx.fillRect(sx-14, gy-6, 4, 12);  // leg sticking out
+          } else if(sk.variant===2){
+            // Just skull peeking
+            ctx.beginPath(); ctx.ellipse(sx, gy-5, 9, 7, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a10'; ctx.fillRect(sx-4, gy-8, 3, 3); ctx.fillRect(sx+2, gy-8, 3, 3);
+            ctx.fillStyle='#d4c8a0'; ctx.fillRect(sx-2, gy-3, 8, 3); // teeth
+            ctx.fillStyle='#1a1a10'; ctx.fillRect(sx-1, gy-2, 2, 2); ctx.fillRect(sx+2, gy-2, 2, 2); ctx.fillRect(sx+5, gy-2, 2, 2);
+          } else if(sk.variant===3){
+            // Two arms + skull reaching up
+            ctx.fillRect(sx-12, gy-28, 5, 22); // left arm
+            ctx.fillRect(sx-14, gy-30, 9, 4);  // left hand
+            ctx.fillRect(sx+8,  gy-22, 5, 18); // right arm (shorter)
+            ctx.fillRect(sx+7,  gy-24, 8, 4);  // right hand
+            ctx.beginPath(); ctx.ellipse(sx, gy-5, 8, 6, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a10'; ctx.fillRect(sx-4, gy-8, 3, 3); ctx.fillRect(sx+2, gy-8, 3, 3);
+          } else {
+            // Partially crawling — torso + skull at angle
+            ctx.save(); ctx.translate(sx, gy-10); ctx.rotate(-0.25);
+            ctx.fillStyle='#d4c8a0';
+            ctx.fillRect(-5, -18, 7, 24); // spine/torso
+            ctx.beginPath(); ctx.ellipse(0, -22, 8, 7, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a10'; ctx.fillRect(-4, -25, 3, 3); ctx.fillRect(2, -25, 3, 3);
+            ctx.fillStyle='#d4c8a0';
+            ctx.fillRect(-14, -6, 14, 4); // arm reaching
+            ctx.restore();
+          }
+        }
         break;
       }
+
+      // ── ACT 3 : SNOW ─────────────────────────────────────────────────────────
       case 'snow': {
         ctx.fillStyle='#dde8f0'; ctx.fillRect(0, C.GROUND-16, STORY_WORLD_W, 16);
         ctx.fillStyle='#fff';    ctx.fillRect(0, C.GROUND-20, STORY_WORLD_W, 6);
@@ -2045,8 +2231,90 @@ class StoryGame {
         ctx.fillRect(1010,C.GROUND-120,40,60);
         ctx.fillRect(1060,C.GROUND-120,40,60);
         ctx.fillRect(1110,C.GROUND-120,40,60);
+
+        // Crashed airplane (nose-down, x=450)
+        {
+          const ax=450, ay=C.GROUND-50;
+          ctx.save(); ctx.translate(ax, ay); ctx.rotate(0.5);
+          ctx.fillStyle='#aabbcc';
+          // Fuselage
+          ctx.fillRect(-12, -70, 24, 80);
+          // Nose cone
+          ctx.beginPath(); ctx.moveTo(-12,-70); ctx.lineTo(0,-98); ctx.lineTo(12,-70); ctx.closePath(); ctx.fill();
+          // Wing (crushed to one side)
+          ctx.fillStyle='#889aaa';
+          ctx.beginPath(); ctx.moveTo(-12,-30); ctx.lineTo(-70,-15); ctx.lineTo(-60,-5); ctx.lineTo(-12,-18); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(12,-30); ctx.lineTo(45,-20); ctx.lineTo(40,-10); ctx.lineTo(12,-18); ctx.closePath(); ctx.fill();
+          // Tail fin
+          ctx.fillStyle='#aabbcc';
+          ctx.beginPath(); ctx.moveTo(-8,6); ctx.lineTo(-28,-10); ctx.lineTo(-6,-8); ctx.closePath(); ctx.fill();
+          // Snow on top
+          ctx.fillStyle='rgba(255,255,255,0.7)';
+          ctx.fillRect(-11,-70,22,8);
+          ctx.fillRect(-9,-55,18,5);
+          // Windows (smashed)
+          ctx.fillStyle='rgba(100,150,200,0.4)';
+          for(let wi=0; wi<4; wi++) ctx.fillRect(-6,-62+wi*14, 12, 9);
+          ctx.fillStyle='rgba(0,0,0,0.3)';
+          ctx.beginPath(); ctx.moveTo(-5,-58); ctx.lineTo(4,-52); ctx.stroke(); // crack
+          ctx.restore();
+
+          // Smoke from crash site (animated)
+          ctx.save();
+          for(let s=0;s<6;s++){
+            const phase=(T*0.0008+s*0.6)%1;
+            const sy2=ay - 60 - phase*80;
+            const sx2=ax + 10 + Math.sin(phase*4+s)*12;
+            const sr=6+phase*18;
+            ctx.globalAlpha=(0.35-phase*0.35)*0.7;
+            ctx.fillStyle='#889988';
+            ctx.beginPath(); ctx.arc(sx2, sy2, sr, 0, Math.PI*2); ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        // Snowmobile 1 (x=700, tipped on side)
+        {
+          const smx=700;
+          ctx.save(); ctx.translate(smx, C.GROUND-10); ctx.rotate(0.6);
+          ctx.fillStyle='#cc3300';
+          ctx.fillRect(-28,-12,56,12);
+          ctx.fillStyle='#992200';
+          ctx.fillRect(-28,-18,56,7);
+          // windshield
+          ctx.fillStyle='rgba(150,200,255,0.35)';
+          ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(-6,-30); ctx.lineTo(10,-30); ctx.lineTo(14,-18); ctx.closePath(); ctx.fill();
+          // ski / track
+          ctx.fillStyle='#222';
+          ctx.fillRect(-30,0,60,6);
+          ctx.fillRect(-20,-22,6,24); ctx.fillRect(14,-22,6,24);
+          // snow splash
+          ctx.fillStyle='rgba(230,240,255,0.7)';
+          ctx.beginPath(); ctx.ellipse(0,4, 32, 8, 0, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+        }
+
+        // Snowmobile 2 (x=1550, nose into snowdrift)
+        {
+          const smx=1550;
+          ctx.save(); ctx.translate(smx, C.GROUND-6); ctx.rotate(-0.35);
+          ctx.fillStyle='#2255aa';
+          ctx.fillRect(-28,-10,56,10);
+          ctx.fillStyle='#1a3d88';
+          ctx.fillRect(-28,-16,56,7);
+          ctx.fillStyle='rgba(150,200,255,0.35)';
+          ctx.beginPath(); ctx.moveTo(-12,-16); ctx.lineTo(-8,-26); ctx.lineTo(8,-26); ctx.lineTo(12,-16); ctx.closePath(); ctx.fill();
+          ctx.fillStyle='#222';
+          ctx.fillRect(-30,0,60,5);
+          // snow piled on nose
+          ctx.fillStyle='rgba(230,240,255,0.85)';
+          ctx.beginPath(); ctx.ellipse(-22, -8, 14, 10, 0.4, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+        }
         break;
       }
+
+      // ── ACT 4 : CASTLE ───────────────────────────────────────────────────────
       case 'castle': {
         ctx.fillStyle='#3a3020';
         for(let i=0;i<4;i++){
@@ -2059,8 +2327,90 @@ class StoryGame {
         ctx.fillStyle='#554020'; ctx.fillRect(850,C.GROUND-200,300,200);
         for(let m=0;m<8;m++) ctx.fillRect(840+m*38,C.GROUND-218,28,20);
         ctx.fillStyle='#442010'; ctx.fillRect(990,C.GROUND-200,60,90);
+
+        // Angry mob at set intervals along the path
+        // Each mob cluster: pitchfork-wielding figures + torches
+        const mobPositions = [200, 550, 1100, 1700, 2100];
+        const drawMobFigure = (mx, side) => {
+          const bob = Math.sin(T*0.004 + mx*0.01) * 3;
+          const anger = Math.sin(T*0.006 + mx*0.02); // arm raise oscillation
+          ctx.save(); ctx.translate(mx, C.GROUND - 4 + bob);
+          // Body
+          ctx.fillStyle='#553322'; ctx.fillRect(-4,-30,8,18);
+          // Head
+          ctx.fillStyle='#C8906A'; ctx.fillRect(-4,-42,10,10);
+          // Pitchfork / tool
+          ctx.strokeStyle='#8B6914'; ctx.lineWidth=2;
+          const armAng = side===1 ? (-0.8+anger*0.4) : (0.8-anger*0.4);
+          ctx.save(); ctx.translate(side===1?5:-5, -32); ctx.rotate(armAng);
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-22); ctx.stroke();
+          // Prongs
+          ctx.beginPath(); ctx.moveTo(-3,-22); ctx.lineTo(-3,-26); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( 0,-22); ctx.lineTo( 0,-27); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( 3,-22); ctx.lineTo( 3,-26); ctx.stroke();
+          ctx.restore();
+          // Legs (marching)
+          const legAngle = Math.sin(T*0.006 + mx*0.05)*12;
+          ctx.fillStyle='#332210';
+          ctx.save(); ctx.translate(-2,-12); ctx.rotate(legAngle*Math.PI/180);
+          ctx.fillRect(-2,0,4,14); ctx.restore();
+          ctx.save(); ctx.translate(2,-12); ctx.rotate(-legAngle*Math.PI/180);
+          ctx.fillRect(-2,0,4,14); ctx.restore();
+          // Angry expression
+          ctx.fillStyle='#000'; ctx.fillRect(-3,-39,2,2); ctx.fillRect(2,-39,2,2);
+          ctx.strokeStyle='#000'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(-3,-34); ctx.lineTo(3,-34); ctx.stroke(); // frown
+          ctx.restore();
+        };
+
+        const drawTorch = (tx2) => {
+          const flicker = 0.6+0.4*Math.sin(T*0.018+tx2);
+          ctx.save(); ctx.translate(tx2, C.GROUND-10);
+          // Handle
+          ctx.strokeStyle='#6B4500'; ctx.lineWidth=3;
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-32); ctx.stroke();
+          // Flame
+          ctx.globalAlpha=flicker;
+          ctx.fillStyle='#FF8800';
+          ctx.beginPath(); ctx.moveTo(-5,-32); ctx.lineTo(0,-46); ctx.lineTo(5,-32); ctx.closePath(); ctx.fill();
+          ctx.fillStyle='#FFCC00';
+          ctx.beginPath(); ctx.moveTo(-3,-32); ctx.lineTo(0,-42); ctx.lineTo(3,-32); ctx.closePath(); ctx.fill();
+          ctx.fillStyle='#FFFFFF'; ctx.globalAlpha=flicker*0.5;
+          ctx.beginPath(); ctx.moveTo(-1,-32); ctx.lineTo(0,-38); ctx.lineTo(1,-32); ctx.closePath(); ctx.fill();
+          ctx.restore();
+          // Smoke wisps
+          ctx.save();
+          for(let si=0;si<3;si++){
+            const ph=(T*0.001+si*0.5)%1;
+            ctx.globalAlpha=0.2-ph*0.2;
+            ctx.fillStyle='#887766';
+            ctx.beginPath(); ctx.arc(tx2+Math.sin(ph*5+si)*5, C.GROUND-46-ph*30, 3+ph*6, 0, Math.PI*2); ctx.fill();
+          }
+          ctx.restore();
+        };
+
+        for(const mp of mobPositions){
+          // 3 figures per cluster
+          drawMobFigure(mp-14, -1);
+          drawMobFigure(mp,     1);
+          drawMobFigure(mp+14,-1);
+          // Torch between figures
+          drawTorch(mp+28);
+          // Angry shout bubbles (occasional)
+          if(Math.floor(T/1200 + mp)%5 === 0){
+            ctx.save(); ctx.globalAlpha=0.7;
+            ctx.fillStyle='#fff'; ctx.strokeStyle='#884400'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.roundRect(mp-16,C.GROUND-68,32,12,3); ctx.fill(); ctx.stroke();
+            ctx.fillStyle='#882200'; ctx.font='bold 7px Arial'; ctx.textAlign='center';
+            const shouts=['GET THEM!','GRAB EM!','CHARGE!','ATTACK!','FORWARD!'];
+            ctx.fillText(shouts[mp%shouts.length], mp, C.GROUND-59);
+            ctx.restore();
+          }
+        }
         break;
       }
+
+      // ── ACT 5 : TOWER / DIGITAL ──────────────────────────────────────────────
       case 'tower': {
         for(let i=0;i<8;i++){
           ctx.fillStyle=i%2===0?'#0d0d1a':'#080812';
@@ -2068,10 +2418,70 @@ class StoryGame {
         }
         ctx.fillStyle='#1a2a3a'; ctx.fillRect(1100,0,50,C.GROUND);
         ctx.fillStyle='#FF4400';
-        const br=6+4*Math.sin(Date.now()*0.005);
+        const br=6+4*Math.sin(T*0.005);
         ctx.beginPath();ctx.arc(1125,18,br,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='rgba(255,68,0,0.1)';
         ctx.beginPath();ctx.arc(1125,18,br*3,0,Math.PI*2);ctx.fill();
+
+        // Background lightning — 5 types at different intervals
+        // Type 0: vertical bolt (every 2.3s)
+        if(Math.floor(T/2300)%3 === 0 && (T%2300) < 180){
+          const bx2 = 300 + ((Math.floor(T/2300)*317)%1600);
+          const alpha = 1 - (T%2300)/180;
+          ctx.save(); ctx.globalAlpha = alpha * 0.85;
+          ctx.strokeStyle = '#AADDFF'; ctx.lineWidth = 2;
+          ctx.shadowColor = '#88CCFF'; ctx.shadowBlur = 16;
+          let ly = 0; let lx2 = bx2;
+          ctx.beginPath(); ctx.moveTo(lx2, 0);
+          while(ly < C.GROUND-20){ ly += 18+Math.random()*12; lx2 += (Math.random()-0.5)*20; ctx.lineTo(lx2, ly); }
+          ctx.stroke();
+          ctx.lineWidth=1; ctx.strokeStyle='#FFFFFF';
+          ctx.beginPath(); ctx.moveTo(bx2,0); lx2=bx2; ly=0;
+          while(ly<C.GROUND-20){ ly+=18+Math.random()*12; lx2+=(Math.random()-0.5)*20; ctx.lineTo(lx2,ly); }
+          ctx.stroke();
+          ctx.restore();
+        }
+        // Type 1: horizontal arc (every 3.7s)
+        if(Math.floor(T/3700)%2 === 1 && (T%3700) < 140){
+          const alpha2 = 1 - (T%3700)/140;
+          const hy = 40 + ((Math.floor(T/3700)*113)%200);
+          ctx.save(); ctx.globalAlpha = alpha2 * 0.7;
+          ctx.strokeStyle = '#FFDD44'; ctx.lineWidth = 1.5; ctx.shadowColor='#FFAA00'; ctx.shadowBlur=10;
+          ctx.beginPath(); ctx.moveTo(0, hy);
+          let hx=0;
+          while(hx < STORY_WORLD_W){ hx+=20+Math.random()*15; ctx.lineTo(hx, hy+(Math.random()-0.5)*16); }
+          ctx.stroke();
+          ctx.restore();
+        }
+        // Type 2: branching bolt (every 5s, bright white-blue)
+        if(Math.floor(T/5000)%4 === 2 && (T%5000) < 220){
+          const bx3 = 600 + ((Math.floor(T/5000)*557)%1000);
+          const alpha3 = 1 - (T%5000)/220;
+          ctx.save(); ctx.globalAlpha = alpha3;
+          const drawBranch = (bx4, by4, angle, len, depth) => {
+            if(depth===0||len<6) return;
+            const ex=bx4+Math.cos(angle)*len, ey=by4+Math.sin(angle)*len;
+            ctx.strokeStyle=depth>1?'#CCDDFF':'rgba(150,180,255,0.5)'; ctx.lineWidth=depth;
+            ctx.shadowColor='#AACCFF'; ctx.shadowBlur=8*depth;
+            ctx.beginPath(); ctx.moveTo(bx4,by4); ctx.lineTo(ex,ey); ctx.stroke();
+            drawBranch(ex,ey,angle-0.4,len*0.65,depth-1);
+            drawBranch(ex,ey,angle+0.3,len*0.55,depth-1);
+          };
+          drawBranch(bx3,0, Math.PI/2, 90, 3);
+          ctx.restore();
+        }
+        // Type 3: flash (full screen dim flash, every 4.1s)
+        if(Math.floor(T/4100)%3 === 0 && (T%4100) < 80){
+          const fa = (1-(T%4100)/80)*0.18;
+          ctx.save(); ctx.globalAlpha=fa; ctx.fillStyle='#AACCFF'; ctx.fillRect(0,0,STORY_WORLD_W,C.GROUND); ctx.restore();
+        }
+        // Type 4: glitchy horizontal scan line (every 1.6s)
+        if(Math.floor(T/1600)%5 < 2 && (T%1600) < 100){
+          const scanY = (Math.floor(T/1600)*97)%C.GROUND;
+          const ga = (1-(T%1600)/100)*0.45;
+          ctx.save(); ctx.globalAlpha=ga; ctx.fillStyle='#00FFFF';
+          ctx.fillRect(0, scanY, STORY_WORLD_W, 2); ctx.restore();
+        }
         break;
       }
     }
