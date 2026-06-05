@@ -1329,13 +1329,13 @@ class StoryGame {
   }
 
   _spawnSplitBalls(x, y, vx, vy, throwerIndex) {
-    // 3 mini balls — same forward direction with very slight vertical spread
+    // 3 mini balls — exact same trajectory, spawned at vertical offsets so they fan out
     const spd = Math.sqrt(vx*vx + vy*vy) * 1.15;
     const baseAngle = Math.atan2(vy, vx);
-    const offsets = [-0.10, 0, 0.10]; // tight spread, mostly same direction
-    for (const offset of offsets) {
+    const yOffsets = [-10, 0, 10]; // parallel spread, all going the same direction
+    for (const yOff of yOffsets) {
       const b = new Ball();
-      b.throw(x, y, Math.cos(baseAngle+offset)*spd, Math.sin(baseAngle+offset)*spd, false, false);
+      b.throw(x, y + yOff, Math.cos(baseAngle)*spd, Math.sin(baseAngle)*spd, false, false);
       b.lastThrower = throwerIndex;
       b.mini = true;
       b.radius = C.BALL_R * 0.45;
@@ -1362,6 +1362,12 @@ class StoryGame {
                    ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h);
 
       if (hit) {
+        // Split power: fire split burst on first hit using impact velocity, before takeBall zeroes it
+        if (ball.split && !ball._splitDone && ball.splitCb) {
+          ball._splitDone = true;
+          ball.splitCb(ball.x, ball.y, ball.vx, ball.vy, ball.lastThrower);
+        }
+
         // Rocket pierces through regular (non-boss) enemies: save velocity, restore after hit
         const piercing = ball.isRocket && e !== this._bossEnemy;
         const savedVx = piercing ? ball.vx : 0;
