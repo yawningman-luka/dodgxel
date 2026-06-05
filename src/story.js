@@ -2060,32 +2060,117 @@ class StoryGame {
     ctx.fillText('A', lx, ty + 20);
     const capW = ctx.measureText('A').width + 4;
     ty = drawWrap(
-      'rogue transmission broadcast across every screen, speaker and device in Dodgeville simultaneously. Within minutes, thousands of residents fell into a trance-like stupor — motionless, eyes blank.',
+      't 6:14am Tuesday, every TV, phone and microwave in Dodgeville started playing the same eerie hum. Within four minutes, 94% of residents had glazed over completely — including the mayor, who was halfway through a waffle.',
       lx + capW, ty, lW - capW, 13, '9.5px Georgia, serif');
-    ty += 4;
+    ty += 3;
     ty = drawWrap(
-      'Emergency services were among the first to fall. The signal, later identified as a NEXUS-class override frequency, appears to exploit ordinary human neural pathways — rendering its victims docile and obedient.',
+      'The signal — dubbed NEXUS by scientists who definitely did not panic — overrides ordinary brains like a firmware update nobody asked for. Victims stand motionless, staring blankly, occasionally clapping at nothing.',
       lx, ty, lW, 13, '9.5px Georgia, serif');
-    ty += 4;
+    ty += 3;
     ty = drawWrap(
-      'Remarkably, competitive athletes appear fully immune. Scientists believe intense fast-twitch muscle conditioning creates a neural firewall the signal cannot penetrate.',
+      'Bizarrely, competitive dodgeball athletes are completely unaffected. Experts believe years of sprinting away from rubber balls at high speed has made their reflexes too chaotic for the signal to lock on to.',
       lx, ty, lW, 13, '9.5px Georgia, serif');
-    ty += 4;
+    ty += 3;
     ty = drawWrap(
-      '"We need someone who can move, dodge and fight,"  said Dr. Reyes of the Dodgeville Institute. "The signal towers must be destroyed before the city is lost forever."',
+      '"Honestly we have no idea why they\'re immune," admitted Dr. Reyes. "But the towers need destroying, and these are the only people awake. So. Good luck, champ."',
       lx, ty, lW, 13, 'italic 9.5px Georgia, serif');
-    ty += 4;
-    ctx.font = 'bold 9px Georgia, serif'; ctx.fillStyle = '#222';
-    ctx.fillText('The tower chain originates in the mountains. Whoever reaches the peak', lx, ty); ty += 13;
-    ctx.fillText('may be able to shut it all down.', lx, ty); ty += 13;
+
+    // ── City scene box ────────────────────────────────────────────────────────
+    const cityBoxY = ty + 8, cityBoxH = H - 34 - cityBoxY - 14;
+    const cityBoxW = lW;
+
+    // Clip to box
+    ctx.save();
+    ctx.beginPath(); ctx.rect(lx, cityBoxY, cityBoxW, cityBoxH); ctx.clip();
+
+    // Sky gradient (B&W)
+    const csg = ctx.createLinearGradient(lx, cityBoxY, lx, cityBoxY + cityBoxH);
+    csg.addColorStop(0, '#1c1c1c'); csg.addColorStop(0.7, '#383838'); csg.addColorStop(1, '#505050');
+    ctx.fillStyle = csg; ctx.fillRect(lx, cityBoxY, cityBoxW, cityBoxH);
+
+    // Moon
+    ctx.fillStyle = '#d8d8d8'; ctx.beginPath(); ctx.arc(lx + cityBoxW - 38, cityBoxY + 16, 11, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(lx + cityBoxW - 34, cityBoxY + 14, 9, 0, Math.PI*2); ctx.fill();
+
+    // Buildings (static B&W silhouettes)
+    const ground = cityBoxY + cityBoxH;
+    const bx = lx;
+    const buildings = [
+      // x, w, h, damage
+      { x:bx+0,   w:52, h:88, crack:true  },
+      { x:bx+50,  w:38, h:60, crack:false },
+      { x:bx+86,  w:60, h:102,crack:true  },
+      { x:bx+144, w:34, h:74, crack:false },
+      { x:bx+176, w:46, h:90, crack:true  },
+      { x:bx+220, w:30, h:58, crack:false },
+      { x:bx+248, w:68, h:112,crack:true  },
+      { x:bx+314, w:36, h:68, crack:false },
+      { x:bx+348, w:52, h:96, crack:true  },
+      { x:bx+398, w:42, h:72, crack:false },
+      { x:bx+438, w:24, h:50, crack:false },
+    ];
+    for (const b of buildings) {
+      const by = ground - b.h;
+      // Building body
+      ctx.fillStyle = '#2e2e2e';
+      ctx.fillRect(b.x, by, b.w, b.h);
+      // Windows (lit = light, dark = off)
+      const cols = Math.floor(b.w / 10), rows = Math.floor(b.h / 12);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const lit = ((b.x + c * 3 + r * 7) % 5) !== 0;
+          ctx.fillStyle = lit ? '#aaaaaa' : '#1a1a1a';
+          ctx.fillRect(b.x + 3 + c * 10, by + 4 + r * 12, 5, 7);
+        }
+      }
+      // Crumbled top
+      if (b.crack) {
+        ctx.fillStyle = '#1c1c1c';
+        ctx.beginPath();
+        ctx.moveTo(b.x, by);
+        ctx.lineTo(b.x + b.w * 0.2, by - 6);
+        ctx.lineTo(b.x + b.w * 0.35, by + 2);
+        ctx.lineTo(b.x + b.w * 0.55, by - 10);
+        ctx.lineTo(b.x + b.w * 0.75, by - 3);
+        ctx.lineTo(b.x + b.w, by);
+        ctx.closePath(); ctx.fill();
+        // Rubble at base
+        ctx.fillStyle = '#404040';
+        ctx.fillRect(b.x, ground - 8, b.w, 8);
+      }
+      // Building outline
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 0.6;
+      ctx.strokeRect(b.x, by, b.w, b.h);
+    }
+
+    // Smoke wisps
+    for (let i = 0; i < 3; i++) {
+      const sx = lx + 90 + i * 140, sy = ground - 105 - i * 15;
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#aaa';
+      ctx.beginPath(); ctx.ellipse(sx, sy, 12, 22, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(sx + 8, sy - 18, 10, 18, 0.3, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Ground strip
+    ctx.fillStyle = '#222'; ctx.fillRect(lx, ground - 6, cityBoxW, 6);
+    ctx.restore();
+
+    // Box border
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1.2; ctx.strokeRect(lx, cityBoxY, cityBoxW, cityBoxH);
+
+    // Caption
+    ctx.font = 'italic 8px Georgia, serif'; ctx.fillStyle = '#555'; ctx.textAlign = 'center';
+    ctx.fillText('Dodgeville, Tuesday. Population: mostly stationary.', lx + cityBoxW/2, cityBoxY + cityBoxH + 11);
 
     // Divider
     ctx.strokeStyle = '#888'; ctx.lineWidth = 0.7;
-    ctx.beginPath(); ctx.moveTo(lx, H-30); ctx.lineTo(colX-14, H-30); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx, H-18); ctx.lineTo(colX-14, H-18); ctx.stroke();
 
     // Byline
     ctx.font = 'italic 8px Georgia, serif'; ctx.fillStyle = '#444'; ctx.textAlign = 'left';
-    ctx.fillText('By GAZETTE STAFF  ·  Special Report', lx, H-18);
+    ctx.fillText('By GAZETTE STAFF  ·  Special Report', lx, H-6);
 
     // ── Right column: character portrait box ──────────────────────────────────
     const rx = colX + 12, rW = W - colX - 30;
@@ -2226,8 +2311,8 @@ class StoryGame {
       ctx.restore();
     }
 
-    // ── Boss silhouette (right side) ────────────────────────────────────
-    this._drawBossSilhouette(ctx, type, T);
+    // ── Boss sprite (right side) ────────────────────────────────────────
+    this._drawBossPortrait(ctx, type, T);
 
     // ── Scanlines (for terminal-style bosses) ───────────────────────────
     if (st.scanlines) {
@@ -2333,13 +2418,7 @@ class StoryGame {
     ctx.globalAlpha = 1;
   }
 
-  _drawBossSilhouette(ctx, type, T) {
-    const x = C.W - 200, y = C.GROUND;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.fillStyle = 'rgba(0,0,0,0.0)'; // silhouettes drawn below
-
-    // Ominous glow behind boss
+  _drawBossPortrait(ctx, type, T) {
     const glowCols = {
       patient_zero:   ['#CC2200','#FF4400'],
       stone_guardian: ['#887744','#CCAA66'],
@@ -2347,104 +2426,49 @@ class StoryGame {
       iron_champion:  ['#8844CC','#BB88FF'],
       nexus_core:     ['#00CCFF','#0088FF'],
     };
-    const [gc1, gc2] = glowCols[type] || ['#FF4400','#FF8800'];
+    const [gc1] = glowCols[type] || ['#FF4400','#FF8800'];
+
+    // Scale factor for portrait — bosses look best at 2x
+    const scale = 2;
+    const def = STORY_ENEMY_DEFS[type];
+    const bw = (def ? def.w : 60) * scale;
+    const bh = (def ? def.h : 90) * scale;
+
+    // Position: right side of screen, feet on ground
+    const px = C.W - 160;
+    const py = C.GROUND;
+
+    // Ominous glow behind boss
+    ctx.save();
+    ctx.translate(px, py);
     const pulse = 0.6 + 0.4 * Math.sin(T / 600);
-    const grd = ctx.createRadialGradient(0, -60, 10, 0, -60, 80 * pulse);
-    grd.addColorStop(0, gc1.replace('#', 'rgba(').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i,
-      (_,r,g,b)=> `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)},0.6)`));
+    const grd = ctx.createRadialGradient(0, -bh * 0.5, 10, 0, -bh * 0.5, bh * 0.8 * pulse);
+    const hexToRgb = (hex) => {
+      const m = hex.replace('#','').match(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+      return m ? `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}` : '255,100,0';
+    };
+    grd.addColorStop(0, `rgba(${hexToRgb(gc1)},0.55)`);
     grd.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grd; ctx.beginPath(); ctx.ellipse(0, -60, 70, 90, 0, 0, Math.PI*2); ctx.fill();
-
-    // Silhouette shape per boss
-    ctx.fillStyle = '#0a0508';
-    ctx.strokeStyle = gc2; ctx.lineWidth = 1.5;
-    ctx.shadowColor = gc1; ctx.shadowBlur = 18;
-
-    if (type === 'patient_zero') {
-      // Hunched human, fluid drips
-      ctx.beginPath(); ctx.ellipse(0, -120, 16, 20, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke(); // head
-      ctx.beginPath(); ctx.moveTo(-18, -100); ctx.quadraticCurveTo(-24, -70, -20, -40);
-      ctx.quadraticCurveTo(0, -20, 20, -40); ctx.quadraticCurveTo(24, -70, 18, -100); ctx.closePath();
-      ctx.fill(); ctx.stroke(); // body
-      // drip
-      ctx.beginPath(); ctx.moveTo(-8, -40); ctx.lineTo(-10, -20 + Math.sin(T/200)*4); ctx.stroke();
-
-    } else if (type === 'stone_guardian') {
-      // Blocky golem
-      ctx.beginPath(); ctx.rect(-22, -160, 44, 36); ctx.fill(); ctx.stroke(); // head
-      ctx.beginPath(); ctx.rect(-30, -124, 60, 80); ctx.fill(); ctx.stroke(); // body
-      ctx.beginPath(); ctx.rect(-52, -120, 20, 60); ctx.fill(); ctx.stroke(); // arm L
-      ctx.beginPath(); ctx.rect(32, -120, 20, 60); ctx.fill(); ctx.stroke();  // arm R
-
-    } else if (type === 'mech_fluffkins') {
-      // Mech suit with cat ears, flashing eye
-      ctx.beginPath(); ctx.rect(-20, -150, 40, 34); ctx.fill(); ctx.stroke(); // head
-      // ears
-      ctx.beginPath(); ctx.moveTo(-20,-150); ctx.lineTo(-28,-168); ctx.lineTo(-8,-150); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(20,-150);  ctx.lineTo(28,-168);  ctx.lineTo(8,-150);  ctx.closePath(); ctx.fill(); ctx.stroke();
-      // eye blink
-      if (Math.floor(T/400) % 5 !== 0) {
-        ctx.fillStyle = gc2; ctx.beginPath(); ctx.ellipse(0, -136, 7, 5, 0, 0, Math.PI*2); ctx.fill();
-      }
-      ctx.fillStyle = '#0a0508';
-      ctx.beginPath(); ctx.rect(-28, -116, 56, 90); ctx.fill(); ctx.stroke(); // body
-      ctx.beginPath(); ctx.rect(-46, -112, 16, 70); ctx.fill(); ctx.stroke(); // arm L
-      ctx.beginPath(); ctx.rect(30, -112, 16, 70); ctx.fill(); ctx.stroke();  // arm R
-
-    } else if (type === 'iron_champion') {
-      // Armoured knight
-      ctx.beginPath(); ctx.ellipse(0, -148, 16, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke(); // helm
-      // visor slit
-      ctx.fillStyle = gc2;
-      ctx.beginPath(); ctx.rect(-10, -153, 20, 5); ctx.fill();
-      ctx.fillStyle = '#0a0508';
-      ctx.beginPath(); ctx.rect(-22, -130, 44, 70); ctx.fill(); ctx.stroke(); // torso
-      ctx.beginPath(); ctx.rect(-40, -128, 16, 60); ctx.fill(); ctx.stroke(); // arm L
-      ctx.beginPath(); ctx.rect(24, -128, 16, 60); ctx.fill(); ctx.stroke();  // arm R
-      // sword
-      ctx.strokeStyle = gc2; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(38, -128); ctx.lineTo(50, -30); ctx.stroke();
-      ctx.strokeStyle = '#0a0508'; ctx.lineWidth = 1.5;
-
-    } else if (type === 'nexus_core') {
-      // Floating geometric core, pulsing rings
-      ctx.save();
-      ctx.translate(0, -90 + Math.sin(T/800)*8);
-      // Outer ring
-      ctx.strokeStyle = gc1; ctx.lineWidth = 2; ctx.globalAlpha = 0.5 + 0.5*Math.sin(T/400);
-      ctx.beginPath(); ctx.arc(0, 0, 55, 0, Math.PI*2); ctx.stroke();
-      ctx.globalAlpha = 1;
-      // Rotating ring
-      ctx.save(); ctx.rotate(T/2000); ctx.strokeStyle = gc2; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(0, 0, 42, 0, Math.PI*2); ctx.stroke();
-      for (let i = 0; i < 8; i++) {
-        const a = i / 8 * Math.PI * 2;
-        ctx.fillStyle = gc2;
-        ctx.beginPath(); ctx.arc(Math.cos(a)*42, Math.sin(a)*42, 3, 0, Math.PI*2); ctx.fill();
-      }
-      ctx.restore();
-      // Core geometry
-      ctx.fillStyle = '#0a0508'; ctx.strokeStyle = gc1; ctx.lineWidth = 2;
-      ctx.shadowColor = gc1; ctx.shadowBlur = 30;
-      ctx.save(); ctx.rotate(T/1200);
-      ctx.beginPath(); ctx.rect(-22, -22, 44, 44); ctx.fill(); ctx.stroke();
-      ctx.restore();
-      ctx.save(); ctx.rotate(-T/900);
-      ctx.strokeStyle = gc2; ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let i = 0; i < 4; i++) {
-        const a = i/4*Math.PI*2 + T/900;
-        ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*30, Math.sin(a)*30);
-      }
-      ctx.stroke();
-      ctx.restore();
-      // Scanline glow
-      ctx.fillStyle = gc1.replace('#','rgba(').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i,
-        (_,r,g,b)=>`${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)},0.5)`);
-      ctx.beginPath(); ctx.ellipse(0, 0, 18, 18, 0, 0, Math.PI*2); ctx.fill();
-      ctx.restore();
-    }
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.ellipse(0, -bh * 0.5, bw * 0.8, bh * 0.75, 0, 0, Math.PI*2); ctx.fill();
     ctx.restore();
+
+    // Draw actual boss sprite at scale
+    if (this._bossEnemy) {
+      const boss = this._bossEnemy;
+      const savedX = boss.x, savedY = boss.y, savedDead = boss.dead;
+      boss.dead = false;
+      boss.x = 0;
+      boss.y = 0;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(scale, scale);
+      boss.draw(ctx);
+      ctx.restore();
+      boss.x = savedX;
+      boss.y = savedY;
+      boss.dead = savedDead;
+    }
   }
 
   // ── World map ───────────────────────────────────────────────────────────────
