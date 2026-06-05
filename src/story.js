@@ -2587,16 +2587,20 @@ class StoryGame {
     const px = C.W - 160;
     const py = C.GROUND;
 
-    // Ominous glow behind boss
+    const defeated = !!this._bossDefeatMode;
+
+    // Ominous glow behind boss (dim and flicker when defeated)
     ctx.save();
     ctx.translate(px, py);
-    const pulse = 0.6 + 0.4 * Math.sin(T / 600);
-    const grd = ctx.createRadialGradient(0, -bh * 0.5, 10, 0, -bh * 0.5, bh * 0.8 * pulse);
+    const pulse = defeated
+      ? (0.12 + 0.08 * Math.sin(T / 180) * Math.sin(T / 73))   // dim, erratic flicker
+      : (0.6 + 0.4 * Math.sin(T / 600));
+    const grd = ctx.createRadialGradient(0, -bh * 0.5, 10, 0, -bh * 0.5, bh * 0.8 * (defeated ? 0.5 : pulse));
     const hexToRgb = (hex) => {
       const m = hex.replace('#','').match(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
       return m ? `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}` : '255,100,0';
     };
-    grd.addColorStop(0, `rgba(${hexToRgb(gc1)},0.55)`);
+    grd.addColorStop(0, `rgba(${hexToRgb(gc1)},${defeated ? pulse : 0.55})`);
     grd.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = grd;
     ctx.beginPath(); ctx.ellipse(0, -bh * 0.5, bw * 0.8, bh * 0.75, 0, 0, Math.PI*2); ctx.fill();
@@ -2611,9 +2615,55 @@ class StoryGame {
       boss.y = 0;
       ctx.save();
       ctx.translate(px, py);
+      if (defeated) {
+        // Slump: tilt and sink the boss to look ruined/broken
+        const slumpAngle = 0.18 + 0.04 * Math.sin(T / 400);
+        const sinkY = bh * 0.12;
+        ctx.translate(bw * 0.5, -sinkY); // shift pivot to body centre
+        ctx.rotate(slumpAngle);
+        ctx.translate(-bw * 0.5, sinkY);
+        // Desaturated, darkened, slightly reddish tint
+        ctx.filter = 'grayscale(0.75) brightness(0.45) contrast(1.3) sepia(0.3)';
+      }
       ctx.scale(scale, scale);
       boss.draw(ctx);
       ctx.restore();
+
+      // Defeat overlays: smoke wisps and crack-like marks
+      if (defeated) {
+        // Dark smoke wisps rising from top of boss
+        const smokeT = T / 1000;
+        for (let i = 0; i < 4; i++) {
+          const si = i / 3;
+          const sx = px - bw * 0.3 + bw * 0.6 * si + Math.sin(smokeT * 1.3 + i * 2.1) * 10;
+          const sy = py - bh - 12 - (((smokeT * 28 + i * 22) % 48));
+          const sr = 5 + si * 4 + Math.sin(smokeT + i) * 2;
+          const alpha = 0.22 - (((smokeT * 28 + i * 22) % 48) / 48) * 0.22;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = '#443322';
+          ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // Crack overlay: a few jagged lines across the boss area
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = '#110800';
+        ctx.lineWidth = 1.5;
+        const cracks = [
+          [[px - bw*0.05, py - bh*0.85], [px + bw*0.1, py - bh*0.6], [px - bw*0.02, py - bh*0.4]],
+          [[px + bw*0.2, py - bh*0.7],   [px + bw*0.05, py - bh*0.5], [px + bw*0.18, py - bh*0.3]],
+          [[px - bw*0.15, py - bh*0.55], [px - bw*0.05, py - bh*0.42]],
+        ];
+        for (const crack of cracks) {
+          ctx.beginPath();
+          ctx.moveTo(crack[0][0], crack[0][1]);
+          for (let i = 1; i < crack.length; i++) ctx.lineTo(crack[i][0], crack[i][1]);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       boss.x = savedX;
       boss.y = savedY;
       boss.dead = savedDead;
