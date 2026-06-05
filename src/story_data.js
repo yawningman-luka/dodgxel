@@ -16,6 +16,11 @@ const STORY_ENEMY_DEFS = {
   // Act 5 — Tech
   robot:      { speed: 1.8,  hp: 2, w: 22, h: 48, throwInterval: 1500, throwSpeed: 7.5, color: '#5599AA', pants: '#336677' },
   hack_drone: { speed: 1.4,  hp: 1, w: 28, h: 28, throwInterval: 2000, throwSpeed: 6.0, color: '#00CCAA', pants: '#009988', floats: true },
+  // Act 5 NEW — Digital Horrors
+  tendril:      { speed: 0.45, hp: 2, w: 20, h: 52, throwInterval: 1100, throwSpeed: 6.5, color: '#33CC66', pants: '#116633' },
+  glitch:       { speed: 2.8,  hp: 1, w: 18, h: 38, throwInterval: 750,  throwSpeed: 9.0, color: '#FF00AA', pants: '#CC0077' },
+  pulse_orb:    { speed: 1.0,  hp: 1, w: 24, h: 24, throwInterval: 1200, throwSpeed: 8.0, color: '#00DDFF', pants: '#0099BB', floats: true },
+  overload_bot: { speed: 0.7,  hp: 3, w: 28, h: 54, throwInterval: 2000, throwSpeed: 5.5, color: '#FF5500', pants: '#CC3300' },
 
   // ── BOSSES ────────────────────────────────────────────────────────────────
   patient_zero:   { speed: 0.6,  hp: 16, w: 56, h: 88, throwInterval: 2000, throwSpeed: 5.5, color: '#5a3a2a', pants: '#3a2a1a', isBoss: true },
@@ -247,16 +252,20 @@ const STORY_ACTS = [
     enemyCategory: 'TECH',
     bg: { sky: '#050510', mid: '#0a0a1a', ground: '#1a1a2a', accent: '#00FFCC' },
     waves: [
-      [{ type: 'robot',      count: 3 }],
-      [{ type: 'robot',      count: 3 }, { type: 'hack_drone', count: 2 }],
-      [{ type: 'hack_drone', count: 4 }],
-      [{ type: 'robot',      count: 4 }],
-      [{ type: 'robot',      count: 3 }, { type: 'hack_drone', count: 3 }],
-      [{ type: 'hack_drone', count: 5 }],
-      [{ type: 'robot',      count: 4 }, { type: 'hack_drone', count: 3 }],
-      [{ type: 'robot',      count: 4 }, { type: 'hack_drone', count: 4 }],
-      [{ type: 'robot',      count: 5 }, { type: 'hack_drone', count: 3 }],
-      // Wave 10: BOSS — Nexus Core (SIMULTANEOUS — 2 hits within 300ms, or exploding ball)
+      [{ type: 'glitch',       count: 3 }],
+      [{ type: 'tendril',      count: 2 }],
+      [{ type: 'pulse_orb',    count: 3 }],
+      [{ type: 'glitch',       count: 3 }, { type: 'tendril',   count: 1 }],
+      [{ type: 'overload_bot', count: 2 }],
+      [{ type: 'pulse_orb',    count: 3 }, { type: 'glitch',    count: 2 }],
+      [{ type: 'tendril',      count: 2 }, { type: 'overload_bot', count: 2 }],
+      [{ type: 'glitch',       count: 4 }, { type: 'pulse_orb', count: 2 }],
+      [{ type: 'overload_bot', count: 2 }, { type: 'tendril',   count: 3 }],
+      [{ type: 'glitch',       count: 3 }, { type: 'overload_bot', count: 2 }],
+      [{ type: 'pulse_orb',    count: 4 }, { type: 'tendril',   count: 2 }],
+      [{ type: 'overload_bot', count: 3 }, { type: 'glitch',    count: 3 }],
+      [{ type: 'tendril',      count: 3 }, { type: 'pulse_orb', count: 3 }, { type: 'glitch', count: 2 }],
+      // Wave 14: BOSS — Nexus Core (SIMULTANEOUS — 2 hits within 700ms solo / 300ms coop, or exploding ball)
       [{ type: 'nexus_core', count: 1 }],
     ],
     npc: {

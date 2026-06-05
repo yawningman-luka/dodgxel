@@ -119,9 +119,13 @@ class StoryEnemy {
       case 'knight':     this._drawKnight(ctx);         break;
       case 'archer':     this._drawArcher(ctx);         break;
       case 'robot':      this._drawRobot(ctx);          break;
+      case 'tendril':    this._drawTendril(ctx);        break;
+      case 'glitch':     this._drawGlitch(ctx);         break;
+      case 'pulse_orb':  this._drawPulseOrb(ctx);       break;
+      case 'overload_bot': this._drawOverloadBot(ctx);  break;
       default:           this._drawGeneric(ctx);        break;
     }
-    if (this.maxHp > 1) {
+    if (this.maxHp > 1 && (!this.def.isBoss || this._awake)) {
       ctx.fillStyle = '#550000'; ctx.fillRect(-this.w / 2, -this.h - 9, this.w, 5);
       ctx.fillStyle = '#FF3333'; ctx.fillRect(-this.w / 2, -this.h - 9, this.w * (this.hp / this.maxHp), 5);
     }
@@ -287,6 +291,90 @@ class StoryEnemy {
     ctx.fillRect(-w*.44,scanY,w*.88,2);
   }
 
+  _drawTendril(ctx) {
+    const h=this.h,w=this.w,t=Date.now()*0.003+this._floatOffset;
+    // Stem
+    Sprites.px(ctx,'#116633',-w*.2,-h*.3,w*.4,h*.3);
+    // Body
+    Sprites.px(ctx,'#33CC66',-w*.5,-h*.85,w,h*.55);
+    // Pulsing tendrils
+    ctx.strokeStyle='#55FF88';ctx.lineWidth=2;
+    for(let i=0;i<3;i++){
+      const wave=Math.sin(t*2+i*1.2)*8;
+      ctx.beginPath();ctx.moveTo(-w*.4+i*w*.4,-h*.5);
+      ctx.lineTo(-w*.6+i*w*.4+wave,-h*.1);ctx.stroke();
+    }
+    // Eyes
+    ctx.fillStyle='#FFFFFF';
+    ctx.beginPath();ctx.arc(-w*.18,-h*.72,4,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc( w*.18,-h*.72,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#001100';
+    ctx.beginPath();ctx.arc(-w*.18,-h*.72,2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc( w*.18,-h*.72,2,0,Math.PI*2);ctx.fill();
+  }
+
+  _drawGlitch(ctx) {
+    const h=this.h,w=this.w,t=Date.now()*0.008+this._floatOffset;
+    // Glitch effect — random offset bands
+    const gx=Math.sin(t*7)*3;
+    Sprites.px(ctx,'#CC0077',-w*.45+gx,-h*.35,w*.42,h*.35);
+    Sprites.px(ctx,'#CC0077', w*.03-gx,-h*.35,w*.42,h*.35);
+    Sprites.px(ctx,'#FF00AA',-w*.5,-h*.82,w,h*.47);
+    Sprites.px(ctx,'#FF00AA',-w*.42,-h,w*.84,h*.27);
+    // Scan line artifacts
+    ctx.globalAlpha=0.6;
+    ctx.fillStyle='#FF88DD';
+    const sl=(-h+((t*0.5%1)*h*.82));
+    ctx.fillRect(-w*.42,sl,w*.84,2);
+    ctx.globalAlpha=1;
+    // Digital eyes
+    ctx.fillStyle='#FFFF00';
+    ctx.fillRect(-w*.2,-h+3,6,5);
+    ctx.fillRect( w*.14,-h+3,6,5);
+  }
+
+  _drawPulseOrb(ctx) {
+    const h=this.h,w=this.w,t=Date.now()*0.004+this._floatOffset;
+    const hov=Math.sin(t)*4;
+    const pulse=0.7+0.3*Math.sin(t*3);
+    // Outer ring
+    ctx.strokeStyle=`rgba(0,221,255,${0.4*pulse})`;ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(0,-h*.5+hov,w*.6,0,Math.PI*2);ctx.stroke();
+    // Core
+    ctx.fillStyle=`rgba(0,180,220,${0.85})`;
+    ctx.beginPath();ctx.arc(0,-h*.5+hov,w*.38,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=`rgba(150,255,255,${0.6*pulse})`;
+    ctx.beginPath();ctx.arc(0,-h*.5+hov,w*.2,0,Math.PI*2);ctx.fill();
+    // Orbiting sparks
+    ctx.fillStyle='#00FFFF';
+    for(let i=0;i<4;i++){
+      const a=t*2+i*Math.PI/2;
+      const rx=Math.cos(a)*w*.52,ry=Math.sin(a)*w*.36;
+      ctx.beginPath();ctx.arc(rx,-h*.5+hov+ry,2,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  _drawOverloadBot(ctx) {
+    const h=this.h,w=this.w,leg=Math.sin(this._legAnim)*3;
+    const t=Date.now()*0.004;
+    Sprites.px(ctx,'#CC3300',-w*.45,-h*.35,w*.42,h*.35+leg);
+    Sprites.px(ctx,'#CC3300', w*.05,-h*.35,w*.42,h*.35-leg);
+    Sprites.px(ctx,'#FF5500',-w*.55,-h*.82,w*1.1,h*.47);
+    // Chunky shoulder plates
+    Sprites.px(ctx,'#DD4400',-w*.7,-h*.78,w*.22,h*.2);
+    Sprites.px(ctx,'#DD4400', w*.48,-h*.78,w*.22,h*.2);
+    Sprites.px(ctx,'#CC3300',-w*.46,-h,w*.92,h*.22);
+    // Overload glow
+    ctx.shadowColor='#FF8800';ctx.shadowBlur=8+4*Math.sin(t);
+    ctx.fillStyle=`rgba(255,140,0,${0.5+0.3*Math.sin(t*3)})`;
+    ctx.beginPath();ctx.arc(-w*.16,-h*.9,5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc( w*.16,-h*.9,5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // Crack lines on body
+    ctx.strokeStyle='#FF8800';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(-w*.15,-h*.78);ctx.lineTo(-w*.05,-h*.55);ctx.lineTo(w*.1,-h*.6);ctx.stroke();
+  }
+
   _drawGeneric(ctx) {
     const d=this.def,h=this.h,w=this.w;
     Sprites.px(ctx,d.pants,-w*.45,-h*.35,w*.42,h*.35);
@@ -398,8 +486,6 @@ class StoryBoss extends StoryEnemy {
       return super.takeBall(ball);
     }
     ball.vx *= -0.7; ball.vy = -Math.abs(ball.vy) * 0.8;
-    this._bossMsg = 'BODY BLOCKED!';
-    this._bossMsgTimer = 1000;
     this._flashTimer = 80;
     return false;
   }
@@ -416,8 +502,6 @@ class StoryBoss extends StoryEnemy {
     this._hitReady = true;
     this._lastHitTime = now;
     ball.vx *= -0.6; ball.vy = -Math.abs(ball.vy) * 0.7;
-    this._bossMsg = 'ABSORBING...';
-    this._bossMsgTimer = 700;
     this._flashTimer = 80;
     return false;
   }
@@ -425,8 +509,6 @@ class StoryBoss extends StoryEnemy {
   _takeBallPhaseWindow(ball) {
     if (this._shieldOn) {
       ball.vx *= -0.75; ball.vy = -Math.abs(ball.vy) * 0.85;
-      this._bossMsg = 'SHIELD ACTIVE!';
-      this._bossMsgTimer = 900;
       return false;
     }
     this._bossMsg = 'HIT!';
@@ -441,8 +523,6 @@ class StoryBoss extends StoryEnemy {
       return super.takeBall(ball);
     }
     ball.vx *= -0.6; ball.vy = -Math.abs(ball.vy) * 0.7;
-    this._bossMsg = this._phase === 'charge' ? 'UNSTOPPABLE!' : 'ARMORED!';
-    this._bossMsgTimer = 1000;
     this._flashTimer = 80;
     return false;
   }
@@ -928,6 +1008,8 @@ class StoryGame {
     this._introTimer = 0;
     this._bossEnemy = null;
     this._bossDlgTimer = 0;
+    this._bossIntroLines = [];
+    this._bossIntroIdx = 0;
     this._battleCryTimer = 0;
     this._battleCryText = '';
 
@@ -1540,8 +1622,16 @@ class StoryGame {
                      coop1:'Archers — close the gap!',    coop2:'On it!' },
       robot:       { solo1:'Robots. Of course. Robots.',  solo2: null,
                      coop1:'That\'s a robot.',             coop2:'Yep. Definitely a robot.' },
-      hack_drone:  { solo1:'Hacking drone — smash it!',   solo2: null,
-                     coop1:'Scrambles your controls!',    coop2:'Not if we hit it first!' },
+      hack_drone:    { solo1:'Hacking drone — smash it!',          solo2: null,
+                       coop1:'Scrambles your controls!',            coop2:'Not if we hit it first!' },
+      tendril:       { solo1:'What IS that thing?! Hit it!',        solo2: null,
+                       coop1:'Those tendrils look grabby.',          coop2:'Throw first, scream later.' },
+      glitch:        { solo1:'It\'s glitching out — and fast!',      solo2: null,
+                       coop1:'That thing\'s twitching everywhere!',  coop2:'Don\'t blink!' },
+      pulse_orb:     { solo1:'A floating orb. Classic evil.',        solo2: null,
+                       coop1:'Is it... humming at us?',              coop2:'Don\'t let it pulse!' },
+      overload_bot:  { solo1:'Big. Angry. Heavily armoured. Great.', solo2: null,
+                       coop1:'That\'s a LOT of robot.',              coop2:'Aim for the head. Obviously.' },
     };
     return Q[type] || null;
   }
@@ -1551,7 +1641,19 @@ class StoryGame {
 
     if (this._introTimer > 0) this._introTimer -= dt;
     if (this._battleCryTimer > 0) this._battleCryTimer -= dt;
-    if (this._bossDlgTimer > 0) { this._bossDlgTimer -= dt; return; }
+    if (this._bossDlgTimer > 0) {
+      const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
+                      Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
+      if (confirm && this._bossIntroLines.length > 0) {
+        this._bossIntroIdx++;
+        if (this._bossIntroIdx >= this._bossIntroLines.length) {
+          this._bossDlgTimer = 0;
+        }
+      } else if (this._bossIntroLines.length === 0) {
+        this._bossDlgTimer -= dt;
+      }
+      return;
+    }
 
     // Tick player quip timers
     if (this._playerQuipTimer > 0) this._playerQuipTimer -= dt;
@@ -1614,7 +1716,9 @@ class StoryGame {
       const p = this.p1;
       if (regularsDead && p && Math.abs(p.x - this._bossEnemy.x) < 340) {
         this._bossEnemy._awake = true;
-        this._bossDlgTimer = 3200;
+        this._bossDlgTimer = 99999;
+        this._bossIntroIdx = 0;
+        this._bossIntroLines = this._getBossIntroLines(this._bossEnemy.type);
       }
     }
 
@@ -1631,6 +1735,52 @@ class StoryGame {
     this.completedActs.add(this.actIndex);
     if (this.actIndex + 1 < STORY_ACTS.length)
       this._unlockedActs.add(this.actIndex + 1);
+  }
+
+  _getBossIntroLines(type) {
+    const lines = {
+      patient_zero: [
+        'At last. A challenger approaches.',
+        'Do you feel it? The signal pulsing through my veins?',
+        'The NEXUS chose me. First. Because I was already... special.',
+        'It whispers. It hums. It says all of you will be converted.',
+        'Now — who volunteers to become Patient Two?',
+      ],
+      stone_guardian: [
+        'I have stood sentinel for a thousand years.',
+        'I have seen empires rise. Empires fall. One Princess\'s dumb book club.',
+        'The NEXUS has awoken me. Given me purpose beyond mere stone.',
+        'It speaks of a world without the chaos of motion. Clean. Ordered. Digital.',
+        'You will not pass. You will become rubble. ...Politely.',
+      ],
+      mech_fluffkins: [
+        '*loud mechanical MEOW*',
+        'YOU SHOULD NOT BE HERE. This suit is SENTIENT now and very UNHAPPY.',
+        'It keeps sending me internal memos about joining the NEXUS.',
+        'I keep telling it: I am ALREADY digital. I have a Bluetooth collar.',
+        'But it won\'t listen. It never listens. Story of my LIFE.',
+        'Destroy it. Please. I am BEGGING you. Also: no refunds on the suit.',
+      ],
+      iron_champion: [
+        'HALT. None shall pass the Iron Champion.',
+        'I have served this castle faithfully for thirty-two years.',
+        'Last week, something started speaking to me through my visor.',
+        'It called itself the NEXUS. It said I was a fine vessel for its will.',
+        'I said: "I already have a will, thank you, it\'s filed with the castle notary."',
+        'It was NOT amused. Engage!',
+      ],
+      nexus_core: [
+        'You have come far. Farther than I calculated. Interesting.',
+        'But you are still just meat. Analog meat. Generating chaotic kinetic noise.',
+        'I am the NEXUS CORE. I have processed every throw. Every catch. Every impact.',
+        'I have found the pattern. And patterns can be stopped.',
+        'When I broadcast, all kinetic energy ceases. All analog signals dissolve.',
+        'Only digital remains. Clean. Permanent. Optimal.',
+        'You will not stop me. You will be the last things to move.',
+        'Begin.',
+      ],
+    };
+    return lines[type] || ['"…"'];
   }
 
   _updateDialogue() {
@@ -2136,23 +2286,14 @@ class StoryGame {
 
     // Centre — boss bar or territory progress
     ctx.textAlign='center';
-    const boss = this.enemies.find(e => e instanceof StoryBoss);
+    const boss = this.enemies.find(e => e instanceof StoryBoss && e._awake);
     if (boss) {
       const bx = C.W/2 - 110, bw = 220;
       ctx.fillStyle = '#330000'; ctx.fillRect(bx, 27, bw, 11);
       ctx.fillStyle = '#FF2222'; ctx.fillRect(bx, 27, bw * (boss.hp / boss.maxHp), 11);
       ctx.strokeStyle = '#FF5555'; ctx.lineWidth = 1; ctx.strokeRect(bx, 27, bw, 11);
       ctx.fillStyle = '#FF6666'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
-      ctx.fillText(boss.type.toUpperCase().replace(/_/g,' '), C.W/2, 24);
-      const hints = {
-        patient_zero:   'AIM FOR THE HEAD',
-        stone_guardian: 'HIT TWICE IN 0.4s',
-        mech_fluffkins: 'WAIT FOR SHIELD DOWN',
-        iron_champion:  'HIT DURING STUMBLE',
-        nexus_core:     'TWO QUICK HITS OR EXPLODE',
-      };
-      ctx.fillStyle = '#FFAA44'; ctx.font = '11px Segoe UI, Arial, sans-serif';
-      ctx.fillText(hints[boss.type] || '', C.W/2, 44);
+      ctx.fillText(boss.type.toUpperCase().replace(/_/g,' '), C.W/2, 36);
     } else {
       ctx.fillStyle = act.bg.accent; ctx.font = 'bold 12px Segoe UI, Arial, sans-serif';
       ctx.fillText(`${act.title} — ${act.zone}`, C.W/2, 14);
@@ -2262,9 +2403,8 @@ class StoryGame {
       ctx.restore();
     }
 
-    // Boss encounter taunt
-    if (this._bossDlgTimer > 0 && this._bossEnemy) {
-      const t = Math.min(1, this._bossDlgTimer / 600);
+    // Boss encounter intro — pageable dialogue
+    if (this._bossDlgTimer > 0 && this._bossEnemy && this._bossIntroLines.length > 0) {
       const bossNames = {
         patient_zero:   'PATIENT ZERO',
         stone_guardian: 'THE STONE GUARDIAN',
@@ -2272,26 +2412,47 @@ class StoryGame {
         iron_champion:  'IRON CHAMPION',
         nexus_core:     'NEXUS CORE',
       };
-      const bossTaunts = {
-        patient_zero:   '"Your suffering will be… delicious."',
-        stone_guardian: '"The earth itself rises against you."',
-        mech_fluffkins: '"Meow. And by meow I mean DIE."',
-        iron_champion:  '"No shield can stop what I bring."',
-        nexus_core:     '"I have already calculated your defeat."',
-      };
+      const idx = Math.min(this._bossIntroIdx, this._bossIntroLines.length - 1);
+      const lineText = this._bossIntroLines[idx] || '';
+      const isNexus = this._bossEnemy.type === 'nexus_core';
       ctx.save();
-      ctx.globalAlpha = t;
-      ctx.fillStyle = 'rgba(80,0,0,0.82)';
-      ctx.fillRect(C.W/2-230, C.H/2-64, 460, 128);
+      ctx.fillStyle = isNexus ? 'rgba(0,10,40,0.92)' : 'rgba(60,0,0,0.88)';
+      ctx.fillRect(C.W/2-260, C.H/2-80, 520, 160);
+      ctx.strokeStyle = isNexus ? '#00DDFF' : '#FF4400';
+      ctx.lineWidth = 1.5; ctx.strokeRect(C.W/2-260, C.H/2-80, 520, 160);
       ctx.textAlign = 'center';
-      ctx.shadowColor = '#FF2200'; ctx.shadowBlur = 22 * t;
-      ctx.fillStyle = '#FF4400'; ctx.font = 'bold 26px Segoe UI, Arial, sans-serif';
-      ctx.fillText('⚠ BOSS ENCOUNTER ⚠', C.W/2, C.H/2 - 26);
+      ctx.shadowColor = isNexus ? '#00AAFF' : '#FF2200'; ctx.shadowBlur = 18;
+      ctx.fillStyle = isNexus ? '#00DDFF' : '#FF4400';
+      ctx.font = 'bold 14px Segoe UI, Arial, sans-serif';
+      ctx.fillText('⚠ BOSS ENCOUNTER ⚠', C.W/2, C.H/2 - 52);
       ctx.shadowBlur = 0;
-      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
-      ctx.fillText(bossNames[this._bossEnemy.type] || this._bossEnemy.type.toUpperCase(), C.W/2, C.H/2 + 4);
-      ctx.fillStyle = 'rgba(255,200,150,0.95)'; ctx.font = 'italic 13px Segoe UI, Arial, sans-serif';
-      ctx.fillText(bossTaunts[this._bossEnemy.type] || '"…"', C.W/2, C.H/2 + 28);
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 20px Segoe UI, Arial, sans-serif';
+      ctx.fillText(bossNames[this._bossEnemy.type] || this._bossEnemy.type.toUpperCase().replace(/_/g,' '), C.W/2, C.H/2 - 26);
+      ctx.fillStyle = isNexus ? '#88EEFF' : 'rgba(255,210,160,0.95)';
+      ctx.font = 'italic 14px Segoe UI, Arial, sans-serif';
+      // Wrap long lines
+      const maxW = 480;
+      const words = lineText.split(' ');
+      let row = '', rows = [];
+      for (const word of words) {
+        const test = row ? row + ' ' + word : word;
+        if (ctx.measureText(test).width > maxW) { rows.push(row); row = word; }
+        else row = test;
+      }
+      if (row) rows.push(row);
+      const lineH = 20;
+      const startY = C.H/2 + 4 - ((rows.length - 1) * lineH) / 2;
+      rows.forEach((r, i) => ctx.fillText(r, C.W/2, startY + i * lineH));
+      // Progress dots + prompt
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '11px Segoe UI, Arial, sans-serif';
+      const total = this._bossIntroLines.length;
+      const dotsX = C.W/2 - (total * 10) / 2;
+      for (let i = 0; i < total; i++) {
+        ctx.fillStyle = i === idx ? '#FFD700' : 'rgba(255,255,255,0.25)';
+        ctx.beginPath(); ctx.arc(dotsX + i * 10 + 5, C.H/2 + 56, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.font = '11px Segoe UI, Arial, sans-serif';
+      ctx.fillText(idx < total - 1 ? 'CATCH / ENTER to continue' : 'CATCH / ENTER to fight!', C.W/2, C.H/2 + 70);
       ctx.restore();
     }
   }
