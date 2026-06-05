@@ -987,6 +987,9 @@ class StoryGame {
     this.completedActs = new Set();
     this._unlockedActs = new Set([0]);
     this._mapCursor = 0;
+    this._gazetteMode = 'intro';   // 'intro' | 'pre_act' | 'final'
+    this._gazetteActIdx = 0;       // which act's content to show
+    this._gazettePrevActIdx = -1;  // which act's bg to show in portrait (-1 = none)
 
     // Dialogue
     this._dlgPhase = 'intro';
@@ -1034,12 +1037,14 @@ class StoryGame {
     this._p2RegenTimer = 0;
   }
 
-  // ── Act start: NPC intro dialogue, then combat ──────────────────────────────
+  // ── Act start: show gazette first, then NPC intro dialogue, then combat ──────
   _startAct(idx) {
     this.actIndex = idx;
     this._dlgPhase = 'intro';
-    const act = STORY_ACTS[idx];
-    this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
+    this._gazetteActIdx = idx;
+    this._gazettePrevActIdx = idx > 0 ? idx - 1 : -1;
+    this._gazetteMode = 'pre_act';
+    this.subState = 'story_intro';
   }
 
   // ── Combat setup ─────────────────────────────────────────────────────────────
@@ -1150,7 +1155,20 @@ class StoryGame {
   _updateStoryIntro() {
     const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
                     Input.wasPressed(Controls.p1.catch);
-    if (confirm) { this._storyIntroSeen = true; this.subState = 'world_map'; }
+    if (confirm) {
+      this._storyIntroSeen = true;
+      if (this._gazetteMode === 'pre_act') {
+        // Gazette before an act → start NPC intro dialogue
+        const act = STORY_ACTS[this._gazetteActIdx];
+        this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
+      } else if (this._gazetteMode === 'final') {
+        // Final gazette → return to menu
+        this.returnToMenu = true;
+      } else {
+        // Initial intro gazette → world map
+        this.subState = 'world_map';
+      }
+    }
   }
 
   _updateWorldMap() {
@@ -1168,6 +1186,16 @@ class StoryGame {
       if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
         if (this._levelState === 'act_clear') {
           this._completeAct();
+          // Transition out of act_clear
+          if (this.actIndex === STORY_ACTS.length - 1) {
+            // Final act → show ending gazette
+            this._gazetteMode = 'final';
+            this._gazettePrevActIdx = this.actIndex;
+            this._gazetteActIdx = this.actIndex;
+            this.subState = 'story_intro';
+          } else {
+            this.subState = 'world_map';
+          }
         } else {
           // Retry: go straight to combat
           this._startActCombat(this.actIndex);
@@ -1987,6 +2015,83 @@ class StoryGame {
     this._drawSidescroll(ctx);
   }
 
+  // ── Gazette content per act ─────────────────────────────────────────────────
+  _getGazetteContent() {
+    if (this._gazetteMode === 'final') {
+      return {
+        headline: 'PATIENT ZERO DEFEATED — NEXUS COLLAPSES',
+        subhead: '— CITY WAKES UP — DODGEBALLS RETURN HOME —',
+        paras: [
+          'In a stunning reversal, the NEXUS signal that had enslaved ninety-four percent of Dodgeville\'s population fell silent this morning, moments after its source was neutralized.',
+          'Witnesses report glazed-over residents blinking awake mid-clap, confused but otherwise unharmed. The mayor has been informed about his waffle.',
+          '"We never doubted them," confirmed Dr. Wendy from her bunker, now open for tours. "Also, we still have an extraordinary number of dodgeballs. Please come collect them."',
+          'Patient Zero\'s current whereabouts are unknown. The infected are recovering. The signal is gone. The game, it seems, is over.',
+        ],
+        prompt: '— PRESS  ENTER  TO  CONTINUE —',
+      };
+    }
+    const actData = [
+      { // act 0 — city
+        headline: 'MYSTERIOUS SIGNAL INFECTS CITY',
+        subhead: '— ATHLETES IMMUNE — HEROES NEEDED NOW —',
+        paras: [
+          'At 6:14am Tuesday, every TV, phone and microwave in Dodgeville started playing the same eerie hum. Within four minutes, 94% of residents had glazed over completely — including the mayor, who was halfway through a waffle.',
+          'The signal — dubbed NEXUS by scientists who definitely did not panic — overrides ordinary brains like a firmware update nobody asked for. Victims stand motionless, staring blankly, occasionally clapping at nothing.',
+          'Bizarrely, competitive dodgeball athletes are completely unaffected. Experts believe years of sprinting away from rubber balls at high speed has made their reflexes too chaotic for the signal to lock on to.',
+          '"Patient Zero is somewhere out there, spreading this thing like free samples at a mall," confirmed Dr. Wendy via fax from an undisclosed bunker. "Stop him, and the infection collapses. Also, please use the dodgeballs. We have so many dodgeballs."',
+        ],
+      },
+      { // act 1 — jungle
+        headline: 'PATIENT ZERO FLEES — TRAIL LEADS TO JUNGLE',
+        subhead: '— RIVERSIDE DISTRICT INFECTED — PURSUIT ORDERED —',
+        paras: [
+          'Following confrontations in downtown Dodgeville, Patient Zero was last tracked heading east toward the overgrown riverside jungle district, leaving a trail of glazed-over locals in his wake.',
+          'The NEXUS signal has spread with him. Local wildlife has reportedly begun clapping in unison — which scientists describe as "alarming, but also genuinely impressive timing."',
+          '"He\'s running," confirmed Dr. Wendy via a second fax from a slightly different undisclosed bunker. "That means it\'s working. Keep the pressure on. Also, more dodgeballs."',
+          'The infected jungle presents new hazards: dense canopy, hostile terrain, and at least one large, very confused parrot who won\'t stop repeating the word "firmware."',
+        ],
+      },
+      { // act 2 — snow
+        headline: 'NEXUS SIGNAL DETECTED IN FROZEN HIGHLANDS',
+        subhead: '— MOUNTAIN PASS FALLS SILENT — BLIZZARD CONDITIONS —',
+        paras: [
+          'Patient Zero has ascended into the frozen mountain pass, where sub-zero temperatures have done nothing to slow the spread of the NEXUS infection.',
+          'Emergency services report entire ski lodges standing motionless in the snow, staring at nothing in particular, completely unaware of their hot chocolates going cold.',
+          '"Frostbite doesn\'t stop the signal. Apparently," wrote Dr. Wendy on a postcard from somewhere considerably warmer. "You are going to need thicker socks. And more dodgeballs."',
+          'Our heroes press on. The summit is somewhere above the clouds. Patient Zero is somewhere in the cold. The dodgeballs, at least, do not freeze.',
+        ],
+      },
+      { // act 3 — castle
+        headline: 'ANCIENT CASTLE SEIZED BY NEXUS FORCES',
+        subhead: '— STONE GUARDIAN AWAKENS — HERITAGE SITE IN PERIL —',
+        paras: [
+          'The historic Dodgeville Heritage Castle — home to the Regional Dodgeball Hall of Fame since 1987 — has fallen under NEXUS control, its ancient stone guardian reanimated after a thousand years of inactivity.',
+          'Archaeologists are in mourning. The guardian, described by witnesses as "enormous, polite about the whole thing, and impossible to dodge," has sealed all known exits.',
+          '"This is technically unprecedented," Dr. Wendy faxed from an archive room she declined to name. "Ruins should not move that fast. And yet. Bring dodgeballs."',
+          'Patient Zero has taken refuge inside. The Hall of Fame trophies remain unharmed. The dodgeballs used to win them stand ready.',
+        ],
+      },
+      { // act 4 — tower
+        headline: 'PATIENT ZERO\'S TOWER IDENTIFIED — FINAL STAND',
+        subhead: '— NEXUS CORE LOCATED — ONE CHANCE TO END THIS —',
+        paras: [
+          'Intelligence sources — and one very persistent fax machine — have confirmed the location of Patient Zero\'s final stronghold: a pulsing tower at the exact heart of the NEXUS signal.',
+          'The structure radiates digital energy visible from the outskirts of the city. Infected citizens across Dodgeville are being drawn toward it, like a firmware update none of them agreed to.',
+          '"This is it," confirmed Dr. Wendy, this time in person, from a surprisingly comfortable command bunker. "The signal dies with the tower. Or with him. The dodgeballs are ready."',
+          'Our heroes stand at the threshold. The fate of Dodgeville rests on the next throw. Make it count.',
+        ],
+      },
+    ];
+    const idx = Math.min(this._gazetteActIdx, actData.length - 1);
+    const d = actData[idx];
+    return {
+      headline: d.headline,
+      subhead: d.subhead,
+      paras: d.paras,
+      prompt: '— PRESS  ENTER  TO  BEGIN —',
+    };
+  }
+
   // ── Story Intro (newspaper cutout) ─────────────────────────────────────────
   _drawStoryIntro(ctx) {
     const W = C.W, H = C.H;
@@ -2033,11 +2138,12 @@ class StoryGame {
     ctx.beginPath(); ctx.moveTo(18, 73); ctx.lineTo(W-18, 73); ctx.stroke();
 
     // Headline
+    const _gc = this._getGazetteContent();
     ctx.textAlign = 'center'; ctx.fillStyle = '#050505';
     ctx.font = 'bold 22px Georgia, serif';
-    ctx.fillText('MYSTERIOUS SIGNAL INFECTS CITY', W/2, 96);
+    ctx.fillText(_gc.headline, W/2, 96);
     ctx.font = 'bold 13px Georgia, serif';
-    ctx.fillText('— ATHLETES IMMUNE — HEROES NEEDED NOW —', W/2, 113);
+    ctx.fillText(_gc.subhead, W/2, 113);
     ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(18, 118); ctx.lineTo(W-18, 118); ctx.stroke();
 
@@ -2062,25 +2168,20 @@ class StoryGame {
 
     ctx.textAlign = 'left';
     let ty = 135;
-    // Drop cap 'A'
+    // Drop cap — first letter of first paragraph
+    const _para0 = _gc.paras[0];
+    const _capLetter = _para0[0];
+    const _paraRest = _para0.slice(1);
     ctx.font = 'bold 32px Georgia, serif'; ctx.fillStyle = '#050505';
-    ctx.fillText('A', lx, ty + 20);
-    const capW = ctx.measureText('A').width + 4;
-    ty = drawWrap(
-      't 6:14am Tuesday, every TV, phone and microwave in Dodgeville started playing the same eerie hum. Within four minutes, 94% of residents had glazed over completely — including the mayor, who was halfway through a waffle.',
-      lx + capW, ty, lW - capW, 13, '9.5px Georgia, serif');
+    ctx.fillText(_capLetter, lx, ty + 20);
+    const capW = ctx.measureText(_capLetter).width + 4;
+    ty = drawWrap(_paraRest, lx + capW, ty, lW - capW, 13, '9.5px Georgia, serif');
     ty += 3;
-    ty = drawWrap(
-      'The signal — dubbed NEXUS by scientists who definitely did not panic — overrides ordinary brains like a firmware update nobody asked for. Victims stand motionless, staring blankly, occasionally clapping at nothing.',
-      lx, ty, lW, 13, '9.5px Georgia, serif');
+    ty = drawWrap(_gc.paras[1], lx, ty, lW, 13, '9.5px Georgia, serif');
     ty += 3;
-    ty = drawWrap(
-      'Bizarrely, competitive dodgeball athletes are completely unaffected. Experts believe years of sprinting away from rubber balls at high speed has made their reflexes too chaotic for the signal to lock on to.',
-      lx, ty, lW, 13, '9.5px Georgia, serif');
+    ty = drawWrap(_gc.paras[2], lx, ty, lW, 13, 'italic 9.5px Georgia, serif');
     ty += 3;
-    ty = drawWrap(
-      '"Patient Zero is somewhere out there, spreading this thing like free samples at a mall," confirmed Dr. Wendy via fax from an undisclosed bunker. "Stop him, and the infection collapses. Also, please use the dodgeballs. We have so many dodgeballs."',
-      lx, ty, lW, 13, 'italic 9.5px Georgia, serif');
+    if (_gc.paras[3]) ty = drawWrap(_gc.paras[3], lx, ty, lW, 13, '9.5px Georgia, serif');
 
     // ── City scene box ────────────────────────────────────────────────────────
     const cityBoxY = ty + 8, cityBoxH = H - 34 - cityBoxY - 14;
@@ -2204,8 +2305,21 @@ class StoryGame {
       const boxX = rx, boxW = rW;
 
       // Box 1 — p1
-      ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY1, boxW, boxH);
       ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.strokeRect(boxX, boxY1, boxW, boxH);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(boxX + 1, boxY1 + 1, boxW - 2, boxH - 2); ctx.clip();
+      if (this._gazettePrevActIdx >= 0) {
+        const _pb = STORY_ACTS[this._gazettePrevActIdx].bg;
+        ctx.filter = 'grayscale(1) contrast(1.0) brightness(0.85)';
+        const _pbg = ctx.createLinearGradient(boxX, boxY1, boxX, boxY1 + boxH * 0.72);
+        _pbg.addColorStop(0, _pb.sky); _pbg.addColorStop(1, _pb.mid);
+        ctx.fillStyle = _pbg; ctx.fillRect(boxX, boxY1, boxW, boxH * 0.72);
+        ctx.fillStyle = _pb.ground; ctx.fillRect(boxX, boxY1 + boxH * 0.72, boxW, boxH * 0.28 + 1);
+        ctx.filter = 'none';
+      } else {
+        ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY1, boxW, boxH);
+      }
+      ctx.restore();
       ctx.save();
       ctx.filter = 'grayscale(1) contrast(1.1)';
       const p1cx = rx + rW/2, p1base = boxY1 + boxH - 14;
@@ -2219,8 +2333,21 @@ class StoryGame {
       ctx.fillText(p1Name.toUpperCase(), rx + rW/2, boxY1 + boxH - 4);
 
       // Box 2 — p2
-      ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY2, boxW, boxH);
       ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.strokeRect(boxX, boxY2, boxW, boxH);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(boxX + 1, boxY2 + 1, boxW - 2, boxH - 2); ctx.clip();
+      if (this._gazettePrevActIdx >= 0) {
+        const _pb = STORY_ACTS[this._gazettePrevActIdx].bg;
+        ctx.filter = 'grayscale(1) contrast(1.0) brightness(0.85)';
+        const _pbg = ctx.createLinearGradient(boxX, boxY2, boxX, boxY2 + boxH * 0.72);
+        _pbg.addColorStop(0, _pb.sky); _pbg.addColorStop(1, _pb.mid);
+        ctx.fillStyle = _pbg; ctx.fillRect(boxX, boxY2, boxW, boxH * 0.72);
+        ctx.fillStyle = _pb.ground; ctx.fillRect(boxX, boxY2 + boxH * 0.72, boxW, boxH * 0.28 + 1);
+        ctx.filter = 'none';
+      } else {
+        ctx.fillStyle = '#e8e6e0'; ctx.fillRect(boxX, boxY2, boxW, boxH);
+      }
+      ctx.restore();
       ctx.save();
       ctx.filter = 'grayscale(1) contrast(1.1)';
       const p2cx = rx + rW/2, p2base = boxY2 + boxH - 14;
@@ -2235,8 +2362,23 @@ class StoryGame {
     } else {
       // Single portrait box — tall, centred
       const boxH = 230, boxY = 148;
-      ctx.fillStyle = '#e8e6e0'; ctx.fillRect(rx, boxY, rW, boxH);
       ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.strokeRect(rx, boxY, rW, boxH);
+
+      // Portrait background: previous act's environment or plain paper
+      ctx.save();
+      ctx.beginPath(); ctx.rect(rx + 1, boxY + 1, rW - 2, boxH - 2); ctx.clip();
+      if (this._gazettePrevActIdx >= 0) {
+        const _pb = STORY_ACTS[this._gazettePrevActIdx].bg;
+        ctx.filter = 'grayscale(1) contrast(1.0) brightness(0.85)';
+        const _pbg = ctx.createLinearGradient(rx, boxY, rx, boxY + boxH * 0.72);
+        _pbg.addColorStop(0, _pb.sky); _pbg.addColorStop(1, _pb.mid);
+        ctx.fillStyle = _pbg; ctx.fillRect(rx, boxY, rW, boxH * 0.72);
+        ctx.fillStyle = _pb.ground; ctx.fillRect(rx, boxY + boxH * 0.72, rW, boxH * 0.28 + 1);
+        ctx.filter = 'none';
+      } else {
+        ctx.fillStyle = '#e8e6e0'; ctx.fillRect(rx, boxY, rW, boxH);
+      }
+      ctx.restore();
 
       ctx.save();
       ctx.filter = 'grayscale(1) contrast(1.15)';
@@ -2262,7 +2404,7 @@ class StoryGame {
     const adv = 0.45 + 0.55 * Math.sin(Date.now() / 500);
     ctx.globalAlpha = adv;
     ctx.fillStyle = '#050505'; ctx.font = 'bold 10px Georgia, serif'; ctx.textAlign = 'center';
-    ctx.fillText('— PRESS  ENTER  TO  BEGIN —', W/2, H-12);
+    ctx.fillText(_gc.prompt, W/2, H-12);
     ctx.globalAlpha = 1;
   }
 
