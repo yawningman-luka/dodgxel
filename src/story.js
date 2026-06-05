@@ -1315,23 +1315,24 @@ class StoryGame {
       h.timer -= dt;
       if (h.timer <= 0) { this._blazeHazards.splice(i, 1); continue; }
       Particles.emit(h.x, h.y, 1, ['#FF4400','#FF8800','#FFCC00'], { upBias:1.8, minSpeed:0.5, maxSpeed:2.0, gravity:0.04 });
-      // Damage enemies standing in the fire
+      // Damage enemies passing over the fire
+      if (!h._enemyHitCd) h._enemyHitCd = new WeakMap();
       const allEnemies = this._bossEnemy && !this._bossEnemy.dead
         ? [...this.enemies, this._bossEnemy]
         : this.enemies;
       for (const e of allEnemies) {
         if (e.dead || !e._awake) continue;
         const ex = e.x, ey = e.y;
-        if (Math.abs(ex - h.x) < 28 && ey >= h.y - 10) {
-          if (!h._enemyHitCd) h._enemyHitCd = {};
-          const cd = h._enemyHitCd[e] || 0;
+        if (Math.abs(ex - h.x) < 32 && ey >= h.y - 20) {
+          const cd = h._enemyHitCd.get(e) || 0;
           if (cd <= 0) {
             e.hp = Math.max(0, e.hp - 1);
             e._flashTimer = 200;
-            h._enemyHitCd[e] = 900; // hit once per ~second
+            h._enemyHitCd.set(e, 800); // hit once per ~0.8s per enemy
+            Particles.emit(ex, ey - 10, 3, ['#FF4400','#FF8800','#FFCC00'], { upBias:2.5, minSpeed:1, maxSpeed:3, gravity:0.05 });
             if (e.hp <= 0) { e.dead = true; }
           } else {
-            h._enemyHitCd[e] = cd - dt;
+            h._enemyHitCd.set(e, cd - dt);
           }
         }
       }
