@@ -2403,42 +2403,81 @@ class StoryGame {
     const W = C.W, H = C.H;
     const T = Date.now();
 
-    // ── Parchment background ─────────────────────────────────────────────
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, '#d4c49a'); bg.addColorStop(0.5, '#c8b882'); bg.addColorStop(1, '#b8a06a');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // ── Sky ──────────────────────────────────────────────────────────────
+    const sky = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+    sky.addColorStop(0, '#0a1528'); sky.addColorStop(0.45, '#1a3a6a'); sky.addColorStop(1, '#4a80b8');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
 
-    // Paper grain noise (static per-pixel approximation via small rects)
-    ctx.globalAlpha = 0.04;
-    for (let i = 0; i < 320; i++) {
-      ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
-      ctx.fillRect((i * 97.3) % W, (i * 61.7) % H, 2, 2);
+    // Stars near peak
+    for (let i = 0; i < 55; i++) {
+      ctx.globalAlpha = 0.25 + 0.55 * ((i * 37) % 100) / 100;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect((i * 139) % W, (i * 73) % 110, 1, 1);
     }
     ctx.globalAlpha = 1;
 
-    // Vignette
-    const vig = ctx.createRadialGradient(W/2, H/2, H*0.15, W/2, H/2, H*0.75);
-    vig.addColorStop(0, 'rgba(180,150,80,0)'); vig.addColorStop(1, 'rgba(90,60,20,0.45)');
-    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+    // ── Mountain silhouette ───────────────────────────────────────────────
+    const peak = { x: 555, y: 72 };
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    // left ridge
+    const lRidge = [
+      {x:0,y:390},{x:45,y:374},{x:82,y:366},{x:130,y:350},
+      {x:178,y:318},{x:208,y:302},{x:258,y:268},{x:298,y:250},
+      {x:348,y:218},{x:392,y:194},{x:438,y:164},{x:482,y:138},
+      {x:512,y:118},{x:534,y:98},{x:547,y:84}, peak,
+    ];
+    for (const p of lRidge) ctx.lineTo(p.x, p.y);
+    // right ridge
+    const rRidge = [
+      {x:563,y:82},{x:578,y:94},{x:602,y:114},
+      {x:628,y:140},{x:658,y:170},{x:682,y:198},
+      {x:712,y:230},{x:742,y:266},{x:770,y:302},
+      {x:790,y:332},{x:W,y:358},{x:W,y:H},
+    ];
+    for (const p of rRidge) ctx.lineTo(p.x, p.y);
+    ctx.closePath();
+    const mtnG = ctx.createLinearGradient(0, peak.y, 0, H);
+    mtnG.addColorStop(0, '#7a7a8c'); mtnG.addColorStop(0.28, '#6a6060');
+    mtnG.addColorStop(0.6, '#5a4f3e'); mtnG.addColorStop(1, '#473c2a');
+    ctx.fillStyle = mtnG; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
 
-    // ── Terrain zone blobs ───────────────────────────────────────────────
+    // ── Snow cap ─────────────────────────────────────────────────────────
+    ctx.beginPath();
+    ctx.moveTo(512, 120); ctx.lineTo(534, 100); ctx.lineTo(547, 85);
+    ctx.lineTo(peak.x, peak.y);
+    ctx.lineTo(563, 82); ctx.lineTo(578, 94); ctx.lineTo(602, 115);
+    ctx.lineTo(586, 128); ctx.lineTo(568, 120); ctx.lineTo(555, 110);
+    ctx.lineTo(538, 120); ctx.lineTo(520, 132); ctx.closePath();
+    ctx.fillStyle = '#e8eeff'; ctx.fill();
+    // Shadow side of snow
+    ctx.beginPath();
+    ctx.moveTo(peak.x, peak.y); ctx.lineTo(563, 82); ctx.lineTo(590, 114);
+    ctx.lineTo(568, 120); ctx.lineTo(555, 110); ctx.closePath();
+    ctx.fillStyle = 'rgba(170,185,215,0.55)'; ctx.fill();
+
+    // ── Terrain zone blobs along the slope ───────────────────────────────
     const zones = [
-      { x:115, y:225, rx:90, ry:55, col:'rgba(80,72,60,0.28)',  stroke:'rgba(60,50,30,0.5)'  }, // city ruins
-      { x:270, y:178, rx:85, ry:58, col:'rgba(40,90,30,0.28)',  stroke:'rgba(30,70,20,0.5)'  }, // jungle
-      { x:425, y:138, rx:88, ry:52, col:'rgba(160,190,210,0.28)',stroke:'rgba(120,150,180,0.5)'}, // arctic
-      { x:562, y:198, rx:80, ry:56, col:'rgba(140,110,60,0.28)',stroke:'rgba(110,80,30,0.5)'  }, // castle
-      { x:682, y:248, rx:72, ry:50, col:'rgba(60,20,80,0.25)',  stroke:'rgba(80,30,100,0.5)'  }, // tower
+      { x:130, y:353, rx:72, ry:28, tilt:-0.15, col:'rgba(80,60,38,0.52)',  stroke:'rgba(60,40,18,0.62)'   }, // city
+      { x:238, y:290, rx:68, ry:30, tilt:-0.22, col:'rgba(28,80,18,0.48)',  stroke:'rgba(18,60,8,0.58)'    }, // jungle
+      { x:352, y:215, rx:65, ry:28, tilt:-0.28, col:'rgba(138,178,208,0.42)',stroke:'rgba(98,148,188,0.55)' }, // snow
+      { x:462, y:148, rx:58, ry:25, tilt:-0.3,  col:'rgba(128,96,52,0.42)', stroke:'rgba(98,72,28,0.55)'   }, // castle
     ];
     for (const z of zones) {
-      ctx.beginPath(); ctx.ellipse(z.x, z.y, z.rx, z.ry, 0, 0, Math.PI*2);
+      ctx.beginPath(); ctx.ellipse(z.x, z.y, z.rx, z.ry, z.tilt, 0, Math.PI*2);
       ctx.fillStyle = z.col; ctx.fill();
-      ctx.strokeStyle = z.stroke; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = z.stroke; ctx.lineWidth = 1.2; ctx.stroke();
     }
 
-    // ── Dotted road connecting acts ──────────────────────────────────────
+    // ── Ground haze at base ───────────────────────────────────────────────
+    const haze = ctx.createLinearGradient(0, 355, 0, H);
+    haze.addColorStop(0, 'rgba(15,25,10,0)'); haze.addColorStop(1, 'rgba(8,15,5,0.8)');
+    ctx.fillStyle = haze; ctx.fillRect(0, 355, W, H - 355);
+
+    // ── Dotted path connecting acts ──────────────────────────────────────
     ctx.save();
-    ctx.strokeStyle = '#7a5c28'; ctx.lineWidth = 2;
-    ctx.setLineDash([5, 6]);
+    ctx.strokeStyle = '#f0d860'; ctx.lineWidth = 2; ctx.setLineDash([5, 7]);
     ctx.beginPath();
     STORY_ACTS.forEach((a, i) => {
       i === 0 ? ctx.moveTo(a.mapPos.x, a.mapPos.y) : ctx.lineTo(a.mapPos.x, a.mapPos.y);
@@ -2446,46 +2485,30 @@ class StoryGame {
     ctx.stroke(); ctx.setLineDash([]);
     ctx.restore();
 
-    // ── Zone terrain labels ──────────────────────────────────────────────
-    const terrainLabels = [
-      { x:62,  y:290, text:'CITY RUINS' },
-      { x:216, y:246, text:'JUNGLE' },
-      { x:370, y:202, text:'ARCTIC' },
-      { x:508, y:264, text:'CASTLE' },
-      { x:640, y:308, text:'THE TOWER' },
-    ];
-    ctx.font = 'italic 8px Georgia, serif';
-    ctx.fillStyle = 'rgba(80,55,20,0.55)'; ctx.textAlign = 'left';
-    for (const tl of terrainLabels) ctx.fillText(tl.text, tl.x, tl.y);
-
     // ── Title banner ─────────────────────────────────────────────────────
     const bannerY = 10;
-    ctx.fillStyle = 'rgba(50,32,8,0.88)';
+    ctx.fillStyle = 'rgba(8,14,32,0.88)';
     ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(W/2-170, bannerY, 340, 28, 4) : ctx.rect(W/2-170, bannerY, 340, 28);
+    ctx.roundRect ? ctx.roundRect(W/2-178, bannerY, 356, 28, 4) : ctx.rect(W/2-178, bannerY, 356, 28);
     ctx.fill();
-    ctx.strokeStyle = '#8a6828'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = '#4a7aaa'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#e8c860'; ctx.font = 'bold 14px Georgia, serif';
-    ctx.fillText('⚔  DODGXEL  WORLD  MAP  ⚔', W/2, bannerY + 19);
-
-    // Navigation hint
-    ctx.fillStyle = 'rgba(70,50,20,0.65)'; ctx.font = 'italic 9px Georgia, serif';
+    ctx.fillStyle = '#88ccff'; ctx.font = 'bold 14px Georgia, serif';
+    ctx.fillText('⛰  DODGXEL  —  CLIMB  THE  MOUNTAIN  ⛰', W/2, bannerY + 19);
+    ctx.fillStyle = 'rgba(140,175,215,0.65)'; ctx.font = 'italic 9px Georgia, serif';
     ctx.fillText('ARROWS to select  ·  ENTER to travel  ·  ESC to menu', W/2, bannerY + 35);
 
     // ── Compass rose (bottom-left) ────────────────────────────────────────
-    const cx = 44, cy = H - 60;
+    const cx = 44, cy = H - 62;
     ctx.save(); ctx.translate(cx, cy);
-    // Circle
-    ctx.fillStyle = 'rgba(180,150,80,0.4)'; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#7a5c28'; ctx.lineWidth = 1; ctx.stroke();
-    // Cardinal arrows
+    ctx.fillStyle = 'rgba(8,18,42,0.55)'; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#4a7aaa'; ctx.lineWidth = 1; ctx.stroke();
     const dirs = [{a:0,l:'N'},{a:Math.PI/2,l:'E'},{a:Math.PI,l:'S'},{a:-Math.PI/2,l:'W'}];
     for (const d of dirs) {
       ctx.save(); ctx.rotate(d.a);
-      ctx.strokeStyle = d.l==='N' ? '#8a2020' : '#5a3a10'; ctx.lineWidth = 1.5;
+      ctx.strokeStyle = d.l==='N' ? '#cc4444' : '#88aacc'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-17); ctx.stroke();
-      ctx.fillStyle = d.l==='N' ? '#8a2020' : '#5a3a10';
+      ctx.fillStyle = d.l==='N' ? '#cc4444' : '#88aacc';
       ctx.font = 'bold 7px Georgia, serif'; ctx.textAlign = 'center';
       ctx.fillText(d.l, 0, -20); ctx.restore();
     }
@@ -2493,28 +2516,28 @@ class StoryGame {
 
     // ── Act pins ─────────────────────────────────────────────────────────
     const pulse = 0.5 + 0.5 * Math.sin(T / 300);
-    const actIcons  = ['🏚', '🌿', '❄', '🏰', '⚡'];
+    const actIcons  = ['🏚', '🌿', '❄', '🏰', '⛰'];
     const actColors = [
-      { pin:'#6b4c2a', ring:'#c8903a', sel:'#FFD700', done:'#44DD44' },
-      { pin:'#2a4c2a', ring:'#3a8a3a', sel:'#88FF44', done:'#44DD44' },
-      { pin:'#2a3c58', ring:'#5888cc', sel:'#88CCFF', done:'#44DD44' },
-      { pin:'#4a3820', ring:'#8a6030', sel:'#FFCC88', done:'#44DD44' },
-      { pin:'#28103c', ring:'#7830b8', sel:'#CC88FF', done:'#44DD44' },
+      { pin:'#3a2a10', ring:'#c87030', sel:'#FFD070', done:'#44DD44' },
+      { pin:'#1a3a1a', ring:'#3a8a3a', sel:'#88FF44', done:'#44DD44' },
+      { pin:'#1a2a3a', ring:'#5888cc', sel:'#88CCFF', done:'#44DD44' },
+      { pin:'#3a2810', ring:'#8a6030', sel:'#FFCC88', done:'#44DD44' },
+      { pin:'#1a1a2a', ring:'#9898cc', sel:'#FFFFFF', done:'#44DD44' },
     ];
 
     for (let i = 0; i < STORY_ACTS.length; i++) {
-      const act    = STORY_ACTS[i];
+      const act      = STORY_ACTS[i];
       const { x, y } = act.mapPos;
       const done     = this.completedActs.has(i);
       const unlocked = this._unlockedActs.has(i);
       const sel      = i === this._mapCursor;
       const ac       = actColors[i];
 
-      // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.beginPath(); ctx.ellipse(x, y+2, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+      // Drop shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.beginPath(); ctx.ellipse(x, y+3, 12, 4, 0, 0, Math.PI*2); ctx.fill();
 
-      // Glow ring when selected
+      // Selection glow
       if (sel && unlocked) {
         ctx.globalAlpha = 0.35 + 0.35 * pulse;
         ctx.strokeStyle = done ? ac.done : ac.sel;
@@ -2523,69 +2546,53 @@ class StoryGame {
         ctx.globalAlpha = 1;
       }
 
-      // Pin circle
+      // Pin body
       const r = sel ? 16 : 13;
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
-      ctx.fillStyle = done ? '#1a3a1a' : unlocked ? ac.pin : '#2a2418';
+      ctx.fillStyle = done ? '#1a3a1a' : unlocked ? ac.pin : '#101018';
       ctx.fill();
-      ctx.strokeStyle = done ? ac.done : unlocked ? ac.ring : '#5a4820';
+      ctx.strokeStyle = done ? ac.done : unlocked ? ac.ring : '#383850';
       ctx.lineWidth = sel ? 2.5 : 1.8; ctx.stroke();
 
-      // Pin label (number / checkmark / lock)
       ctx.textAlign = 'center';
       ctx.font = `bold ${sel ? 13 : 11}px Georgia, serif`;
-      ctx.fillStyle = done ? ac.done : unlocked ? '#f0e0b0' : '#5a4820';
+      ctx.fillStyle = done ? ac.done : unlocked ? '#f0f0e0' : '#606075';
       ctx.fillText(done ? '✓' : unlocked ? String(i+1) : '?', x, y + 4);
 
-      // Act title below pin
-      ctx.font = `${sel ? 'bold ' : ''}10px Georgia, serif`;
-      ctx.fillStyle = sel ? '#4a3000' : unlocked ? '#5a3c14' : '#8a7040';
+      ctx.font = `${sel ? 'bold ' : ''}9px Georgia, serif`;
+      ctx.fillStyle = sel ? '#ffffff' : unlocked ? '#d0d0b8' : '#70708a';
       ctx.fillText(act.title, x, y + r + 13);
 
-      // Icon above pin
-      ctx.font = '14px serif';
+      ctx.font = '13px serif';
       ctx.fillText(actIcons[i], x, y - r - 4);
     }
 
-    // ── Info scroll (bottom panel) ────────────────────────────────────────
+    // ── Info panel (bottom) ───────────────────────────────────────────────
     const sa      = STORY_ACTS[this._mapCursor];
     const sDone   = this.completedActs.has(this._mapCursor);
     const sUnlock = this._unlockedActs.has(this._mapCursor);
     const ac      = actColors[this._mapCursor];
 
     const px = W/2, py = H - 104, pw = 500, ph = 96;
-    // Scroll body
-    ctx.fillStyle = 'rgba(200,178,120,0.92)';
+    ctx.fillStyle = 'rgba(8,16,38,0.90)';
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(px-pw/2, py, pw, ph, 6) : ctx.rect(px-pw/2, py, pw, ph);
     ctx.fill();
-    ctx.strokeStyle = '#7a5c28'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = sUnlock ? (ac.ring || '#4a7aaa') : '#383858'; ctx.lineWidth = 2; ctx.stroke();
 
-    // Scroll curl (left)
-    ctx.fillStyle = 'rgba(160,130,70,0.7)';
-    ctx.beginPath(); ctx.ellipse(px-pw/2+8, py+ph/2, 8, ph/2-4, 0, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#5a3c10'; ctx.lineWidth = 1; ctx.stroke();
-    // Scroll curl (right)
-    ctx.beginPath(); ctx.ellipse(px+pw/2-8, py+ph/2, 8, ph/2-4, 0, 0, Math.PI*2); ctx.fill();
-    ctx.stroke();
-
-    // Act title in scroll
     ctx.textAlign = 'center';
-    ctx.fillStyle = sDone ? '#1a5a1a' : sUnlock ? '#3a2000' : '#5a4820';
+    ctx.fillStyle = sDone ? '#44ee44' : sUnlock ? '#e8e0c0' : '#6868a0';
     ctx.font = 'bold 14px Georgia, serif';
     ctx.fillText(`${sa.title}  —  ${sa.zone}`, px, py + 18);
 
-    // Divider
-    ctx.strokeStyle = '#9a7030'; ctx.lineWidth = 1;
+    ctx.strokeStyle = sUnlock ? 'rgba(200,180,100,0.35)' : 'rgba(80,80,120,0.35)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(px-pw/2+24, py+22); ctx.lineTo(px+pw/2-24, py+22); ctx.stroke();
 
-    // Enemies line
-    ctx.fillStyle = '#5a3808'; ctx.font = '10px Georgia, serif';
+    ctx.fillStyle = sUnlock ? '#a09060' : '#4a4868'; ctx.font = '10px Georgia, serif';
     ctx.fillText(`Enemies: ${sa.enemyCategory}`, px, py + 34);
 
-    // Synopsis (one wrapped line)
     if (sa.synopsis) {
-      ctx.fillStyle = sUnlock ? '#4a3010' : '#7a6040';
+      ctx.fillStyle = sUnlock ? '#c0b888' : '#505068';
       ctx.font = 'italic 10px Georgia, serif';
       const words = sa.synopsis.split(' ');
       let line = '', lineY = py + 48;
@@ -2598,10 +2605,9 @@ class StoryGame {
       if (line) ctx.fillText(line, px, lineY);
     }
 
-    // Action prompt
     const adv = 0.55 + 0.45 * Math.sin(T / 350);
     ctx.globalAlpha = sUnlock ? adv : 0.4;
-    ctx.fillStyle = sDone ? '#1a7a1a' : sUnlock ? '#3a2000' : '#7a6040';
+    ctx.fillStyle = sDone ? '#44ee44' : sUnlock ? '#e8e0a0' : '#6868a0';
     ctx.font = sDone ? 'bold 11px Georgia, serif' : '11px Georgia, serif';
     ctx.fillText(
       sDone ? 'COMPLETED  ·  ENTER to replay' : sUnlock ? 'ENTER to travel here' : 'Complete previous act first',

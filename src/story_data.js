@@ -82,7 +82,7 @@ const STORY_ACTS = [
         "Thank you. Genuinely. Now GO. More zombies incoming from the east.",
       ],
     },
-    mapPos: { x: 115, y: 225 },
+    mapPos: { x: 130, y: 355 },
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ const STORY_ACTS = [
         "You're doing an incredible job. The Tome says you will succeed. Probably.",
       ],
     },
-    mapPos: { x: 270, y: 178 },
+    mapPos: { x: 238, y: 290 },
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ const STORY_ACTS = [
         "Go. The castle is south-east. And — good luck. From me. Sincerely. *meow*",
       ],
     },
-    mapPos: { x: 425, y: 138 },
+    mapPos: { x: 352, y: 215 },
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ const STORY_ACTS = [
       ],
     },
     synopsis: 'Princesses Dot & Val summoned the Nexus from a weird book and sent the whole castle army to cover it up. Now they\'re grounded and you\'re cleaning up their mess.',
-    mapPos: { x: 562, y: 198 },
+    mapPos: { x: 462, y: 148 },
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -298,6 +298,6 @@ const STORY_ACTS = [
       ],
     },
     synopsis: 'The Nexus Core AI controls the broadcast tower — and it thinks it\'s a god. Hit it twice, simultaneously. Broadcast the cure. End this.',
-    mapPos: { x: 682, y: 248 },
+    mapPos: { x: 555, y: 72 },
   },
 ];
