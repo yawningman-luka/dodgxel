@@ -1016,16 +1016,11 @@ class StoryGame {
     this._battleCryTimer = 0;
     this._battleCryText = '';
 
-    // First-encounter cutscene
-    this._seenEnemyTypes = new Set();
     this._playerQuipTimer = 0;
     this._playerQuipText = '';
     this._playerQuipName = '';
     this._playerQuip2Timer = 0;
     this._playerQuip2Text = '';
-    this._encounterCutsceneLines = [];
-    this._encounterCutsceneLine = 0;
-    this._encounterCutsceneEnemyType = '';
 
     // Ghost / KO state (co-op)
     this._p1GhostY = 0;
@@ -1098,7 +1093,6 @@ class StoryGame {
     this.p1Hp = 5; this.p2Hp = 5;
     this.p1Fallen = false; this.p2Fallen = false;
     this._camX = 0;
-    this._seenEnemyTypes = new Set();
     this._playerQuipTimer = 0; this._playerQuipText = ''; this._playerQuipName = '';
     this._playerQuip2Timer = 0; this._playerQuip2Text = '';
     this._p1GhostY = 0; this._p2GhostY = 0;
@@ -1138,9 +1132,7 @@ class StoryGame {
       if (this.subState === 'boss_cutscene') {
         this._bossDlgTimer = 0; this.subState = 'sidescroll'; return;
       }
-      if (this.subState === 'encounter_cutscene') {
-        this.subState = 'sidescroll'; return;
-      }
+
       if (this.subState !== 'world_map') { this.subState = 'world_map'; }
       else { this.returnToMenu = true; }
       return;
@@ -1151,7 +1143,6 @@ class StoryGame {
       case 'sidescroll':         this._updateSidescroll(dt); break;
       case 'dialogue':           this._updateDialogue(); break;
       case 'boss_cutscene':      this._updateBossCutscene(); break;
-      case 'encounter_cutscene': this._updateEncounterCutscene(); break;
     }
   }
 
@@ -1976,17 +1967,6 @@ class StoryGame {
     }
   }
 
-  _updateEncounterCutscene() {
-    const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
-                    Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
-    if (confirm) {
-      this._encounterCutsceneLine++;
-      if (this._encounterCutsceneLine >= this._encounterCutsceneLines.length) {
-        this.subState = 'sidescroll';
-      }
-    }
-  }
-
   // ── Draw ────────────────────────────────────────────────────────────────────
   draw() {
     const ctx = this.ctx;
@@ -1996,7 +1976,6 @@ class StoryGame {
       case 'world_map':          this._drawWorldMap(ctx); return;
       case 'dialogue':           this._drawDialogue(ctx); return;
       case 'boss_cutscene':      this._drawBossCutscene(ctx); return;
-      case 'encounter_cutscene': this._drawEncounterCutscene(ctx); return;
     }
     this._drawSidescroll(ctx);
   }
@@ -2423,154 +2402,6 @@ class StoryGame {
       ctx.restore();
     }
     ctx.restore();
-  }
-
-  // ── Encounter Cutscene ──────────────────────────────────────────────────────
-  _drawEncounterCutscene(ctx) {
-    const act = STORY_ACTS[this.actIndex];
-    const lines = this._encounterCutsceneLines;
-    const idx   = Math.min(this._encounterCutsceneLine, lines.length - 1);
-    const entry = lines[idx] || { speaker:'p1', text:'' };
-    const T = Date.now();
-
-    // ── Background ──────────────────────────────────────────────────────
-    const bg = ctx.createLinearGradient(0, 0, 0, C.GROUND);
-    bg.addColorStop(0, act.bg.sky); bg.addColorStop(1, act.bg.mid);
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, C.W, C.H);
-    ctx.fillStyle = act.bg.ground; ctx.fillRect(0, C.GROUND, C.W, C.H - C.GROUND);
-    ctx.save(); ctx.translate(-this._camX * 0.5, 0); this._drawScenery(ctx, act.id); ctx.restore();
-
-    // ── Darkening overlay ────────────────────────────────────────────────
-    ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(0, 0, C.W, C.H);
-
-    // ── Speaker sprite + enemy silhouette ───────────────────────────────
-    const groundY = C.GROUND;
-
-    // Player 1 (left)
-    ctx.save();
-    ctx.translate(160, groundY); ctx.scale(2, 2);
-    const p1Name   = this.p1 && this.p1.charName;
-    const p1Colors = this.p1 && this.p1.charColors;
-    if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, false, p1Colors);
-    else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, false, p1Colors);
-    ctx.restore();
-
-    // Player 2 (left, slightly behind) if coop
-    if (this.coop && this.p2) {
-      ctx.save();
-      ctx.translate(100, groundY); ctx.scale(2, 2);
-      const p2Colors = this.p2.charColors;
-      if (this.p2.charName === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, false, p2Colors);
-      else                             Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, false, p2Colors);
-      ctx.restore();
-    }
-
-    // Enemy silhouette (right side)
-    ctx.save();
-    ctx.translate(C.W - 150, groundY);
-    const etype = this._encounterCutsceneEnemyType;
-    // Generic menacing silhouette with slight pulse
-    const pulse = 0.85 + 0.15 * Math.sin(T / 700);
-    ctx.scale(2 * pulse, 2 * pulse);
-    ctx.fillStyle = '#080408'; ctx.strokeStyle = '#AA3311'; ctx.lineWidth = 1;
-    ctx.shadowColor = '#CC2200'; ctx.shadowBlur = 14;
-    // Hunched figure (works for most humanoid enemies)
-    const isFlier = etype === 'drone' || etype === 'hack_drone' || etype === 'pulse_orb';
-    const isGolem = etype === 'golem';
-    const isGhost = etype === 'hex_spirit' || etype === 'glitch';
-    if (isFlier) {
-      // Floating — hovering shape
-      ctx.translate(0, -20 + Math.sin(T/600)*8);
-      ctx.beginPath(); ctx.ellipse(0, -40, 20, 14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-20,-40); ctx.lineTo(-36,-28); ctx.stroke(); // rotors
-      ctx.beginPath(); ctx.moveTo(20,-40);  ctx.lineTo(36,-28);  ctx.stroke();
-    } else if (isGolem) {
-      ctx.beginPath(); ctx.rect(-14,-90,28,26); ctx.fill(); ctx.stroke(); // head
-      ctx.beginPath(); ctx.rect(-20,-64,40,52); ctx.fill(); ctx.stroke(); // body
-      ctx.beginPath(); ctx.rect(-36,-62,14,42); ctx.fill(); ctx.stroke(); // arm L
-      ctx.beginPath(); ctx.rect(22,-62,14,42);  ctx.fill(); ctx.stroke(); // arm R
-    } else if (isGhost) {
-      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(T/400);
-      ctx.beginPath(); ctx.ellipse(0,-70,16,20,0,0,Math.PI*2); ctx.fill(); ctx.stroke(); // head
-      // wispy body
-      ctx.beginPath(); ctx.moveTo(-16,-50); ctx.quadraticCurveTo(-20,-20,0,0);
-      ctx.quadraticCurveTo(20,-20,16,-50); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.globalAlpha = 1;
-    } else {
-      // Standard humanoid
-      ctx.beginPath(); ctx.ellipse(0,-90,12,15,0,0,Math.PI*2); ctx.fill(); ctx.stroke(); // head
-      ctx.beginPath(); ctx.moveTo(-14,-75); ctx.quadraticCurveTo(-16,-50,-12,-30);
-      ctx.quadraticCurveTo(0,-16,12,-30); ctx.quadraticCurveTo(16,-50,14,-75); ctx.closePath();
-      ctx.fill(); ctx.stroke(); // body
-    }
-    ctx.restore();
-
-    // ── Dialogue bubble ─────────────────────────────────────────────────
-    const isSpeakerP2 = entry.speaker === 'p2';
-    const speakerName = isSpeakerP2
-      ? (this.p2 ? this.p2.charName : 'P2')
-      : (this.p1 ? this.p1.charName : 'P1');
-
-    const bW = 480, bPad = 14, lineH = 20;
-    const bX = (C.W - bW) / 2, bY = 14;
-
-    ctx.font = '13px Segoe UI, Arial, sans-serif';
-    const words = entry.text.split(' ');
-    let row = '', rows = [];
-    for (const word of words) {
-      const test = row ? row + ' ' + word : word;
-      if (ctx.measureText(test).width > bW - bPad*2) { rows.push(row); row = word; }
-      else row = test;
-    }
-    rows.push(row);
-
-    const bH = 30 + rows.length * lineH + bPad;
-
-    // Bubble tail towards speaking player
-    const tX = isSpeakerP2 ? bX + 80 : bX + bW - 80;
-    const tY = bY + bH;
-
-    ctx.save();
-    ctx.beginPath();
-    const cr = 10;
-    ctx.moveTo(bX+cr, bY); ctx.lineTo(bX+bW-cr, bY);
-    ctx.quadraticCurveTo(bX+bW, bY, bX+bW, bY+cr);
-    ctx.lineTo(bX+bW, tY); ctx.lineTo(tX+12, tY);
-    ctx.lineTo(tX+5, tY+28); ctx.lineTo(tX-8, tY);
-    ctx.lineTo(bX+cr, tY);
-    ctx.quadraticCurveTo(bX, tY, bX, tY-cr);
-    ctx.lineTo(bX, bY+cr); ctx.quadraticCurveTo(bX, bY, bX+cr, bY);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(252,248,238,0.97)'; ctx.fill();
-    ctx.strokeStyle = '#2244AA'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.restore();
-
-    // Speaker name
-    ctx.fillStyle = '#1a2880';
-    ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(speakerName, bX + bPad, bY + 18);
-
-    // Divider
-    ctx.fillStyle = '#2244AA'; ctx.globalAlpha = 0.2;
-    ctx.fillRect(bX + bPad, bY + 22, bW - bPad*2, 1);
-    ctx.globalAlpha = 1;
-
-    // Page counter
-    ctx.fillStyle = '#888'; ctx.font = '11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'right';
-    ctx.fillText(`${idx+1} / ${lines.length}`, bX + bW - bPad, bY + 17);
-
-    // Text
-    ctx.fillStyle = '#1a1a2e'; ctx.font = '13px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'left';
-    rows.forEach((r, i) => ctx.fillText(r, bX + bPad, bY + 36 + i * lineH));
-
-    // Advance prompt
-    const adv = 0.5 + 0.5 * Math.sin(T / 320);
-    const last = idx >= lines.length - 1;
-    ctx.globalAlpha = adv; ctx.fillStyle = '#2244AA';
-    ctx.font = 'bold 11px Segoe UI, Arial, sans-serif'; ctx.textAlign = 'right';
-    ctx.fillText(last ? 'ENTER — done' : 'ENTER — next', bX + bW - bPad, bY + bH - 7);
-    ctx.globalAlpha = 1;
   }
 
   // ── World map ───────────────────────────────────────────────────────────────
@@ -4106,16 +3937,31 @@ class StoryGame {
     ctx.globalAlpha = 1;
 
     // ── Characters standing in the arena ────────────────────────────
-    // Draw player and NPC as actual sprites in the scene, at 2× scale
     const groundY = C.GROUND;
-    ctx.save();
-    ctx.translate(200, groundY);
-    ctx.scale(2, 2);
-    const _p1Name = this.p1 && this.p1.charName;
-    const p1Colors = this.p1 && this.p1.charColors;
-    if (_p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, false, p1Colors);
-    else Sprites.drawBoy(ctx, 0, 0, 'idle', 1, 0, false, p1Colors);
-    ctx.restore();
+    // Resolve character data — p1/p2 may not be Player objects yet (pre-combat dialogue)
+    const p1d = this.p1 || this._p1Data || {};
+    const p2d = this.p2 || this._p2Data || {};
+    const p1Name   = p1d.charName;
+    const p1Colors = p1d.charColors;
+    const p2Name   = p2d.charName;
+    const p2Colors = p2d.charColors;
+
+    if (this.coop && (this._p2Data || this.p2)) {
+      // Two players — position them side by side on the left
+      ctx.save(); ctx.translate(150, groundY); ctx.scale(2, 2);
+      if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+      ctx.restore();
+      ctx.save(); ctx.translate(220, groundY); ctx.scale(2, 2);
+      if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p2Colors);
+      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p2Colors);
+      ctx.restore();
+    } else {
+      ctx.save(); ctx.translate(185, groundY); ctx.scale(2, 2);
+      if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+      else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
+      ctx.restore();
+    }
 
     ctx.save();
     ctx.translate(C.W - 200, groundY);
