@@ -2188,7 +2188,7 @@ class StoryGame {
     const p2Colors = p2d.charColors || null;
 
     // Portrait box dimensions
-    const portraitScale = 3.5;
+    const portraitScale = 1.75;
     const pCharH = 28 * portraitScale; // approx sprite height
 
     if (this.coop && p2Name) {
