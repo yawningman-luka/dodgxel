@@ -1139,8 +1139,8 @@ class StoryGame {
     if (Input.wasPressed('Escape')) {
       if (this.subState === 'story_intro') { this.returnToMenu = true; return; }
       if (this.subState === 'boss_cutscene') {
+        if (this._bossDefeatMode) return; // can't skip defeat cutscene — must play through to NPC dialogue
         this._bossDlgTimer = 0;
-        if (this._bossDefeatMode) { this._bossDefeatMode = false; this._completeAct(); }
         this.subState = 'sidescroll'; return;
       }
 
