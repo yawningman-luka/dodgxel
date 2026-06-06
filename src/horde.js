@@ -37,10 +37,10 @@ class EnemyBall {
     if (this.x < -40 || this.x > _worldW + 40) { this.dead = true; return; }
     if (this.y + C.BALL_R >= C.GROUND) {
       this.y = C.GROUND - C.BALL_R;
-      if (this.groundBounces < 1) {
-        this.vy = -Math.abs(this.vy) * 0.5; this.vx *= 0.75; this.groundBounces++;
-        if (Math.abs(this.vy) < 1) this.dead = true;
-      } else { this.dead = true; }
+      this.groundBounces++;
+      if (this.groundBounces >= 5) { this.dead = true; return; }
+      this.vy = -Math.abs(this.vy) * 0.55; this.vx *= 0.80;
+      if (Math.abs(this.vy) < 0.8) this.dead = true; // dead ball — too slow to bounce
     }
   }
 
