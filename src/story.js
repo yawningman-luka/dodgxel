@@ -74,8 +74,8 @@ class StoryEnemy {
       const dy = (target.y - 22) - sy;
       let evx, evy;
       if (this.type === 'golem' || this.type === 'stone_guardian') {
-        // Lob in a parabolic arc toward the player
-        const T = Math.max(45, Math.abs(dx) / 5);
+        // Lob in a parabolic arc toward the player (slower, heavier feel)
+        const T = Math.max(75, Math.abs(dx) / 3.2);
         evx = dx / T;
         evy = (dy - 0.5 * C.BALL_GRAVITY * T * T) / T;
       } else {
@@ -1112,6 +1112,10 @@ class StoryGame {
     this._levelTimer = 0;
     this._introTimer = 2600;
     this._bossDlgTimer = 0;
+    this._bossDefeatShown = false;
+    this._bossDefeatMode = false;
+    this._bossIntroLines = [];
+    this._bossIntroIdx = 0;
     this._battleCryTimer = 0;
     this._battleCryText = '';
 
@@ -1135,7 +1139,9 @@ class StoryGame {
     if (Input.wasPressed('Escape')) {
       if (this.subState === 'story_intro') { this.returnToMenu = true; return; }
       if (this.subState === 'boss_cutscene') {
-        this._bossDlgTimer = 0; this.subState = 'sidescroll'; return;
+        this._bossDlgTimer = 0;
+        if (this._bossDefeatMode) { this._bossDefeatMode = false; this._completeAct(); }
+        this.subState = 'sidescroll'; return;
       }
 
       if (this.subState !== 'world_map') { this.subState = 'world_map'; }
@@ -4518,6 +4524,19 @@ class StoryGame {
         Sprites.drawBoy (ctx,  28, 0, 'idle', -1, 0, false, { shirt:'#2244AA', pants:'#1a2f88', hair:'#CCCCCC', hairDark:'#888888', hairType:'buzz' });
         ctx.restore();
         break;
+      case 'biff': {
+        // Biff crouches behind a boulder — draw boulder on top of character
+        Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, colors);
+        ctx.fillStyle = '#9B8360';
+        ctx.beginPath(); ctx.ellipse(4, -16, 30, 20, -0.1, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#B89E78';
+        ctx.beginPath(); ctx.ellipse(-3, -23, 12, 8, -0.2, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = '#6B5330'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(4, -16, 30, 20, -0.1, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(1, -32); ctx.lineTo(6, -10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(11, -27); ctx.lineTo(15, -14); ctx.stroke();
+        break;
+      }
       default:
         Sprites.drawBoy(ctx, 0, 0, 'idle', -1, 0, false, colors);
     }

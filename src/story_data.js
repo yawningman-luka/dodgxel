@@ -5,7 +5,7 @@ const STORY_WORLD_W = 2400;
 // Per-act enemy definitions
 const STORY_ENEMY_DEFS = {
   // Act 2 — Ancients
-  golem:      { speed: 0.55, hp: 3, w: 34, h: 58, throwInterval: 3500, throwSpeed: 1.0, color: '#8B7355', pants: '#6B5335' },
+  golem:      { speed: 0.55, hp: 3, w: 34, h: 58, throwInterval: 5500, throwSpeed: 1.0, color: '#8B7355', pants: '#6B5335' },
   hex_spirit: { speed: 1.3,  hp: 1, w: 18, h: 40, throwInterval: 1500, throwSpeed: 5.5, color: '#9955CC', pants: '#7733AA', teleports: true },
   // Act 3 — Military
   soldier:    { speed: 1.5,  hp: 1, w: 20, h: 44, throwInterval: 1800, throwSpeed: 6.5, color: '#556677', pants: '#334455' },
@@ -24,7 +24,7 @@ const STORY_ENEMY_DEFS = {
 
   // ── BOSSES ────────────────────────────────────────────────────────────────
   patient_zero:   { speed: 0.6,  hp: 16, w: 56, h: 88, throwInterval: 700,  throwSpeed: 5.5, color: '#5a3a2a', pants: '#3a2a1a', isBoss: true },
-  stone_guardian: { speed: 0.4,  hp: 18, w: 68, h: 100, throwInterval: 3000, throwSpeed: 4.0, color: '#7a6a4a', pants: '#5a4a2a', isBoss: true },
+  stone_guardian: { speed: 0.4,  hp: 18, w: 68, h: 100, throwInterval: 1000, throwSpeed: 4.0, color: '#7a6a4a', pants: '#5a4a2a', isBoss: true },
   mech_fluffkins: { speed: 1.0,  hp: 20, w: 62, h: 90,  throwInterval: 2500, throwSpeed: 6.0, color: '#445566', pants: '#223344', isBoss: true, floats: true },
   iron_champion:  { speed: 1.2,  hp: 20, w: 58, h: 96,  throwInterval: 3500, throwSpeed: 5.0, color: '#667788', pants: '#445566', isBoss: true },
   nexus_core:     { speed: 0.5,  hp: 24, w: 72, h: 80,  throwInterval: 1800, throwSpeed: 7.0, color: '#003355', pants: '#001133', isBoss: true, floats: true },
