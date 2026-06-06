@@ -1543,6 +1543,13 @@ class StoryGame {
         else { for (let i = 0; i < g.count; i++) regularTypes.push(g.type); }
       }
     }
+    // In coop, add 25% more regular enemies (rounded, preserving type ratios)
+    if (this.coop && regularTypes.length > 0) {
+      const extra = Math.round(regularTypes.length * 0.25);
+      for (let i = 0; i < extra; i++) {
+        regularTypes.push(regularTypes[i % regularTypes.length]);
+      }
+    }
     // Shuffle regular enemies
     for (let i = regularTypes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
