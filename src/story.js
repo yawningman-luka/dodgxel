@@ -2073,8 +2073,7 @@ class StoryGame {
   }
 
   _updateDialogue() {
-    const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
-                    Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
+    const confirm = Object.keys(Input.justPressed).length > 0;
     if (confirm) {
       this._dlgLine++;
       if (this._dlgLine >= this._dlgLines.length) {
