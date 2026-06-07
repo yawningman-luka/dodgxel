@@ -1035,6 +1035,19 @@ class StoryGame {
     // Slow HP regen
     this._p1RegenTimer = 0;
     this._p2RegenTimer = 0;
+
+    // Coop revival
+    this._p1ReviveTimer = 0;
+    this._p2ReviveTimer = 0;
+
+    // First-encounter dialogue
+    this._seenEnemyTypes = new Set();
+    this._encounterEnemyType = null;
+
+    // Boss proximity warning
+    this._bossWarningTriggered = false;
+    this._bossWarningTimer = 0;
+    this._camShakeTimer = 0;
   }
 
   // ── Act start: show gazette first, then NPC intro dialogue, then combat ──────
@@ -1118,6 +1131,15 @@ class StoryGame {
     this._bossIntroIdx = 0;
     this._battleCryTimer = 0;
     this._battleCryText = '';
+
+    // Coop revival & encounter & boss warning — reset each act
+    this._p1ReviveTimer = 0;
+    this._p2ReviveTimer = 0;
+    this._seenEnemyTypes = new Set();
+    this._encounterEnemyType = null;
+    this._bossWarningTriggered = false;
+    this._bossWarningTimer = 0;
+    this._camShakeTimer = 0;
 
     // NPC dialogue removed — combat starts immediately
     this._sceneNpc = null;
@@ -1274,6 +1296,7 @@ class StoryGame {
       this.enemies = this.enemies.filter(e => !e.dead);
     }
 
+    if (this.coop) this._tickRevival(dt);
     this._tickSceneNpc(dt);
     this._tickLevel(dt);
 
@@ -1287,6 +1310,11 @@ class StoryGame {
       cx = this.p1.x - C.W / 2;
     }
     this._camX = Math.max(0, Math.min(STORY_WORLD_W - C.W, cx));
+    // Boss proximity camera shake
+    if (this._camShakeTimer > 0) {
+      const intensity = (this._camShakeTimer / 600) * 4;
+      this._camX += Math.sin(Date.now() * 0.055) * intensity;
+    }
   }
 
   _alivePlayers() {
@@ -1371,6 +1399,47 @@ class StoryGame {
       b.mini = true;
       b.radius = C.BALL_R * 0.45;
       this._extraBalls.push(b);
+    }
+  }
+
+  // ── Coop revival: surviving player holds catch near ghost for 1.5 s ──────────
+  _tickRevival(dt) {
+    const REVIVE_MS = 1500;
+    // P2 revives P1
+    if (this.p1Fallen && this.p2 && !this.p2Fallen) {
+      const near = Math.abs(this.p2.x - this.p1.x) < 70;
+      const holding = Input.isDown(Controls.p2.catch);
+      if (near && holding) {
+        this._p1ReviveTimer += dt;
+        if (this._p1ReviveTimer >= REVIVE_MS) {
+          this._p1ReviveTimer = 0;
+          this.p1Fallen = false;
+          this.p1Hp = 1;
+          this._p1GhostY = 0;
+        }
+      } else {
+        this._p1ReviveTimer = Math.max(0, this._p1ReviveTimer - dt * 2);
+      }
+    } else {
+      this._p1ReviveTimer = 0;
+    }
+    // P1 revives P2
+    if (this.p2Fallen && this.p1 && !this.p1Fallen) {
+      const near = Math.abs(this.p1.x - this.p2.x) < 70;
+      const holding = Input.isDown(Controls.p1.catch);
+      if (near && holding) {
+        this._p2ReviveTimer += dt;
+        if (this._p2ReviveTimer >= REVIVE_MS) {
+          this._p2ReviveTimer = 0;
+          this.p2Fallen = false;
+          this.p2Hp = 1;
+          this._p2GhostY = 0;
+        }
+      } else {
+        this._p2ReviveTimer = Math.max(0, this._p2ReviveTimer - dt * 2);
+      }
+    } else {
+      this._p2ReviveTimer = 0;
     }
   }
 
@@ -1821,6 +1890,26 @@ class StoryGame {
       return;
     }
 
+    // Boss warning timer countdown (independent of encounter check)
+    if (this._bossWarningTimer > 0) this._bossWarningTimer -= dt;
+    if (this._camShakeTimer > 0) this._camShakeTimer -= dt;
+
+    // First-encounter dialogue: pause and zoom when a new enemy type wakes up
+    for (const e of this.enemies) {
+      if (e._awake && !(e instanceof StoryBoss) && !this._seenEnemyTypes.has(e.type)) {
+        this._seenEnemyTypes.add(e.type);
+        const data = this._getEncounterCutsceneLines(e.type);
+        if (data) {
+          const lines = this.coop ? data.coopLines : data.soloLines;
+          this._encounterEnemyType = e.type;
+          this._dlgPhase = 'encounter';
+          const p1Name = (this.p1 && this.p1.charName) || 'Player';
+          this._startDialogue({ name: p1Name, col: C.COL.P1_HUD, lines });
+          return;
+        }
+      }
+    }
+
     // Tick player quip timers
     if (this._playerQuipTimer > 0) this._playerQuipTimer -= dt;
     if (this._playerQuip2Timer > 0) this._playerQuip2Timer -= dt;
@@ -1846,6 +1935,16 @@ class StoryGame {
       if (this.p2Fallen && this.p2) {
         this._p2GhostY = (this._p2GhostY || this.p2.y) - dt * 0.018;
         if (this._p2GhostY < 80) this._p2GhostY = 80;
+      }
+    }
+
+    // Boss proximity warning — camera shake + red flash at ~500 px (before 340 px awaken)
+    if (this._bossEnemy && !this._bossEnemy._awake && !this._bossEnemy.dead &&
+        !this._bossWarningTriggered && this.p1) {
+      if (Math.abs(this.p1.x - this._bossEnemy.x) < 500) {
+        this._bossWarningTriggered = true;
+        this._bossWarningTimer = 2500;
+        this._camShakeTimer = 600;
       }
     }
 
@@ -1988,6 +2087,10 @@ class StoryGame {
           } else {
             this._startActCombat(this.actIndex);
           }
+        } else if (this._dlgPhase === 'encounter') {
+          // Encounter dialogue done — return to combat
+          this._encounterEnemyType = null;
+          this.subState = 'sidescroll';
         } else {
           // Post-battle (outro) dialogue finished — complete act and return to map
           this._completeAct();
@@ -4083,6 +4186,29 @@ class StoryGame {
     ctx.restore();
     player.x = savedX; player.y = savedY;
 
+    // Revival progress arc
+    const reviveTimer = (player === this.p1) ? this._p1ReviveTimer : this._p2ReviveTimer;
+    if (this.coop && reviveTimer > 0) {
+      const REVIVE_MS = 1500;
+      const progress = Math.min(1, reviveTimer / REVIVE_MS);
+      const rx = player.x - this._camX;
+      const ry = gy + bob - 36;
+      ctx.save();
+      // Background arc
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(rx, ry, 14, -Math.PI/2, -Math.PI/2 + Math.PI*2); ctx.stroke();
+      // Progress arc
+      ctx.strokeStyle = col; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(rx, ry, 14, -Math.PI/2, -Math.PI/2 + Math.PI*2*progress); ctx.stroke();
+      // HOLD text
+      const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 180);
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 8px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('HOLD', rx, ry + 3);
+      ctx.restore();
+    }
+
     // Speech bubble quip
     if (quip) {
       const bx = player.x - this._camX;
@@ -4291,10 +4417,24 @@ class StoryGame {
     const sp1 = Math.min(1, this.p1.spCharge / C.SP_CHARGE_MAX);
     ctx.fillStyle='#111'; ctx.fillRect(8,33,100,6);
     ctx.fillStyle=sp1>=1?'#FFD700':C.COL.P1_HUD; ctx.fillRect(8,33,100*sp1,6);
+    if (sp1 >= 1) {
+      const pulse1 = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+      ctx.save(); ctx.globalAlpha = pulse1;
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 8px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'left'; ctx.fillText('SP READY', 8, 48);
+      ctx.restore();
+    }
     if (this.coop && this.p2) {
       const sp2=Math.min(1,this.p2.spCharge/C.SP_CHARGE_MAX);
       ctx.fillStyle='#111';ctx.fillRect(C.W-108,33,100,6);
       ctx.fillStyle=sp2>=1?'#FFD700':C.COL.P2_HUD;ctx.fillRect(C.W-108,33,100*sp2,6);
+      if (sp2 >= 1) {
+        const pulse2 = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+        ctx.save(); ctx.globalAlpha = pulse2;
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 8px Segoe UI, Arial, sans-serif';
+        ctx.textAlign = 'right'; ctx.fillText('SP READY', C.W - 8, 48);
+        ctx.restore();
+      }
     }
   }
 
@@ -4360,6 +4500,28 @@ class StoryGame {
       ctx.fillText(`ENEMY TYPE: ${act.enemyCategory}`, C.W/2, C.H/2+30);
     }
 
+    // Boss proximity warning vignette
+    if (this._bossWarningTimer > 0) {
+      const fade = Math.min(1, this._bossWarningTimer / 2500);
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 180);
+      const alpha = fade * pulse * 0.55;
+      // Red vignette border
+      ctx.save();
+      const vig = ctx.createRadialGradient(C.W/2, C.H/2, C.H*0.3, C.W/2, C.H/2, C.H*0.9);
+      vig.addColorStop(0, 'rgba(180,0,0,0)');
+      vig.addColorStop(1, `rgba(180,0,0,${alpha})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, C.W, C.H);
+      // Warning text
+      ctx.globalAlpha = fade * (0.6 + 0.4 * pulse);
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 16;
+      ctx.fillStyle = '#FF4444'; ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
+      ctx.fillText('⚠ DANGER AHEAD', C.W/2, 32);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
     // Battle cry banner
     if (this._battleCryTimer > 0 && this._introTimer <= 0) {
       const t = Math.min(1, this._battleCryTimer / 800);
@@ -4394,11 +4556,30 @@ class StoryGame {
     ctx.textAlign = 'right';
     ctx.fillStyle = 'rgba(255,255,255,0.22)';
     ctx.font = '11px Segoe UI, Arial, sans-serif';
-    ctx.fillText(this._dlgPhase === 'intro' ? 'PRE-BATTLE' : 'POST-BATTLE', C.W - 12, 14);
+    ctx.fillText(this._dlgPhase === 'intro' ? 'PRE-BATTLE' : this._dlgPhase === 'encounter' ? 'ENCOUNTER' : 'POST-BATTLE', C.W - 12, 14);
+
+    // ── Resolve current line (encounter uses {speaker, text} objects) ───────────
+    const lineObj = this._dlgLines[this._dlgLine];
+    const isEncounter = this._dlgPhase === 'encounter';
+    const line = (lineObj && typeof lineObj === 'object') ? lineObj.text : (lineObj || '');
+    // Dynamic speaker for encounter dialogue
+    let activeName = this._dlgName;
+    let activeCol  = this._dlgCol;
+    if (isEncounter && lineObj && typeof lineObj === 'object') {
+      if (lineObj.speaker === 'p2' && this.p2) {
+        activeName = (this.p2.charName) || 'P2';
+        activeCol  = C.COL.P2_HUD;
+      } else if (lineObj.speaker === 'enemy') {
+        activeName = this._encounterEnemyType || 'Enemy';
+        activeCol  = '#FF4444';
+      } else {
+        activeName = (this.p1 && this.p1.charName) || 'Player';
+        activeCol  = C.COL.P1_HUD;
+      }
+    }
 
     // ── Wrap text into rows ─────────────────────────────────────────
     ctx.font = '13px Segoe UI, Arial, sans-serif';
-    const line = this._dlgLines[this._dlgLine] || '';
     const bMaxW = 480;
     const bPad  = 14;
     let row = '', rows = [];
@@ -4436,19 +4617,19 @@ class StoryGame {
     ctx.closePath();
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.fill();
-    ctx.strokeStyle = this._dlgCol;
+    ctx.strokeStyle = activeCol;
     ctx.lineWidth = 2.5;
     ctx.stroke();
     ctx.restore();
 
     // NPC name in bubble header
-    ctx.fillStyle = this._dlgCol;
+    ctx.fillStyle = activeCol;
     ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(this._dlgName, bX + bPad, bY + 18);
+    ctx.fillText(activeName, bX + bPad, bY + 18);
 
     // Thin divider under name
-    ctx.fillStyle = this._dlgCol;
+    ctx.fillStyle = activeCol;
     ctx.globalAlpha = 0.2;
     ctx.fillRect(bX + bPad, bY + 22, bW - bPad * 2, 1);
     ctx.globalAlpha = 1;
@@ -4469,7 +4650,7 @@ class StoryGame {
     const adv  = 0.5 + 0.5 * Math.sin(Date.now() / 320);
     const last = this._dlgLine >= this._dlgLines.length - 1;
     ctx.globalAlpha = adv;
-    ctx.fillStyle = this._dlgCol;
+    ctx.fillStyle = activeCol;
     ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(last ? 'ENTER — done' : 'ENTER — next', bX + bW - bPad, bY + bH - 7);
@@ -4505,7 +4686,14 @@ class StoryGame {
     ctx.save();
     ctx.translate(C.W - 200, groundY);
     ctx.scale(2, 2);
-    this._drawDlgNpcArena(ctx, act.npc.portrait);
+    if (isEncounter && this._encounterEnemyType) {
+      // Draw the enemy sprite on the right side
+      const tmpE = new StoryEnemy(0, this._encounterEnemyType);
+      tmpE.x = 0; tmpE.y = 0;
+      tmpE.draw(ctx);
+    } else {
+      this._drawDlgNpcArena(ctx, act.npc.portrait);
+    }
     ctx.restore();
 
   }
