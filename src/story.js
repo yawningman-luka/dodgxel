@@ -1991,7 +1991,16 @@ class StoryGame {
             this._startActCombat(this.actIndex);
           }
         } else {
-          this.subState = 'world_map';
+          // Post-battle (outro) dialogue finished — complete act and return to map
+          this._completeAct();
+          if (this.actIndex === STORY_ACTS.length - 1) {
+            this._gazetteMode = 'final';
+            this._gazettePrevActIdx = this.actIndex;
+            this._gazetteActIdx = this.actIndex;
+            this.subState = 'story_intro';
+          } else {
+            this.subState = 'world_map';
+          }
         }
       }
     }
@@ -2006,8 +2015,10 @@ class StoryGame {
         this._bossDlgTimer = 0;
         if (this._bossDefeatMode) {
           this._bossDefeatMode = false;
-          this._completeAct();
-          this.subState = 'sidescroll';
+          // Flow: boss defeat cutscene → NPC outro dialogue → world_map
+          const act = STORY_ACTS[this.actIndex];
+          this._dlgPhase = 'outro';
+          this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.outroLines });
         } else {
           this.subState = 'sidescroll';
         }
