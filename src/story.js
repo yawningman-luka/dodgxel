@@ -4186,26 +4186,49 @@ class StoryGame {
     ctx.restore();
     player.x = savedX; player.y = savedY;
 
-    // Revival progress arc
+    // Revival progress arc + button hint
     const reviveTimer = (player === this.p1) ? this._p1ReviveTimer : this._p2ReviveTimer;
-    if (this.coop && reviveTimer > 0) {
+    if (this.coop) {
       const REVIVE_MS = 1500;
       const progress = Math.min(1, reviveTimer / REVIVE_MS);
       const rx = player.x - this._camX;
       const ry = gy + bob - 36;
+      // Determine which player revives this ghost and what key they use
+      const reviverCatchCode = (player === this.p1) ? Controls.p2.catch : Controls.p1.catch;
+      // Extract human-readable key label: 'KeyG' → 'G', 'Space' → 'SPC', etc.
+      let keyLabel = reviverCatchCode.replace(/^Key/, '').replace(/^Digit/, '').replace('Space', 'SPC');
+      if (keyLabel.length > 4) keyLabel = keyLabel.slice(0, 4);
+
       ctx.save();
-      // Background arc
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(rx, ry, 14, -Math.PI/2, -Math.PI/2 + Math.PI*2); ctx.stroke();
-      // Progress arc
-      ctx.strokeStyle = col; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(rx, ry, 14, -Math.PI/2, -Math.PI/2 + Math.PI*2*progress); ctx.stroke();
-      // HOLD text
-      const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 180);
-      ctx.globalAlpha = pulse;
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 8px Segoe UI, Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('HOLD', rx, ry + 3);
+      if (reviveTimer > 0) {
+        // Background arc
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(rx, ry, 14, -Math.PI/2, -Math.PI/2 + Math.PI*2); ctx.stroke();
+        // Progress arc
+        ctx.strokeStyle = col; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(rx, ry, 14, -Math.PI/2, -Math.PI/2 + Math.PI*2*progress); ctx.stroke();
+        // HOLD text inside arc
+        const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 180);
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 8px Segoe UI, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('HOLD', rx, ry + 3);
+      } else {
+        // Idle hint: button badge + label
+        const idlePulse = 0.45 + 0.3 * Math.sin(Date.now() / 500);
+        ctx.globalAlpha = idlePulse;
+        // Key badge
+        const badgeW = Math.max(18, keyLabel.length * 7 + 8);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(rx - badgeW/2, ry - 10, badgeW, 14, 3); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(keyLabel, rx, ry + 1);
+        // "hold to revive" label below badge
+        ctx.fillStyle = '#fff'; ctx.font = '8px Segoe UI, Arial, sans-serif';
+        ctx.fillText('hold to revive', rx, ry + 18);
+      }
       ctx.restore();
     }
 
