@@ -1309,9 +1309,7 @@ class StoryGame {
       Particles.emit(h.x, h.y, 1, ['#FF4400','#FF8800','#FFCC00'], { upBias:1.8, minSpeed:0.5, maxSpeed:2.0, gravity:0.04 });
       // Damage enemies passing over the fire
       if (!h._enemyHitCd) h._enemyHitCd = new WeakMap();
-      const allEnemies = this._bossEnemy && !this._bossEnemy.dead
-        ? [...this.enemies, this._bossEnemy]
-        : this.enemies;
+      const allEnemies = this.enemies; // boss is already in this.enemies (pushed in _buildLevel)
       for (const e of allEnemies) {
         if (e.dead || !e._awake) continue;
         const ex = e.x, ey = e.y;
