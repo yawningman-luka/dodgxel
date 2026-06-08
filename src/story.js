@@ -1180,9 +1180,7 @@ class StoryGame {
   }
 
   _updateStoryIntro() {
-    const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
-                    Input.wasPressed(Controls.p1.catch);
-    if (confirm) {
+    if (Object.keys(Input.justPressed).length > 0) {
       this._storyIntroSeen = true;
       if (this._gazetteMode === 'pre_act') {
         // Gazette before an act → start NPC intro dialogue
@@ -1211,7 +1209,7 @@ class StoryGame {
 
   _updateSidescroll(dt) {
     if (this._levelState === 'game_over' || this._levelState === 'act_clear') {
-      if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
+      if (Object.keys(Input.justPressed).length > 0) {
         if (this._levelState === 'act_clear') {
           this._completeAct();
           // Transition out of act_clear
@@ -1878,9 +1876,7 @@ class StoryGame {
     if (this._introTimer > 0) this._introTimer -= dt;
     if (this._battleCryTimer > 0) this._battleCryTimer -= dt;
     if (this._bossDlgTimer > 0) {
-      const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
-                      Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
-      if (confirm && this._bossIntroLines.length > 0) {
+      if (Object.keys(Input.justPressed).length > 0 && this._bossIntroLines.length > 0) {
         this._bossIntroIdx++;
         if (this._bossIntroIdx >= this._bossIntroLines.length) {
           this._bossDlgTimer = 0;
@@ -2108,8 +2104,7 @@ class StoryGame {
   }
 
   _updateBossCutscene() {
-    const confirm = Input.wasPressed('Enter') || Input.wasPressed('Space') ||
-                    Input.wasPressed(Controls.p1.catch) || Input.wasPressed(Controls.p2.catch);
+    const confirm = Object.keys(Input.justPressed).length > 0;
     if (confirm) {
       this._bossIntroIdx++;
       if (this._bossIntroIdx >= this._bossIntroLines.length) {
