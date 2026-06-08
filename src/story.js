@@ -981,13 +981,13 @@ class StoryGame {
     this._p2Data = p2Data;
     this.returnToMenu = false;
 
-    this.subState = 'story_intro';
-    this._storyIntroSeen = false;
+    this.subState = 'world_map';
+    this._storyIntroSeen = true;
     this.actIndex = 0;
     this.completedActs = new Set();
     this._unlockedActs = new Set([0]);
     this._mapCursor = 0;
-    this._gazetteMode = 'intro';   // 'intro' | 'pre_act' | 'final'
+    this._gazetteMode = 'pre_act';   // 'intro' | 'pre_act' | 'final'
     this._gazetteActIdx = 0;       // which act's content to show
     this._gazettePrevActIdx = -1;  // which act's bg to show in portrait (-1 = none)
 
@@ -1187,6 +1187,7 @@ class StoryGame {
       if (this._gazetteMode === 'pre_act') {
         // Gazette before an act → start NPC intro dialogue
         const act = STORY_ACTS[this._gazetteActIdx];
+        this._dlgPhase = 'intro';
         this._startDialogue({ name: act.npc.name, col: act.npc.col, lines: act.npc.introLines });
       } else if (this._gazetteMode === 'final') {
         // Final gazette → return to menu
