@@ -71,7 +71,7 @@ const STORY_ACTS = [
       outroLines: [
         "You... you actually did it.",
         "Patient Zero is down. The horde is retreating!",
-        "I'm going to have to rewrite my paper to mention 'brave idiots with dodgeballs'.",
+        "I'm going to have to rewrite my paper to mention 'unhinged dodgeball athletes saving the world'.",
         "The infection is spreading east. Jungle temple, ancient ruins zone.",
         "My colleague Prof. Biff went there to research. He's been gone for weeks.",
         "Knowing Biff, he's either found the answer or been adopted by the golems.",
