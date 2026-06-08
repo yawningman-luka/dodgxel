@@ -2571,6 +2571,7 @@ class StoryGame {
 
     // Portrait box dimensions
     const portraitScale = 1.75;
+    const coopPortraitScale = portraitScale * 0.7; // ~1.225 — smaller to fit 130px coop boxes
     const pCharH = 28 * portraitScale; // approx sprite height
 
     if (this.coop && p2Name) {
@@ -2608,7 +2609,7 @@ class StoryGame {
         ctx.restore();
         const pb1 = bGY1 - bs1.hr - 1;
         ctx.save(); ctx.filter = 'grayscale(1) contrast(1.15)';
-        ctx.translate(p1cx, pb1); ctx.scale(portraitScale, portraitScale);
+        ctx.translate(p1cx, pb1); ctx.scale(coopPortraitScale, coopPortraitScale);
         if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'throw', 1, 0, true, p1Colors);
         else                   Sprites.drawBoy (ctx, 0, 0, 'throw', 1, 0, true, p1Colors);
         ctx.restore();
@@ -2620,7 +2621,7 @@ class StoryGame {
         ctx.restore();
       } else {
         ctx.save(); ctx.filter = 'grayscale(1) contrast(1.1)';
-        ctx.translate(p1cx, boxY1 + boxH - 14); ctx.scale(portraitScale, portraitScale);
+        ctx.translate(p1cx, boxY1 + boxH - 14); ctx.scale(coopPortraitScale, coopPortraitScale);
         if (p1Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
         else                   Sprites.drawBoy (ctx, 0, 0, 'idle', 1, 0, true, p1Colors);
         ctx.restore();
@@ -2660,7 +2661,7 @@ class StoryGame {
         ctx.restore();
         const pb2 = bGY2 - bs2.hr - 1;
         ctx.save(); ctx.filter = 'grayscale(1) contrast(1.15)';
-        ctx.translate(p2cx, pb2); ctx.scale(portraitScale, portraitScale);
+        ctx.translate(p2cx, pb2); ctx.scale(coopPortraitScale, coopPortraitScale);
         if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'throw', -1, 0, true, p2Colors);
         else                   Sprites.drawBoy (ctx, 0, 0, 'throw', -1, 0, true, p2Colors);
         ctx.restore();
@@ -2672,7 +2673,7 @@ class StoryGame {
         ctx.restore();
       } else {
         ctx.save(); ctx.filter = 'grayscale(1) contrast(1.1)';
-        ctx.translate(p2cx, boxY2 + boxH - 14); ctx.scale(portraitScale, portraitScale);
+        ctx.translate(p2cx, boxY2 + boxH - 14); ctx.scale(coopPortraitScale, coopPortraitScale);
         if (p2Name === 'Lucy') Sprites.drawGirl(ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
         else                   Sprites.drawBoy (ctx, 0, 0, 'idle', -1, 0, true, p2Colors);
         ctx.restore();
@@ -4598,7 +4599,8 @@ class StoryGame {
 
     // ── Wrap text into rows ─────────────────────────────────────────
     ctx.font = '13px Segoe UI, Arial, sans-serif';
-    const bMaxW = 480;
+    // Encounter dialogue uses narrower side-anchored bubbles so they visually switch sides
+    const bMaxW = isEncounter ? 360 : 480;
     const bPad  = 14;
     let row = '', rows = [];
     for (const word of line.split(' ')) {
@@ -4612,13 +4614,15 @@ class StoryGame {
     const lineH = 21;
     const bW    = bMaxW;
     const bH    = 30 + rows.length * lineH + bPad; // 30 = name header area
-    const bX    = (C.W - bW) / 2;
     const bY    = 18;
     const cr    = 10; // corner radius
-    // Tail points toward the current speaker:
-    //   right side → NPC intro/outro, or enemy encounter line
-    //   left side  → p1/p2 encounter line
+    // For encounter dialogue: bubble anchors left (p1/p2 speaking) or right (enemy speaking)
+    // so it visually switches between sides as the conversation goes back and forth.
+    // For NPC intro/outro: centred bubble with tail pointing right toward NPC.
     const tailRight = !isEncounter || (lineObj && typeof lineObj === 'object' && lineObj.speaker === 'enemy');
+    const bX = isEncounter
+      ? (tailRight ? C.W - 20 - bW : 20)
+      : (C.W - bW) / 2;
     const tX = tailRight ? bX + bW - 64 : bX + 64;
     const tY = bY + bH;
 
