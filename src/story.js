@@ -2046,7 +2046,7 @@ class StoryGame {
         'You... actually did it. The suit is crashing. Finally.',
         'It\'s still transmitting. Even broken. Even sparking. It won\'t stop.',
         'The NEXUS doesn\'t need a working vessel. It just needs a signal.',
-        'I\'m free. But it\'s still out there. Be careful, you lovely idiots.',
+        'I\'m free. But it\'s still out there. Be careful, you gloriously reckless heroes.',
       ],
       iron_champion: [
         '*visor shatters, armor buckles, falls to one knee with a heavy CLANG*',
