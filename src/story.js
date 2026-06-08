@@ -4620,8 +4620,11 @@ class StoryGame {
     const bX    = (C.W - bW) / 2;
     const bY    = 18;
     const cr    = 10; // corner radius
-    // Tail anchored near bottom-right of bubble, pointing toward NPC avatar
-    const tX = bX + bW - 64;
+    // Tail points toward the current speaker:
+    //   right side → NPC intro/outro, or enemy encounter line
+    //   left side  → p1/p2 encounter line
+    const tailRight = !isEncounter || (lineObj && typeof lineObj === 'object' && lineObj.speaker === 'enemy');
+    const tX = tailRight ? bX + bW - 64 : bX + 64;
     const tY = bY + bH;
 
     ctx.save();
