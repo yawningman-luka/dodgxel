@@ -7,6 +7,26 @@ const Sprites = {
     ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
   },
 
+  // Lighten (+amt) or darken (-amt) a #RRGGBB colour; passes through non-hex values
+  _shade(hex, amt) {
+    if (typeof hex !== 'string' || hex[0] !== '#' || hex.length !== 7) return hex;
+    const n = parseInt(hex.slice(1), 16);
+    const cl = v => Math.max(0, Math.min(255, v));
+    return `rgb(${cl((n >> 16) + amt)},${cl(((n >> 8) & 255) + amt)},${cl((n & 255) + amt)})`;
+  },
+
+  // Body bob + lean + jump stretch, applied inside the character's transform
+  _pose(ctx, state) {
+    const t = Date.now();
+    if (state === 'running') {
+      ctx.rotate(0.06);
+      return Math.abs(Math.sin(t / 100)) * -2;
+    }
+    if (state === 'jumping') { ctx.scale(0.94, 1.06); return -1; }
+    if (state === 'throwing') { ctx.rotate(0.04); return 0; }
+    return Math.sin(t / 600) * 0.9; // idle breathing
+  },
+
   drawShadow(ctx, x, y, w) {
     ctx.fillStyle = C.COL.SHADOW;
     ctx.beginPath();
@@ -27,6 +47,7 @@ const Sprites = {
     ctx.translate(Math.round(x), Math.round(y));
     if (dir < 0) ctx.scale(-1, 1);
     ctx.scale(0.8, 0.8);
+    const bob = this._pose(ctx, state);
 
     const blink = Math.floor(Date.now() / 3000) % 8 === 0;
 
@@ -45,16 +66,25 @@ const Sprites = {
     } else {
       this.px(ctx, pants, -8, -32, 8, 20);
       this.px(ctx, pants, 2, -32, 8, 20);
+      this.px(ctx, this._shade(pants, -26), -8, -32, 2, 20);
+      this.px(ctx, this._shade(pants, -26), 2, -32, 2, 20);
+      const foff = legOff > 0 ? -legOff : 0, boff = legOff < 0 ? legOff : 0;
       this.px(ctx, C.COL.SHOE, -10, -14, 11, 7);
-      this.px(ctx, C.COL.SHOE, 1, -14 + (legOff > 0 ? -legOff : 0), 11, 7);
-      this.px(ctx, C.COL.SHOE, -10, -14 + (legOff < 0 ? legOff : 0), 11, 7);
+      this.px(ctx, '#E8E8E8', -10, -9, 11, 2);
+      this.px(ctx, C.COL.SHOE, 1, -14 + foff, 11, 7);
+      this.px(ctx, '#E8E8E8', 1, -9 + foff, 11, 2);
+      this.px(ctx, C.COL.SHOE, -10, -14 + boff, 11, 7);
+      this.px(ctx, '#E8E8E8', -10, -9 + boff, 11, 2);
     }
 
-    const bodyTop = crouching ? -22 : -56;
+    const bodyTop = (crouching ? -22 : -56) + bob;
     const bodyH = crouching ? 14 : 22;
 
-    // Torso
+    // Torso with shading (dark left edge, top highlight, dark hem)
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
+    this.px(ctx, this._shade(shirt, -30), -10, bodyTop, 3, bodyH);
+    this.px(ctx, this._shade(shirt, 26), -6, bodyTop, 16, 2);
+    this.px(ctx, this._shade(shirt, -22), -10, bodyTop + bodyH - 3, 22, 3);
 
     // Wings (drawn BEHIND body)
     this._drawAccessoryBack(ctx, (colors && colors.accessory) || 'none', bodyTop);
@@ -95,6 +125,8 @@ const Sprites = {
     // Head
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
+    this.px(ctx, this._shade(C.COL.SKIN, -22), -9, headY, 2, 22);
+    this.px(ctx, this._shade(C.COL.SKIN, 16), 6, headY + 3, 5, 15);
 
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'straight';
@@ -175,6 +207,11 @@ const Sprites = {
       this.px(ctx, C.COL.EYE,  4, headY + 13, 4, 2);
     }
 
+    this.px(ctx, hairDark, -3, headY + 7, 4, 2);
+    this.px(ctx, hairDark, 4, headY + 7, 4, 2);
+    this.px(ctx, this._shade(C.COL.SKIN, -25), 1, headY + 14, 2, 2);
+    this.px(ctx, 'rgba(255,120,120,0.35)', -7, headY + 15, 4, 2);
+    this.px(ctx, 'rgba(255,120,120,0.35)', 6, headY + 15, 4, 2);
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
     this._drawAccessory(ctx, (colors && colors.accessory) || 'none', headY, hair, hairDark);
     ctx.restore();
@@ -192,6 +229,7 @@ const Sprites = {
     ctx.translate(Math.round(x), Math.round(y));
     if (dir < 0) ctx.scale(-1, 1);
     ctx.scale(0.8, 0.8);
+    const bob = this._pose(ctx, state);
 
     const blink = Math.floor(Date.now() / 3500) % 8 === 0;
     const legOff = state === 'running' ? Math.sin(Date.now() / 100) * 5 : 0;
@@ -208,16 +246,25 @@ const Sprites = {
     } else {
       this.px(ctx, pants, -8, -32, 8, 20);
       this.px(ctx, pants, 2, -32, 8, 20);
+      this.px(ctx, this._shade(pants, -26), -8, -32, 2, 20);
+      this.px(ctx, this._shade(pants, -26), 2, -32, 2, 20);
+      const foff = legOff > 0 ? -legOff : 0, boff = legOff < 0 ? legOff : 0;
       this.px(ctx, C.COL.SHOE, -10, -14, 11, 7);
-      this.px(ctx, C.COL.SHOE, 1, -14 + (legOff > 0 ? -legOff : 0), 11, 7);
-      this.px(ctx, C.COL.SHOE, -10, -14 + (legOff < 0 ? legOff : 0), 11, 7);
+      this.px(ctx, '#E8E8E8', -10, -9, 11, 2);
+      this.px(ctx, C.COL.SHOE, 1, -14 + foff, 11, 7);
+      this.px(ctx, '#E8E8E8', 1, -9 + foff, 11, 2);
+      this.px(ctx, C.COL.SHOE, -10, -14 + boff, 11, 7);
+      this.px(ctx, '#E8E8E8', -10, -9 + boff, 11, 2);
     }
 
-    const bodyTop = crouching ? -22 : -56;
+    const bodyTop = (crouching ? -22 : -56) + bob;
     const bodyH = crouching ? 14 : 22;
 
-    // Torso
+    // Torso with shading (dark left edge, top highlight, dark hem)
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
+    this.px(ctx, this._shade(shirt, -30), -10, bodyTop, 3, bodyH);
+    this.px(ctx, this._shade(shirt, 26), -6, bodyTop, 16, 2);
+    this.px(ctx, this._shade(shirt, -22), -10, bodyTop + bodyH - 3, 22, 3);
 
     // Wings (drawn BEHIND body)
     this._drawAccessoryBack(ctx, (colors && colors.accessory) || 'none', bodyTop);
@@ -262,6 +309,8 @@ const Sprites = {
     // Head
     const headY = bodyTop - 22;
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
+    this.px(ctx, this._shade(C.COL.SKIN, -22), -9, headY, 2, 22);
+    this.px(ctx, this._shade(C.COL.SKIN, 16), 6, headY + 3, 5, 15);
 
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'ponytail';
@@ -327,6 +376,11 @@ const Sprites = {
       this.px(ctx, C.COL.EYE,  4, headY + 13, 4, 2);
     }
 
+    this.px(ctx, hairDark, -3, headY + 7, 4, 2);
+    this.px(ctx, hairDark, 4, headY + 7, 4, 2);
+    this.px(ctx, this._shade(C.COL.SKIN, -25), 1, headY + 14, 2, 2);
+    this.px(ctx, 'rgba(255,120,120,0.35)', -7, headY + 15, 4, 2);
+    this.px(ctx, 'rgba(255,120,120,0.35)', 6, headY + 15, 4, 2);
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
     this._drawAccessory(ctx, (colors && colors.accessory) || 'none', headY, hair, hairDark);
     ctx.restore();
