@@ -1170,6 +1170,9 @@ class StoryGame {
       else { this.returnToMenu = true; }
       return;
     }
+    // Per-act ambient atmosphere while in the level (also during boss cutscenes)
+    const inLevel = this.subState === 'sidescroll' || this.subState === 'boss_cutscene';
+    FX.setAmbient(inLevel ? ['embers', 'leaves', 'snow', 'dust', 'digital'][this.actIndex] || null : null);
     switch (this.subState) {
       case 'story_intro':        this._updateStoryIntro(); break;
       case 'world_map':          this._updateWorldMap(); break;
@@ -1474,6 +1477,14 @@ class StoryGame {
 
         const killed = e.takeBall(ball);
         if (killed) {
+          FX.shake(3, 150);
+          FX.shockwave(e.x - this._camX, e.y - e.h / 2, '#FFD700', { maxR: 34, width: 2 });
+          if (e === this._bossEnemy) {
+            FX.hitstop(160);
+            FX.shake(10, 500);
+            FX.shockwave(e.x - this._camX, e.y - e.h / 2, '#FFFFFF', { maxR: 120, width: 5, dur: 500 });
+            FX.flash('#FFFFFF', 0.3, 200);
+          }
           Particles.emit(e.x, e.y - e.h / 2, 18,
             ['#FF4444','#FF8800','#FFD700','#FFFFFF'],
             { upBias: 2, maxSpeed: 5, minSize: 2, maxSize: 4 });
@@ -1508,6 +1519,9 @@ class StoryGame {
 
   _doExplosionSplash(ball, hitEnemy) {
     const bx = ball.x, by = ball.y;
+    FX.shake(7, 350);
+    FX.shockwave(bx - this._camX, by, '#FF8800', { maxR: 100, width: 5, dur: 420 });
+    FX.flash('#FF6B00', 0.15, 150);
     Particles.emit(bx, by, 28,
       ['#FF6B00','#FF4400','#FFCC00','#FF8800','#FFFFFF'],
       { upBias: 0, maxSpeed: 8, minSize: 3, maxSize: 6 });
@@ -1574,6 +1588,10 @@ class StoryGame {
 
   _hitPlayer(player) {
     const isP1 = player === this.p1;
+    FX.hitstop(70);
+    FX.shake(5, 280);
+    FX.shockwave(player.x - this._camX, player.y - 22, '#FF4444', { maxR: 44, width: 3 });
+    FX.flash('#FF0000', 0.12, 130);
     Particles.emit(player.x, player.y - 22, 16,
       [isP1 ? C.COL.P1_HUD : C.COL.P2_HUD, '#FF4444', '#FFFFFF'],
       { upBias: 2, maxSpeed: 4 });

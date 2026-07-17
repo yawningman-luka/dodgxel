@@ -230,6 +230,10 @@ class WormsGame {
 
   _onHit(victim) {
     victim.hp = Math.max(0, victim.hp - 1);
+    FX.hitstop(90);
+    FX.shake(6, 300);
+    FX.shockwave(victim.x - this.camX, victim.y - 22, '#FFFFFF', { maxR: 55, width: 4 });
+    FX.flash('#FFFFFF', 0.15, 120);
     Particles.emit(victim.x, victim.y - 22, 20,
       ['#FF4444','#FF8888','#FFD700','#fff'], { upBias:2, maxSpeed:4 });
     this._phase = victim.hp <= 0 ? 'end' : 'turn_end';

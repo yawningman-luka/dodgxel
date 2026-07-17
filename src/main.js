@@ -2,10 +2,12 @@ let game;
 let lastTime = 0;
 
 function loop(timestamp) {
-  const dt = Math.min(timestamp - lastTime, 50);
+  const dt = FX.update(Math.min(timestamp - lastTime, 50));
   lastTime = timestamp;
   game.update(dt);
+  FX.preDraw(game.ctx);
   game.draw();
+  FX.postDraw(game.ctx);
   requestAnimationFrame(loop);
 }
 

@@ -50,6 +50,12 @@
     if (this.roundWinner === 0) this._p1ScoreFlash = FLASH_DUR;
     else if (this.roundWinner === 1) this._p2ScoreFlash = FLASH_DUR;
 
+    // Impact juice
+    FX.hitstop(90);
+    FX.shake(6, 300);
+    FX.shockwave(victim.x, victim.y - 22, '#FFFFFF', { maxR: 60, width: 4 });
+    FX.flash('#FFFFFF', 0.18, 120);
+
     // Hit particles from victim + confetti from scorer
     const wCol = this.roundWinner === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
     const scorer = this.roundWinner === 0 ? this.p1 : this.p2;
@@ -63,6 +69,7 @@
 
   update(dt) {
     dt = Math.min(dt, 50);
+    if (this.state !== C.STATE.STORY) FX.setAmbient(null);
     switch (this.state) {
       case C.STATE.MENU:         this._updateMenu(); break;
       case C.STATE.ARENA_SELECT: this._updateArenaSelect(); break;

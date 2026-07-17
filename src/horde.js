@@ -511,6 +511,10 @@ class HordeGame {
           const killed = this.boss.takeBall(ball);
           this.score += killed ? 10 * (HORDE_WAVES.length + 1) : 5;
           if (killed) {
+            FX.hitstop(160);
+            FX.shake(10, 500);
+            FX.shockwave(this.boss.x, this.boss.y - this.boss.h / 2, '#FFFFFF', { maxR: 130, width: 5, dur: 500 });
+            FX.flash('#FFFFFF', 0.3, 200);
             Particles.emit(this.boss.x, this.boss.y - this.boss.h / 2, 40,
               ['#FF4444','#FF8800','#FFD700','#FFFFFF','#FF0000'],
               { upBias: 3, maxSpeed: 8, minSize: 2, maxSize: 6 });
@@ -575,6 +579,8 @@ class HordeGame {
         const killed = e.takeBall(ball);
         this.score += killed ? 10 * this.wave : 2;
         if (killed) {
+          FX.shake(3, 150);
+          FX.shockwave(e.x, e.y - e.h / 2, '#FFD700', { maxR: 34, width: 2 });
           Particles.emit(e.x, e.y - e.h / 2, 18,
             ['#FF4444', '#FF8800', '#FFD700', '#FFFFFF'],
             { upBias: 2, maxSpeed: 5, minSize: 2, maxSize: 4 });
@@ -625,6 +631,10 @@ class HordeGame {
   _hitPlayer(player) {
     const isP1 = player === this.p1;
     const col = isP1 ? C.COL.P1_HUD : C.COL.P2_HUD;
+    FX.hitstop(70);
+    FX.shake(5, 280);
+    FX.shockwave(player.x, player.y - 22, '#FF4444', { maxR: 44, width: 3 });
+    FX.flash('#FF0000', 0.12, 130);
     Particles.emit(player.x, player.y - 22, 16,
       [col, '#FF4444', '#FFFFFF'],
       { upBias: 2, maxSpeed: 4 });
