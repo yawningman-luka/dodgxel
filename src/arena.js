@@ -15,7 +15,104 @@
     g.addColorStop(1, this.skyBot);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, C.W, C.GROUND);
+    if (this.parallax) this._drawParallax(ctx);
     if (this.drawBg) this.drawBg(ctx);
+    if (this.ambient) this._drawAmbient(ctx);
+  }
+
+  // ── Parallax layers ──────────────────────────────────────────────────────
+  // Each layer: { type: 'clouds'|'hills'|'peaks'|'skyline', y, color, speed(px/s),
+  //               size, count, alpha }
+  // Layers drift horizontally at different speeds and wrap, giving depth.
+  _drawParallax(ctx) {
+    const t = Date.now() / 1000;
+    for (const L of this.parallax) {
+      const count = L.count || 5;
+      const spacing = (C.W + L.size * 2) / count;
+      const off = ((t * (L.speed || 6)) % spacing);
+      ctx.globalAlpha = L.alpha ?? 0.5;
+      ctx.fillStyle = L.color;
+      for (let i = -1; i <= count; i++) {
+        // Deterministic per-slot jitter so shapes don't look uniform
+        const j = Math.sin(i * 127.1) * 0.5 + 0.5;
+        const x = i * spacing - off + j * spacing * 0.4;
+        const s = L.size * (0.7 + j * 0.6);
+        const y = L.y + Math.sin(i * 311.7) * 8;
+        if (L.type === 'clouds') {
+          ctx.beginPath();
+          ctx.ellipse(x, y, s, s * 0.32, 0, 0, Math.PI * 2);
+          ctx.ellipse(x - s * 0.5, y + s * 0.1, s * 0.55, s * 0.24, 0, 0, Math.PI * 2);
+          ctx.ellipse(x + s * 0.5, y + s * 0.12, s * 0.5, s * 0.22, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (L.type === 'hills') {
+          ctx.beginPath();
+          ctx.ellipse(x, L.y, s * 1.6, s, 0, Math.PI, 0);
+          ctx.fill();
+        } else if (L.type === 'peaks') {
+          ctx.beginPath();
+          ctx.moveTo(x - s, L.y);
+          ctx.lineTo(x, L.y - s * (1.1 + j * 0.8));
+          ctx.lineTo(x + s, L.y);
+          ctx.closePath();
+          ctx.fill();
+        } else if (L.type === 'skyline') {
+          const bw = s * 0.9, bh = s * (1 + j * 1.4);
+          ctx.fillRect(x - bw / 2, L.y - bh, bw, bh);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── Ambient drifting particles (leaves, embers, dust, snow…) ─────────────
+  // Config: { count, colors[], size:[min,max], vx:[min,max], vy:[min,max],
+  //           sway, glow, area:[yMin,yMax] }
+  _drawAmbient(ctx) {
+    const a = this.ambient;
+    const now = Date.now();
+    if (!this._amb) {
+      this._amb = [];
+      this._ambLast = now;
+      for (let i = 0; i < (a.count || 24); i++) this._amb.push(this._ambSpawn(a, true));
+    }
+    const dt = Math.min(50, now - this._ambLast);
+    this._ambLast = now;
+    const s = dt / 16;
+    for (let i = 0; i < this._amb.length; i++) {
+      const p = this._amb[i];
+      p.x += (p.vx + (a.sway ? Math.sin(now / 900 + p.ph) * a.sway : 0)) * s;
+      p.y += p.vy * s;
+      const yMin = a.area ? a.area[0] : -20, yMax = a.area ? a.area[1] : C.GROUND + 10;
+      if (p.x < -15 || p.x > C.W + 15 || p.y < yMin - 25 || p.y > yMax + 25) {
+        this._amb[i] = this._ambSpawn(a, false);
+        continue;
+      }
+      const tw = 0.55 + 0.45 * Math.sin(now / 500 + p.ph * 3);
+      ctx.globalAlpha = (a.alpha ?? 0.75) * tw;
+      if (a.glow) { ctx.shadowColor = p.color; ctx.shadowBlur = 6; }
+      ctx.fillStyle = p.color;
+      ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+      if (a.glow) ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  _ambSpawn(a, anywhere) {
+    const [s0, s1] = a.size || [2, 4];
+    const [vx0, vx1] = a.vx || [-0.3, 0.3];
+    const [vy0, vy1] = a.vy || [0.15, 0.5];
+    const yMin = a.area ? a.area[0] : 0, yMax = a.area ? a.area[1] : C.GROUND;
+    const vy = vy0 + Math.random() * (vy1 - vy0);
+    return {
+      x: Math.random() * C.W,
+      // New spawns enter from the edge they drift away from
+      y: anywhere ? yMin + Math.random() * (yMax - yMin) : (vy >= 0 ? yMin - 10 : yMax + 10),
+      vx: vx0 + Math.random() * (vx1 - vx0),
+      vy,
+      size: Math.round(s0 + Math.random() * (s1 - s0)),
+      color: a.colors[Math.floor(Math.random() * a.colors.length)],
+      ph: Math.random() * Math.PI * 2,
+    };
   }
 
   _drawGround(ctx) {
@@ -519,6 +616,12 @@ const ARENAS = [
     name: 'SCHOOLYARD',
     skyTop: '#87CEEB', skyBot: '#B0E0FF',
     groundColor: '#6DB53F', groundLine: '#5A9E30',
+    parallax: [
+      { type: 'clouds', y: 70,  color: '#FFFFFF', speed: 4,  size: 55, count: 4, alpha: 0.55 },
+      { type: 'hills',  y: C.GROUND, color: '#4E9A2E', speed: 10, size: 70, count: 5, alpha: 0.45 },
+    ],
+    ambient: { count: 16, colors: ['#FF8FB5', '#FFD1DC', '#FFF7C0'], size: [2, 4],
+               vx: [-0.5, -0.15], vy: [0.15, 0.4], sway: 0.5, alpha: 0.85, area: [90, C.GROUND - 20] },
     drawBg(ctx) {
       Sprites.px(ctx, '#B0BEC5', 280, 120, 240, 250);
       Sprites.px(ctx, '#90A4AE', 280, 100, 240, 25);
@@ -556,6 +659,12 @@ const ARENAS = [
     skyTop: '#00BFFF', skyBot: '#87CEEB',
     groundColor: '#F0D080', groundLine: '#DEB85A',
     playerSpeedMult: 0.55,
+    parallax: [
+      { type: 'clouds', y: 55,  color: '#FFFFFF', speed: 6,  size: 60, count: 4, alpha: 0.6 },
+      { type: 'hills',  y: C.GROUND - 60, color: '#2E7D8C', speed: 3, size: 26, count: 4, alpha: 0.5 },
+    ],
+    ambient: { count: 14, colors: ['#FFFFFF', '#E8F8FF', '#FFF3B0'], size: [2, 3],
+               vx: [-0.9, -0.4], vy: [-0.1, 0.15], sway: 0.7, alpha: 0.7, area: [95, C.GROUND - 70] },
     drawBg(ctx) {
       ctx.fillStyle = '#0077BE';
       ctx.fillRect(0, C.GROUND - 60, C.W, 60);
@@ -598,18 +707,30 @@ const ARENAS = [
     name: 'GYM',
     skyTop: '#0A1520', skyBot: '#162030',
     groundColor: '#B88828', groundLine: '#906010',
+    ambient: { count: 18, colors: ['#FFE9A0', '#FFF6D0'], size: [1, 2],
+               vx: [-0.15, 0.15], vy: [0.1, 0.3], sway: 0.3, alpha: 0.5, area: [95, C.GROUND - 30] },
     drawBg(ctx) {
       // Dark arena upper section (stands/crowd)
       ctx.fillStyle = '#0A1520';
       ctx.fillRect(0, 0, C.W, 210);
 
-      // Crowd silhouettes
+      // Crowd silhouettes — alive: bobbing, doing the wave, some with arms up
+      const ct = Date.now();
       for (let i = 0; i < 32; i++) {
         const hx = (i * 53 + 18) % (C.W - 20) + 10;
-        const hy = 92 + (i % 4) * 20;
+        // Stadium wave sweeping across + individual excited bounce
+        const wave = Math.max(0, Math.sin(ct / 700 - hx / 90)) * 9;
+        const bounce = Math.abs(Math.sin(ct / (260 + (i % 5) * 60) + i)) * 3;
+        const hy = 92 + (i % 4) * 20 - wave - bounce;
         ctx.fillStyle = `rgba(${15 + i%25}, ${22 + i%18}, ${45 + i%30}, 0.85)`;
         ctx.beginPath(); ctx.arc(hx, hy, 7 + (i%3), 0, Math.PI * 2); ctx.fill();
         ctx.fillRect(hx - 5, hy + 6, 10, 16);
+        // Arms shoot up during the wave (and a few fans keep them up)
+        if (wave > 4 || i % 7 === 0) {
+          const alift = wave > 4 ? wave * 0.8 : Math.sin(ct / 300 + i) * 3;
+          ctx.fillRect(hx - 9, hy - 4 - alift, 3, 12);
+          ctx.fillRect(hx + 6, hy - 4 - alift, 3, 12);
+        }
       }
 
       // Hardwood floor
@@ -710,6 +831,12 @@ const ARENAS = [
     name: 'FOREST',
     skyTop: '#1A4A1A', skyBot: '#2D6A2D',
     groundColor: '#2E4A1E', groundLine: '#3D6A2A',
+    parallax: [
+      { type: 'peaks', y: C.GROUND, color: '#0F3A0F', speed: 2, size: 90, count: 5, alpha: 0.7 },
+      { type: 'peaks', y: C.GROUND, color: '#164516', speed: 5, size: 60, count: 6, alpha: 0.55 },
+    ],
+    ambient: { count: 22, colors: ['#7CB342', '#9CCC65', '#D4A030', '#C0CA33'], size: [3, 5],
+               vx: [-0.4, 0.1], vy: [0.35, 0.8], sway: 1.1, alpha: 0.9, area: [50, C.GROUND - 5] },
     drawBg(ctx) {
       for (let i = 0; i < 5; i++) {
         const rx = 60 + i * 170;
@@ -756,6 +883,8 @@ const ARENAS = [
     name: 'LAB',
     skyTop: '#EEF2F8', skyBot: '#DCE4F0',
     groundColor: '#8892AA', groundLine: '#6670AA',
+    ambient: { count: 16, colors: ['#33CCFF', '#66E0FF', '#AAF0FF'], size: [2, 3],
+               vx: [-0.2, 0.2], vy: [-0.55, -0.2], sway: 0.4, glow: true, alpha: 0.8, area: [95, C.GROUND - 10] },
     drawBg(ctx) {
       ctx.fillStyle = '#F0F4F8';
       ctx.fillRect(0, 0, C.W, C.GROUND);
@@ -853,6 +982,8 @@ const ARENAS = [
     badge: 'LOW GRAVITY  ·  DEBRIS',
     badgeColor: 'rgba(100,100,160,0.85)',
     badgeTextColor: '#AAAAFF',
+    ambient: { count: 20, colors: ['#CCCCE8', '#9999BB', '#FFFFFF'], size: [1, 3],
+               vx: [-0.25, 0.25], vy: [-0.12, 0.12], sway: 0.5, alpha: 0.6, area: [95, C.GROUND - 10] },
 
     drawBg(ctx) {
       ctx.fillStyle = '#000005'; ctx.fillRect(0, 0, C.W, C.GROUND);
@@ -909,6 +1040,8 @@ const ARENAS = [
       badge: 'UPSIDE DOWN  ·  LOSE IF HIT',
       badgeColor: 'rgba(140,0,10,0.88)',
       badgeTextColor: '#FF6666',
+      ambient: { count: 26, colors: ['#FF4400', '#FF7722', '#FFAA33', '#CC1100'], size: [2, 4],
+                 vx: [-0.25, 0.25], vy: [-0.9, -0.35], sway: 0.8, glow: true, alpha: 0.85, area: [40, C.GROUND] },
 
       update(dt) {
         for (const obs of this.obstacles) { if (obs.update) obs.update(dt); }
@@ -976,19 +1109,21 @@ const ARENAS = [
     const CLOUD_Y = C.GROUND - 100;
     return new Arena({
       name: 'CLOUDS',
-      skyTop: '#87CEEB', skyBot: '#C8EAFF',
+      skyTop: '#6AAEDD', skyBot: '#C8EAFF',
       groundColor: '#87CEEB', groundLine: '#87CEEB',
       noGround: true,
       playerStarts: [[150, CLOUD_Y], [650, CLOUD_Y]],
       badge: 'FLOATING CLOUDS  ·  FALL = LOSE',
       badgeColor: 'rgba(80,140,200,0.85)',
       badgeTextColor: '#DDEEFF',
+      parallax: [
+        { type: 'clouds', y: 190, color: '#FFFFFF', speed: 7, size: 70, count: 4, alpha: 0.35 },
+        { type: 'clouds', y: 290, color: '#EAF6FF', speed: 14, size: 50, count: 5, alpha: 0.3 },
+      ],
+      ambient: { count: 18, colors: ['#FFFFFF', '#E8F6FF'], size: [1, 3],
+                 vx: [-0.5, -0.15], vy: [-0.1, 0.15], sway: 0.8, glow: true, alpha: 0.7, area: [60, C.GROUND + 40] },
 
       drawBg(ctx) {
-        const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
-        g.addColorStop(0, '#6AAEDD'); g.addColorStop(1, '#C8EAFF');
-        ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.GROUND);
-
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         [[80,80,90,22],[300,55,130,18],[550,90,100,20],[700,65,80,18]].forEach(([cx,cy,cw,ch]) => {
           ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();

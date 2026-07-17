@@ -19,12 +19,22 @@ const Sprites = {
   _pose(ctx, state) {
     const t = Date.now();
     if (state === 'running') {
-      ctx.rotate(0.06);
-      return Math.abs(Math.sin(t / 100)) * -2;
+      ctx.rotate(0.13);
+      return Math.abs(Math.sin(t / 100)) * -4;
     }
-    if (state === 'jumping') { ctx.scale(0.94, 1.06); return -1; }
-    if (state === 'throwing') { ctx.rotate(0.04); return 0; }
-    return Math.sin(t / 600) * 0.9; // idle breathing
+    if (state === 'jumping') { ctx.scale(0.88, 1.12); return -2; }
+    if (state === 'throwing') { ctx.rotate(0.08); return 0; }
+    if (state === 'victory') {
+      // Big celebratory hop
+      return -Math.abs(Math.sin(t / 220)) * 10;
+    }
+    if (state === 'defeat') {
+      // Slumped forward, deflated
+      ctx.rotate(0.22);
+      ctx.scale(1, 0.92);
+      return 3;
+    }
+    return Math.sin(t / 600) * 1.8; // idle breathing
   },
 
   drawShadow(ctx, x, y, w) {
@@ -66,8 +76,8 @@ const Sprites = {
     } else {
       this.px(ctx, pants, -8, -32, 8, 20);
       this.px(ctx, pants, 2, -32, 8, 20);
-      this.px(ctx, this._shade(pants, -26), -8, -32, 2, 20);
-      this.px(ctx, this._shade(pants, -26), 2, -32, 2, 20);
+      this.px(ctx, this._shade(pants, -50), -8, -32, 3, 20);
+      this.px(ctx, this._shade(pants, -50), 2, -32, 3, 20);
       const foff = legOff > 0 ? -legOff : 0, boff = legOff < 0 ? legOff : 0;
       this.px(ctx, C.COL.SHOE, -10, -14, 11, 7);
       this.px(ctx, '#E8E8E8', -10, -9, 11, 2);
@@ -80,11 +90,12 @@ const Sprites = {
     const bodyTop = (crouching ? -22 : -56) + bob;
     const bodyH = crouching ? 14 : 22;
 
-    // Torso with shading (dark left edge, top highlight, dark hem)
+    // Torso: dark outline, then shading (dark left edge, top highlight, dark hem)
+    this.px(ctx, 'rgba(20,16,28,0.85)', -11, bodyTop - 1, 24, bodyH + 2);
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
-    this.px(ctx, this._shade(shirt, -30), -10, bodyTop, 3, bodyH);
-    this.px(ctx, this._shade(shirt, 26), -6, bodyTop, 16, 2);
-    this.px(ctx, this._shade(shirt, -22), -10, bodyTop + bodyH - 3, 22, 3);
+    this.px(ctx, this._shade(shirt, -55), -10, bodyTop, 4, bodyH);
+    this.px(ctx, this._shade(shirt, 48), -6, bodyTop, 16, 3);
+    this.px(ctx, this._shade(shirt, -42), -10, bodyTop + bodyH - 4, 22, 4);
 
     // Wings (drawn BEHIND body)
     this._drawAccessoryBack(ctx, (colors && colors.accessory) || 'none', bodyTop);
@@ -102,6 +113,20 @@ const Sprites = {
 
     // Throwing arm (back arm)
     const backArmY = bodyTop + 6;
+    if (state === 'victory') {
+      // Both arms raised, pumping
+      const pump = Math.sin(Date.now() / 220) * 3;
+      this.px(ctx, shirt, -14, backArmY - 16 + pump, 6, 14);
+      this.px(ctx, C.COL.SKIN, -14, backArmY - 22 + pump, 6, 8);
+      this.px(ctx, shirt, 10, backArmY - 16 - pump, 6, 14);
+      this.px(ctx, C.COL.SKIN, 10, backArmY - 22 - pump, 6, 8);
+    } else if (state === 'defeat') {
+      // Arms hanging low
+      this.px(ctx, shirt, -14, backArmY + 4, 6, 14);
+      this.px(ctx, C.COL.SKIN, -14, backArmY + 16, 6, 8);
+      this.px(ctx, shirt, 10, backArmY + 4, 6, 14);
+      this.px(ctx, C.COL.SKIN, 10, backArmY + 16, 6, 8);
+    } else {
     this.px(ctx, shirt, -14, backArmY, 6, 14);
     this.px(ctx, C.COL.SKIN, -14, backArmY + 12, 6, 8);
 
@@ -121,12 +146,14 @@ const Sprites = {
       this.px(ctx, shirt, 10, bodyTop + 6, 6, 14);
       this.px(ctx, C.COL.SKIN, 10, bodyTop + 18, 6, 8);
     }
+    }
 
     // Head
     const headY = bodyTop - 22;
+    this.px(ctx, 'rgba(20,16,28,0.85)', -10, headY - 1, 22, 24);
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
-    this.px(ctx, this._shade(C.COL.SKIN, -22), -9, headY, 2, 22);
-    this.px(ctx, this._shade(C.COL.SKIN, 16), 6, headY + 3, 5, 15);
+    this.px(ctx, this._shade(C.COL.SKIN, -40), -9, headY, 3, 22);
+    this.px(ctx, this._shade(C.COL.SKIN, 30), 6, headY + 3, 5, 15);
 
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'straight';
@@ -210,8 +237,8 @@ const Sprites = {
     this.px(ctx, hairDark, -3, headY + 7, 4, 2);
     this.px(ctx, hairDark, 4, headY + 7, 4, 2);
     this.px(ctx, this._shade(C.COL.SKIN, -25), 1, headY + 14, 2, 2);
-    this.px(ctx, 'rgba(255,120,120,0.35)', -7, headY + 15, 4, 2);
-    this.px(ctx, 'rgba(255,120,120,0.35)', 6, headY + 15, 4, 2);
+    this.px(ctx, 'rgba(255,120,120,0.6)', -7, headY + 15, 4, 2);
+    this.px(ctx, 'rgba(255,120,120,0.6)', 6, headY + 15, 4, 2);
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
     this._drawAccessory(ctx, (colors && colors.accessory) || 'none', headY, hair, hairDark);
     ctx.restore();
@@ -246,8 +273,8 @@ const Sprites = {
     } else {
       this.px(ctx, pants, -8, -32, 8, 20);
       this.px(ctx, pants, 2, -32, 8, 20);
-      this.px(ctx, this._shade(pants, -26), -8, -32, 2, 20);
-      this.px(ctx, this._shade(pants, -26), 2, -32, 2, 20);
+      this.px(ctx, this._shade(pants, -50), -8, -32, 3, 20);
+      this.px(ctx, this._shade(pants, -50), 2, -32, 3, 20);
       const foff = legOff > 0 ? -legOff : 0, boff = legOff < 0 ? legOff : 0;
       this.px(ctx, C.COL.SHOE, -10, -14, 11, 7);
       this.px(ctx, '#E8E8E8', -10, -9, 11, 2);
@@ -260,11 +287,12 @@ const Sprites = {
     const bodyTop = (crouching ? -22 : -56) + bob;
     const bodyH = crouching ? 14 : 22;
 
-    // Torso with shading (dark left edge, top highlight, dark hem)
+    // Torso: dark outline, then shading (dark left edge, top highlight, dark hem)
+    this.px(ctx, 'rgba(20,16,28,0.85)', -11, bodyTop - 1, 24, bodyH + 2);
     this.px(ctx, shirt, -10, bodyTop, 22, bodyH);
-    this.px(ctx, this._shade(shirt, -30), -10, bodyTop, 3, bodyH);
-    this.px(ctx, this._shade(shirt, 26), -6, bodyTop, 16, 2);
-    this.px(ctx, this._shade(shirt, -22), -10, bodyTop + bodyH - 3, 22, 3);
+    this.px(ctx, this._shade(shirt, -55), -10, bodyTop, 4, bodyH);
+    this.px(ctx, this._shade(shirt, 48), -6, bodyTop, 16, 3);
+    this.px(ctx, this._shade(shirt, -42), -10, bodyTop + bodyH - 4, 22, 4);
 
     // Wings (drawn BEHIND body)
     this._drawAccessoryBack(ctx, (colors && colors.accessory) || 'none', bodyTop);
@@ -282,6 +310,20 @@ const Sprites = {
 
     // Back arm
     const backArmY = bodyTop + 6;
+    if (state === 'victory') {
+      // Both arms raised, pumping
+      const pump = Math.sin(Date.now() / 220) * 3;
+      this.px(ctx, shirt, -14, backArmY - 16 + pump, 6, 14);
+      this.px(ctx, C.COL.SKIN, -14, backArmY - 22 + pump, 6, 8);
+      this.px(ctx, shirt, 10, backArmY - 16 - pump, 6, 14);
+      this.px(ctx, C.COL.SKIN, 10, backArmY - 22 - pump, 6, 8);
+    } else if (state === 'defeat') {
+      // Arms hanging low
+      this.px(ctx, shirt, -14, backArmY + 4, 6, 14);
+      this.px(ctx, C.COL.SKIN, -14, backArmY + 16, 6, 8);
+      this.px(ctx, shirt, 10, backArmY + 4, 6, 14);
+      this.px(ctx, C.COL.SKIN, 10, backArmY + 16, 6, 8);
+    } else {
     this.px(ctx, shirt, -14, backArmY, 6, 14);
     this.px(ctx, C.COL.SKIN, -14, backArmY + 12, 6, 8);
 
@@ -305,12 +347,14 @@ const Sprites = {
       this.px(ctx, shirt, 10, bodyTop + 6, 6, 14);
       this.px(ctx, C.COL.SKIN, 10, bodyTop + 18, 6, 8);
     }
+    }
 
     // Head
     const headY = bodyTop - 22;
+    this.px(ctx, 'rgba(20,16,28,0.85)', -10, headY - 1, 22, 24);
     this.px(ctx, C.COL.SKIN, -9, headY, 20, 22);
-    this.px(ctx, this._shade(C.COL.SKIN, -22), -9, headY, 2, 22);
-    this.px(ctx, this._shade(C.COL.SKIN, 16), 6, headY + 3, 5, 15);
+    this.px(ctx, this._shade(C.COL.SKIN, -40), -9, headY, 3, 22);
+    this.px(ctx, this._shade(C.COL.SKIN, 30), 6, headY + 3, 5, 15);
 
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'ponytail';
@@ -379,8 +423,8 @@ const Sprites = {
     this.px(ctx, hairDark, -3, headY + 7, 4, 2);
     this.px(ctx, hairDark, 4, headY + 7, 4, 2);
     this.px(ctx, this._shade(C.COL.SKIN, -25), 1, headY + 14, 2, 2);
-    this.px(ctx, 'rgba(255,120,120,0.35)', -7, headY + 15, 4, 2);
-    this.px(ctx, 'rgba(255,120,120,0.35)', 6, headY + 15, 4, 2);
+    this.px(ctx, 'rgba(255,120,120,0.6)', -7, headY + 15, 4, 2);
+    this.px(ctx, 'rgba(255,120,120,0.6)', 6, headY + 15, 4, 2);
     this.px(ctx, '#C06060', -1, headY + 17, 5, 2);
     this._drawAccessory(ctx, (colors && colors.accessory) || 'none', headY, hair, hairDark);
     ctx.restore();
@@ -592,7 +636,7 @@ const Sprites = {
   },
 
   // HUD
-  drawHUD(ctx, p1, p2, arena) {
+  drawHUD(ctx, p1, p2, arena, fx = {}) {
     const cx = C.W / 2;
 
     // Background strip — slightly taller, stronger gradient
@@ -644,15 +688,27 @@ const Sprites = {
     // Score numbers
     ctx.font = 'bold 42px Segoe UI, Arial, sans-serif';
 
+    // Pop scale: score number bulges right after a point (fx.p1Flash/p2Flash count down from 700ms)
+    const pop1 = Math.max(0, (fx.p1Flash || 0) / 700);
+    const pop2 = Math.max(0, (fx.p2Flash || 0) / 700);
+
     ctx.shadowColor = C.COL.P1_HUD;
     ctx.shadowBlur = leading === 0 ? 18 * pulse : 5;
-    ctx.fillStyle = C.COL.P1_HUD;
-    ctx.fillText(p1.score, cx - 78, 57);
+    ctx.fillStyle = pop1 > 0 ? '#FFFFFF' : C.COL.P1_HUD;
+    ctx.save();
+    ctx.translate(cx - 78, 57);
+    ctx.scale(1 + pop1 * 0.6, 1 + pop1 * 0.6);
+    ctx.fillText(p1.score, 0, 0);
+    ctx.restore();
 
     ctx.shadowColor = C.COL.P2_HUD;
     ctx.shadowBlur = leading === 1 ? 18 * pulse : 5;
-    ctx.fillStyle = C.COL.P2_HUD;
-    ctx.fillText(p2.score, cx + 78, 57);
+    ctx.fillStyle = pop2 > 0 ? '#FFFFFF' : C.COL.P2_HUD;
+    ctx.save();
+    ctx.translate(cx + 78, 57);
+    ctx.scale(1 + pop2 * 0.6, 1 + pop2 * 0.6);
+    ctx.fillText(p2.score, 0, 0);
+    ctx.restore();
     ctx.shadowBlur = 0;
 
     // Win dots — glowing when lit
@@ -675,6 +731,25 @@ const Sprites = {
       ctx.fill();
     }
     ctx.shadowBlur = 0;
+
+    // MATCH POINT banner — one point away from winning
+    const mp1 = p1.score === C.WIN_SCORE - 1, mp2 = p2.score === C.WIN_SCORE - 1;
+    if (mp1 || mp2) {
+      const blink = 0.55 + 0.45 * Math.sin(Date.now() / 180);
+      const bCol = mp1 && mp2 ? '#FFD700' : mp1 ? C.COL.P1_HUD : C.COL.P2_HUD;
+      const bw = 148, bh = 20, bx = cx - bw / 2, by = 92;
+      ctx.globalAlpha = blink;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = bCol;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = bCol;
+      ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('★ MATCH POINT ★', cx, by + 15);
+      ctx.globalAlpha = 1;
+    }
 
     // === PLAYER STATUS BARS ===
     this._drawStatusBars(ctx, p1, 10, 1);

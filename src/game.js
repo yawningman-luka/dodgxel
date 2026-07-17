@@ -65,6 +65,10 @@
     Particles.emit(victim.x, victim.y - 22, 16,
       ['#FF4444', '#FF8888', '#FFFFFF'],
       { upBias: 1, maxSpeed: 3.5 });
+
+    // Victory / defeat poses (players aren't updated during ROUND_END, so these stick)
+    scorer.state = 'victory';
+    victim.state = 'defeat';
   }
 
   update(dt) {
@@ -76,7 +80,7 @@
       case C.STATE.CONTROLS:     this._updateControls(); break;
       case C.STATE.PLAYING:      this._updatePlaying(dt); break;
       case C.STATE.ROUND_END:    this._updateRoundEnd(dt); break;
-      case C.STATE.GAME_OVER:    this._updateGameOver(); break;
+      case C.STATE.GAME_OVER:    this._updateGameOver(dt); break;
       case C.STATE.HORDE:
         this._hordeGame.update(dt);
         if (this._hordeGame.returnToMenu) {
@@ -1411,6 +1415,14 @@
   _updateRoundEnd(dt) {
     if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); return; }
     Particles.update(dt);
+    // Trickle of confetti over the round winner while they celebrate
+    if (this.roundWinner >= 0 && Math.random() < 0.25) {
+      const wp = this.roundWinner === 0 ? this.p1 : this.p2;
+      const wCol = this.roundWinner === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
+      Particles.emit(wp.x + (Math.random() - 0.5) * 90, wp.y - 90, 2,
+        [wCol, '#FFD700', '#FFFFFF'],
+        { upBias: 0, minSpeed: 0.2, maxSpeed: 1, gravity: 0.05, minDecay: 0.008, maxDecay: 0.014 });
+    }
     if (this._p1ScoreFlash > 0) this._p1ScoreFlash -= dt;
     if (this._p2ScoreFlash > 0) this._p2ScoreFlash -= dt;
     this.roundDelay -= dt;
@@ -1427,7 +1439,16 @@
     }
   }
 
-  _updateGameOver() {
+  _updateGameOver(dt) {
+    Particles.update(dt);
+    // Confetti rain across the top of the screen for the champion
+    if (Math.random() < 0.45) {
+      const winner = this.p1.score > this.p2.score ? 0 : 1;
+      const wCol = winner === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
+      Particles.emit(Math.random() * C.W, -5, 2,
+        [wCol, '#FFD700', '#FFFFFF', '#FF66AA', '#66DDFF'],
+        { upBias: -0.5, minSpeed: 0.2, maxSpeed: 1.2, gravity: 0.045, minDecay: 0.004, maxDecay: 0.009 });
+    }
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
       // Instant rematch — same arena, scores reset
       this._startGame(this.arenaIndex);
@@ -1479,7 +1500,7 @@
       ctx.textAlign = 'left';
     }
 
-    Sprites.drawHUD(ctx, this.p1, this.p2, this.arena);
+    Sprites.drawHUD(ctx, this.p1, this.p2, this.arena, { p1Flash: this._p1ScoreFlash, p2Flash: this._p2ScoreFlash });
 
     // Particles
     Particles.draw(ctx);
@@ -1522,6 +1543,9 @@
   _drawGameOver(ctx) {
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(0, 0, C.W, C.H);
+
+    // Confetti rains on top of the dark overlay
+    Particles.draw(ctx);
 
     const winner = this.p1.score >= C.WIN_SCORE ? this.p1 : this.p2;
     const loser  = winner === this.p1 ? this.p2 : this.p1;
