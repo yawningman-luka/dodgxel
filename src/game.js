@@ -51,10 +51,14 @@
     else if (this.roundWinner === 1) this._p2ScoreFlash = FLASH_DUR;
 
     // Impact juice
-    FX.hitstop(90);
-    FX.shake(6, 300);
-    FX.shockwave(victim.x, victim.y - 22, '#FFFFFF', { maxR: 60, width: 4 });
+    FX.hitstop(140);
+    FX.shake(9, 400);
+    FX.impact(victim.x, victim.y - 22);
+    FX.shockwave(victim.x, victim.y - 22, '#FFFFFF', { maxR: 90, width: 5 });
+    FX.shockwave(victim.x, victim.y - 22, '#FFD700', { maxR: 130, width: 3, dur: 420 });
     FX.flash('#FFFFFF', 0.18, 120);
+    Sound.play('hit');
+    Sound.play('roundWin');
 
     // Hit particles from victim + confetti from scorer
     const wCol = this.roundWinner === 0 ? C.COL.P1_HUD : C.COL.P2_HUD;
@@ -79,6 +83,7 @@
       case C.STATE.ARENA_SELECT: this._updateArenaSelect(); break;
       case C.STATE.CONTROLS:     this._updateControls(); break;
       case C.STATE.PLAYING:      this._updatePlaying(dt); break;
+      case C.STATE.PAUSED:       this._updatePaused(); break;
       case C.STATE.ROUND_END:    this._updateRoundEnd(dt); break;
       case C.STATE.GAME_OVER:    this._updateGameOver(dt); break;
       case C.STATE.HORDE:
@@ -122,6 +127,7 @@
       case C.STATE.CONTROLS:     this._drawControls(ctx); break;
       case C.STATE.PLAYING:
       case C.STATE.ROUND_END:    this._drawGame(ctx); break;
+      case C.STATE.PAUSED:       this._drawGame(ctx); this._drawPaused(ctx); break;
       case C.STATE.GAME_OVER:    this._drawGame(ctx); this._drawGameOver(ctx); break;
       case C.STATE.HORDE:        if (this._hordeGame) this._hordeGame.draw(); break;
       case C.STATE.ARENA_BUILDER: if (this._builder) this._builder.draw(); break;
@@ -136,9 +142,10 @@
   // ---- Menu ----
   _updateMenu() {
     const N = 5;
-    if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) this.menuCursor = (this.menuCursor - 1 + N) % N;
-    if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) this.menuCursor = (this.menuCursor + 1) % N;
+    if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) { this.menuCursor = (this.menuCursor - 1 + N) % N; Sound.play('menuMove'); }
+    if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) { this.menuCursor = (this.menuCursor + 1) % N; Sound.play('menuMove'); }
     if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
+      Sound.play('menuSel');
       switch (this.menuCursor) {
         case 0: this._startCharSelect('classic');     break;
         case 1: this._startStory();                   break;
@@ -289,8 +296,9 @@
     // Navigation resets readiness so players re-confirm on the new arena
     if (moved) { this._as_p1Ready = false; this._as_p2Ready = false; }
 
-    if (Input.wasPressed(Controls.p1.catch)) this._as_p1Ready = !this._as_p1Ready;
-    if (Input.wasPressed(Controls.p2.catch)) this._as_p2Ready = !this._as_p2Ready;
+    if (Input.wasPressed(Controls.p1.catch)) { this._as_p1Ready = !this._as_p1Ready; Sound.play('menuSel'); }
+    if (Input.wasPressed(Controls.p2.catch)) { this._as_p2Ready = !this._as_p2Ready; Sound.play('menuSel'); }
+    if (this._vsCPU) this._as_p2Ready = this._as_p1Ready; // CPU follows P1's ready
 
     if (this._as_p1Ready && this._as_p2Ready) { this._startGame(this.menuCursor); return; }
 
@@ -591,9 +599,10 @@
     }
 
     // Solo shortcut: P1 presses Space → skip P2, go solo
-    if ((cs.dest === 'horde' || cs.dest === 'worms' || cs.dest === 'story') && !cs.p1.customSub && !cs.p2.customSub
+    if ((cs.dest === 'horde' || cs.dest === 'worms' || cs.dest === 'story' || cs.dest === 'classic') && !cs.p1.customSub && !cs.p2.customSub
         && Input.wasPressed('Space') && !cs.p1.confirmed) {
       cs.p1.confirmed = true; cs.p2.confirmed = true; cs.soloHorde = true;
+      Sound.play('menuSel');
     }
 
     if (cs.p1.confirmed && cs.p2.confirmed) {
@@ -611,7 +620,10 @@
           this._storyGame = new StoryGame(this.canvas, coop, p1d, p2d);
           this.state = C.STATE.STORY;
         }
-        else { this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; this._as_p1Ready = false; this._as_p2Ready = false; }
+        else {
+          this._vsCPU = (cs.dest === 'classic' && cs.soloHorde);
+          this.state = C.STATE.ARENA_SELECT; this.menuCursor = 0; this._as_p1Ready = false; this._as_p2Ready = false;
+        }
       }
     }
   }
@@ -686,6 +698,10 @@
     } else if (cs.dest === 'story') {
       ctx.fillStyle = '#AA44FF'; ctx.font = '11px Segoe UI, Arial, sans-serif';
       ctx.fillText('📖 STORY: SPACE = play solo (P1 only)  ·  both confirm = co-op', C.W / 2, 74);
+      panelTop = 86;
+    } else if (cs.dest === 'classic') {
+      ctx.fillStyle = C.COL.P1_HUD; ctx.font = '11px Segoe UI, Arial, sans-serif';
+      ctx.fillText('🤖 CLASSIC: SPACE = play vs CPU (P1 only)  ·  both confirm = 2-player', C.W / 2, 74);
       panelTop = 86;
     }
 
@@ -1208,6 +1224,7 @@
     this.p1.score = 0; this.p2.score = 0;
     this._startRound(0);
     this.state = C.STATE.PLAYING;
+    Sound.startMusic();
     // Battle cry banner
     this._battleCryTimer = 2200;
     const _CRIES = {
@@ -1283,7 +1300,7 @@
   }
 
   _updatePlaying(dt) {
-    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); return; }
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.PAUSED; this._pauseCursor = 0; Sound.play('pause'); return; }
     // Online: send our input and tick the remote input edge-detector
     if (this._onlineMode) { NetworkManager.sendInput(); NetworkManager.tick(); }
     Particles.update(dt);
@@ -1294,6 +1311,7 @@
     const obs = this.arena.getObstacles();
     const speedMult = this.arena.playerSpeedMult ?? 1;
     this.p1.update(dt, this.ball, obs, this.p2, speedMult);
+    if (this._vsCPU && !this._onlineMode) this._updateCPU(dt);
     this.p2.update(dt, this.ball, obs, this.p1, speedMult);
     const bGravMult = this.arena.ballGravityMult ?? 1;
 
@@ -1311,6 +1329,15 @@
 
     this.ball.update(dt, obs, bGravMult);
     if (this.arena.checkTeleport) this.arena.checkTeleport(this.ball);
+
+    // Gameplay sfx — edge-detect throws, catches, and jumps
+    if (this.ball.inFlight && !this._sndBallFlight) Sound.play('throw');
+    else if (!this.ball.inFlight && this._sndBallFlight && this.ball.holder !== -1) Sound.play('catch');
+    this._sndBallFlight = this.ball.inFlight;
+    for (const pl of [this.p1, this.p2]) {
+      if (!pl.onGround && pl._sndWasGround && pl.vy < 0) Sound.play('jump');
+      pl._sndWasGround = pl.onGround;
+    }
 
     if (!this.ball.inFlight) {
       if (this.ball.holder === 0 && this.p1.hasBall) {
@@ -1429,6 +1456,8 @@
     if (this.roundDelay <= 0) {
       if (this.p1.score >= C.WIN_SCORE || this.p2.score >= C.WIN_SCORE) {
         this.state = C.STATE.GAME_OVER;
+        Sound.stopMusic();
+        Sound.play('gameOver');
       } else {
         const nextHolder = this.roundWinner >= 0
           ? 1 - this.roundWinner
@@ -1458,7 +1487,114 @@
       this.menuCursor = this.arenaIndex;
       this._as_p1Ready = false; this._as_p2Ready = false;
     }
-    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); }
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.MENU; Particles.clear(); Sound.stopMusic(); }
+  }
+
+  // ---- Pause menu ----
+  _updatePaused() {
+    const OPTS = 3; // Resume / Restart Match / Quit to Menu
+    if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) { this._pauseCursor = (this._pauseCursor - 1 + OPTS) % OPTS; Sound.play('menuMove'); }
+    if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) { this._pauseCursor = (this._pauseCursor + 1) % OPTS; Sound.play('menuMove'); }
+    if (Input.wasPressed('KeyM')) Sound.toggleMute();
+    if (Input.wasPressed('Escape')) { this.state = C.STATE.PLAYING; Sound.play('resume'); return; }
+    if (Input.wasPressed('Enter') || Input.wasPressed('Space')) {
+      if (this._pauseCursor === 0) {
+        this.state = C.STATE.PLAYING;
+        Sound.play('resume');
+      } else if (this._pauseCursor === 1) {
+        Sound.play('menuSel');
+        this._startGame(this.arenaIndex);
+      } else {
+        Sound.play('menuSel');
+        Sound.stopMusic();
+        this.state = C.STATE.MENU;
+        Particles.clear();
+      }
+    }
+  }
+
+  _drawPaused(ctx) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, C.W, C.H);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 34px Segoe UI, Arial, sans-serif';
+    ctx.fillText('PAUSED', C.W / 2, 140);
+    const opts = ['RESUME', 'RESTART MATCH', 'QUIT TO MENU'];
+    ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
+    for (let i = 0; i < opts.length; i++) {
+      const y = 200 + i * 40;
+      const sel = i === this._pauseCursor;
+      if (sel) {
+        ctx.fillStyle = 'rgba(255,215,0,0.15)';
+        ctx.fillRect(C.W / 2 - 130, y - 22, 260, 32);
+      }
+      ctx.fillStyle = sel ? '#FFD700' : '#AAAAAA';
+      ctx.fillText((sel ? '▶ ' : '') + opts[i], C.W / 2, y);
+    }
+    ctx.fillStyle = '#666';
+    ctx.font = '11px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`↑/↓ select · ENTER confirm · ESC resume · M ${Sound.muted ? 'unmute' : 'mute'} sound`, C.W / 2, 350);
+    ctx.restore();
+    ctx.textAlign = 'left';
+  }
+
+  // ---- CPU opponent (classic vs CPU) ----
+  _updateCPU(dt) {
+    const p = this.p2, foe = this.p1, ball = this.ball;
+    const inp = { left:false, right:false, jump:false, crouch:false, throw:false, catch:false, shield:false, aimUp:false, aimDown:false };
+    this._cpu = this._cpu || { reactT: 0, jumpCd: 0, holdT: 0, targetHold: 400 };
+    const cpu = this._cpu;
+    cpu.reactT -= dt; cpu.jumpCd -= dt;
+
+    const midX = C.W / 2;
+    const homeX = midX + (C.W - midX) * 0.55; // hang out mid-right
+
+    if (p.hasBall) {
+      // Charge then release toward P1
+      cpu.holdT += dt;
+      inp.throw = cpu.holdT < cpu.targetHold;
+      if (cpu.holdT >= cpu.targetHold) { cpu.holdT = 0; cpu.targetHold = 250 + Math.random() * 650; }
+      // Face/close toward center for a better angle
+      if (p.x > homeX + 20) inp.left = true;
+      // Aim: raise arc when the foe is far, flatten when close
+      const dist = Math.abs(p.x - foe.x);
+      if (dist > 380 && p.aimAngle < 0.45) inp.aimUp = true;
+      else if (dist < 220 && p.aimAngle > 0.05) inp.aimDown = true;
+    } else if (ball.inFlight && ball.lastThrower === 0) {
+      // Incoming ball — decide dodge vs catch (with human-ish reaction delay)
+      const dx = ball.x - p.x, closing = (ball.vx > 0) === (dx < 0) || Math.abs(dx) < 120;
+      if (closing && Math.abs(dx) < 200) {
+        const tryCatch = Math.random() < 0.004 * dt; // occasional catch attempts
+        if (tryCatch && ball.canBeCaught(p.x, p.y - 28, C.CATCH_RADIUS)) inp.catch = true;
+        else {
+          // Dodge: jump over low balls, crouch under high ones, back away otherwise
+          if (ball.y > p.y - 30 && cpu.jumpCd <= 0 && p.onGround) { inp.jump = true; cpu.jumpCd = 700; }
+          else if (ball.y < p.y - 45) inp.crouch = true;
+          else inp.right = p.x < C.W - 60;
+        }
+        // Emergency shield when the ball is right on top and fast
+        if (Math.abs(dx) < 55 && Math.abs(ball.vx) > 10 && p.shieldAvailable && Math.random() < 0.3) inp.shield = true;
+      }
+    } else if (!ball.inFlight && ball.holder === -1) {
+      // Loose ball on CPU's side — go grab it
+      if (ball.x > midX) {
+        if (ball.x < p.x - 12) inp.left = true;
+        else if (ball.x > p.x + 12) inp.right = true;
+      } else {
+        // Ball on P1's side — return to home position
+        if (p.x < homeX - 15) inp.right = true;
+        else if (p.x > homeX + 15) inp.left = true;
+      }
+    } else {
+      // Foe has the ball — strafe unpredictably around home
+      if (cpu.reactT <= 0) { cpu.reactT = 300 + Math.random() * 500; cpu.strafe = Math.floor(Math.random() * 3) - 1; }
+      if (cpu.strafe === -1 && p.x > midX + 50) inp.left = true;
+      if (cpu.strafe === 1 && p.x < C.W - 60) inp.right = true;
+    }
+
+    p._netInput = inp;
   }
 
   _drawGame(ctx) {

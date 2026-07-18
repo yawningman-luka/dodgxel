@@ -84,6 +84,7 @@ const C = {
     HOW_TO_PLAY: 'how_to_play',
     ONLINE_LOBBY: 'online_lobby',
     STORY: 'story',
+    PAUSED: 'paused',
   },
 
   WIN_SCORE: 11,

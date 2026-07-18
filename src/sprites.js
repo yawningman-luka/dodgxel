@@ -157,6 +157,7 @@ const Sprites = {
 
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'straight';
+    const hairLight = this._shade(hair, 45);
     switch (hairType) {
       case 'spiky': {
         // Base band across head
@@ -186,13 +187,31 @@ const Sprites = {
           ctx.lineTo(tipX, baseY - s.h);
           ctx.lineTo(tipX - 1, baseY);
           ctx.closePath(); ctx.fill();
+          // Glossy highlight on right face of spike
+          ctx.fillStyle = hairLight;
+          ctx.beginPath();
+          ctx.moveTo(tipX, baseY - s.h);
+          ctx.lineTo(tipX + 2, baseY - s.h * 0.45);
+          ctx.lineTo(tipX + 1, baseY - s.h * 0.35);
+          ctx.closePath(); ctx.fill();
         }
+        // Stray flyaway strands between spikes
+        this.px(ctx, hairDark, -5, headY - 2, 1, 4);
+        this.px(ctx, hairDark,  3, headY - 3, 1, 5);
         break;
       }
       case 'buzz':
         this.px(ctx, hair, -10, headY - 1, 22,  5);
         this.px(ctx, hair, -10, headY - 1,  3, 14);
         this.px(ctx, hair,   9, headY - 1,  3, 14);
+        // Stubble texture — faded hairline + speckle dots
+        this.px(ctx, hairDark, -10, headY + 3, 22, 1);
+        this.px(ctx, hairLight, -7, headY, 6, 1);
+        for (let i = 0; i < 8; i++) {
+          this.px(ctx, hairDark, -9 + i * 2.5, headY + (i % 2), 1, 1);
+        }
+        this.px(ctx, hairDark, -10, headY + 10, 3, 3);
+        this.px(ctx, hairDark,   9, headY + 10, 3, 3);
         break;
       case 'lionsmane':
         // Thick mane around head
@@ -203,6 +222,21 @@ const Sprites = {
         this.px(ctx, hairDark, -14, headY + 6, 30,  4);
         this.px(ctx, hair,     -16, headY,     5, 20);
         this.px(ctx, hair,      13, headY,     5, 20);
+        // Shaggy tufted edges — jagged tips instead of flat ends
+        this.px(ctx, hair,     -16, headY + 20, 3, 5);
+        this.px(ctx, hair,      15, headY + 20, 3, 5);
+        this.px(ctx, hair,     -12, headY + 24, 3, 4);
+        this.px(ctx, hair,      11, headY + 24, 3, 4);
+        this.px(ctx, hair,      -6, headY + 28, 3, 3);
+        this.px(ctx, hair,       5, headY + 28, 3, 3);
+        // Strand shading through the mane
+        this.px(ctx, hairDark, -13, headY - 2, 1, 22);
+        this.px(ctx, hairDark,  13, headY - 2, 1, 22);
+        this.px(ctx, hairDark,  -5, headY + 22, 1, 5);
+        this.px(ctx, hairDark,   4, headY + 22, 1, 5);
+        // Crown highlight
+        this.px(ctx, hairLight, -8, headY - 3, 14, 2);
+        this.px(ctx, hairLight, -14, headY + 2, 2, 8);
         break;
       case 'star':
         // Central cap
@@ -214,12 +248,37 @@ const Sprites = {
         this.px(ctx, hair, -13, headY - 6,   5, 10);
         this.px(ctx, hair,  10, headY - 6,   5, 10);
         this.px(ctx, hairDark, -10, headY + 4, 22, 3);
+        // Tapered spike tips + per-spike shading
+        this.px(ctx, hair,   0, headY - 17, 2, 3);
+        this.px(ctx, hair,  -7, headY - 12, 2, 2);
+        this.px(ctx, hair,   7, headY - 12, 2, 2);
+        this.px(ctx, hairDark, -1, headY - 14, 1, 16);
+        this.px(ctx, hairDark, -8, headY - 10, 1, 14);
+        this.px(ctx, hairDark,  6, headY - 10, 1, 14);
+        this.px(ctx, hairLight, 1, headY - 13, 1, 10);
+        this.px(ctx, hairLight, 8, headY - 9, 1, 8);
+        this.px(ctx, hairLight, -6, headY - 9, 1, 8);
         break;
       default: // straight
+        // Rounded crown instead of flat top
+        ctx.fillStyle = hair;
+        ctx.beginPath(); ctx.arc(1, headY + 1, 11.5, Math.PI, 0); ctx.fill();
         this.px(ctx, hair,     -10, headY - 2, 22, 10);
         this.px(ctx, hair,     -10, headY - 2,  4, 22);
         this.px(ctx, hair,       8, headY - 2,  4, 22);
-        this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        // Jagged fringe — uneven bang tips over the forehead
+        this.px(ctx, hair, -6, headY + 8, 3, 3);
+        this.px(ctx, hair, -1, headY + 8, 3, 2);
+        this.px(ctx, hair,  4, headY + 8, 3, 3);
+        // Shadow under fringe + strand part lines
+        this.px(ctx, hairDark, -10, headY + 6, 22, 2);
+        this.px(ctx, hairDark, -4, headY - 3, 1, 9);
+        this.px(ctx, hairDark,  3, headY - 3, 1, 9);
+        this.px(ctx, hairDark, -9, headY + 12, 2, 10);
+        this.px(ctx, hairDark,  9, headY + 12, 2, 10);
+        // Glossy highlight streak on the crown
+        this.px(ctx, hairLight, -6, headY - 5, 8, 2);
+        this.px(ctx, hairLight, -8, headY - 3, 3, 1);
         break;
     }
 
@@ -358,6 +417,7 @@ const Sprites = {
 
     // Hair — style switch
     const hairType = (colors && colors.hairType) || 'ponytail';
+    const hairLight = this._shade(hair, 45);
     switch (hairType) {
       case 'bun':
         this.px(ctx, hair,     -10, headY + 2, 22,  8);
@@ -365,14 +425,32 @@ const Sprites = {
         this.px(ctx, hair,       8, headY + 2,  4, 20);
         ctx.fillStyle = hair;
         ctx.beginPath(); ctx.arc(-1, headY - 8, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = hairDark;
-        ctx.beginPath(); ctx.arc(2, headY - 5,  5, 0, Math.PI * 2); ctx.fill();
+        // Coiled bun texture — swirl arcs + sheen
+        ctx.strokeStyle = hairDark; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(-1, headY - 8, 7, 0.4, Math.PI * 1.4); ctx.stroke();
+        ctx.beginPath(); ctx.arc(-1, headY - 8, 4, Math.PI * 1.2, Math.PI * 2.4); ctx.stroke();
+        ctx.fillStyle = hairLight;
+        ctx.beginPath(); ctx.arc(-4, headY - 12, 3, 0, Math.PI * 2); ctx.fill();
+        // Pulled-back strand lines toward the bun
+        this.px(ctx, hairDark, -7, headY + 3, 1, 6);
+        this.px(ctx, hairDark,  6, headY + 3, 1, 6);
+        // Loose wisps at the temples
+        this.px(ctx, hair, -11, headY + 20, 2, 5);
+        this.px(ctx, hair, 10, headY + 20, 2, 5);
         break;
       case 'long':
         this.px(ctx, hair,     -10, headY - 2, 22, 10);
         this.px(ctx, hair,     -14, headY - 2,  6, 34);
         this.px(ctx, hair,       8, headY - 2,  6, 34);
         this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        // Tapered uneven tips + flowing strand lines
+        this.px(ctx, hair,     -13, headY + 32, 4, 5);
+        this.px(ctx, hair,       9, headY + 32, 4, 5);
+        this.px(ctx, hairDark, -12, headY + 4, 1, 26);
+        this.px(ctx, hairDark,  11, headY + 4, 1, 26);
+        this.px(ctx, hairLight, -10, headY + 2, 1, 22);
+        this.px(ctx, hairLight,   9, headY + 2, 1, 22);
+        this.px(ctx, hairLight, -5, headY - 4, 8, 2);
         break;
       case 'very_long':
         // Floor-sweeping hair (extra long strands)
@@ -382,6 +460,16 @@ const Sprites = {
         this.px(ctx, hair,     -12, headY + 36,  4, 18);
         this.px(ctx, hair,       9, headY + 36,  4, 18);
         this.px(ctx, hairDark, -10, headY + 8, 22,  3);
+        // Ragged flowing tips + long strand shading
+        this.px(ctx, hair,     -14, headY + 50, 3, 6);
+        this.px(ctx, hair,      11, headY + 50, 3, 6);
+        this.px(ctx, hair,     -11, headY + 54, 2, 4);
+        this.px(ctx, hair,       9, headY + 54, 2, 4);
+        this.px(ctx, hairDark, -12, headY + 4, 1, 44);
+        this.px(ctx, hairDark,  11, headY + 4, 1, 44);
+        this.px(ctx, hairLight, -10, headY + 2, 1, 38);
+        this.px(ctx, hairLight,   9, headY + 2, 1, 38);
+        this.px(ctx, hairLight, -5, headY - 4, 8, 2);
         break;
       case 'wave':
         // Wavy: zigzag side locks
@@ -397,15 +485,43 @@ const Sprites = {
         this.px(ctx, hair,   7, headY + 10, 6, 10);
         this.px(ctx, hair,  10, headY + 20, 6, 10);
         this.px(ctx, hair,   7, headY + 30, 6,  8);
+        // Shaded inner curve of each wave segment for a rolling look
+        this.px(ctx, hairDark, -14, headY + 8,  3, 2);
+        this.px(ctx, hairDark, -11, headY + 18, 3, 2);
+        this.px(ctx, hairDark, -14, headY + 28, 3, 2);
+        this.px(ctx, hairDark,  13, headY + 8,  3, 2);
+        this.px(ctx, hairDark,  10, headY + 18, 3, 2);
+        this.px(ctx, hairDark,  13, headY + 28, 3, 2);
+        // Shine following the outer curve + curled tips
+        this.px(ctx, hairLight, -13, headY + 2, 1, 6);
+        this.px(ctx, hairLight, -10, headY + 12, 1, 6);
+        this.px(ctx, hairLight,  14, headY + 2, 1, 6);
+        this.px(ctx, hairLight,  11, headY + 12, 1, 6);
+        this.px(ctx, hairLight, -5, headY - 4, 8, 2);
+        this.px(ctx, hair, -13, headY + 38, 4, 3);
+        this.px(ctx, hair,   9, headY + 38, 4, 3);
         break;
       default: // ponytail
+        // Rounded crown instead of flat top
+        ctx.fillStyle = hair;
+        ctx.beginPath(); ctx.arc(1, headY + 1, 11.5, Math.PI, 0); ctx.fill();
         this.px(ctx, hair,     -10, headY - 2, 22, 10);
         this.px(ctx, hair,     -10, headY - 2,  4, 22);
         this.px(ctx, hair,       8, headY - 2,  4, 22);
         this.px(ctx, hairDark, -10, headY + 8, 22,  3);
         this.px(ctx, hair,     -22, headY + 2, 14,  8);
         this.px(ctx, hair,     -26, headY + 6,  8,  6);
+        // Ponytail flick + strand shading through the tail
+        this.px(ctx, hair,     -28, headY + 10, 5, 4);
+        this.px(ctx, hair,     -30, headY + 13, 4, 3);
+        this.px(ctx, hairDark, -22, headY + 7, 12, 1);
+        this.px(ctx, hairDark, -26, headY + 10, 6, 1);
+        this.px(ctx, hairLight, -20, headY + 3, 10, 1);
         this.px(ctx, hairDark, -14, headY + 4,  4,  4);
+        // Pulled-back strand lines + crown shine
+        this.px(ctx, hairDark, -6, headY - 3, 1, 8);
+        this.px(ctx, hairDark,  4, headY - 3, 1, 8);
+        this.px(ctx, hairLight, -4, headY - 5, 8, 2);
         break;
     }
 

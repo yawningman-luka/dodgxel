@@ -59,7 +59,7 @@ class Ball {
 
     // Trail
     this._trail.push({ x: this.x, y: this.y });
-    if (this._trail.length > 7) this._trail.shift();
+    if (this._trail.length > 16) this._trail.shift();
 
     // Curve
     if (this.curve) { this._curveT += dt; this.vx += Math.sin(this._curveT * 0.005) * 0.2; }
@@ -226,15 +226,35 @@ class Ball {
                      : this.seeker   ? C.COL.SP_SEEKER
                      : this.split    ? C.COL.SP_SPLIT
                      : (ballColor || C.COL.BALL);
+      // Bold comet trail: additive glow ribbon + streak line
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < this._trail.length - 1; i++) {
         const t = this._trail[i];
         const frac = (i + 1) / this._trail.length;
-        ctx.globalAlpha = frac * 0.32;
+        ctx.globalAlpha = frac * 0.55;
         ctx.fillStyle = trailCol;
         ctx.beginPath();
-        ctx.arc(t.x, t.y, R * (0.35 + frac * 0.45), 0, Math.PI * 2);
+        ctx.arc(t.x, t.y, R * (0.25 + frac * 0.95), 0, Math.PI * 2);
+        ctx.fill();
+        // hot white core
+        ctx.globalAlpha = frac * 0.35;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, R * (0.1 + frac * 0.4), 0, Math.PI * 2);
         ctx.fill();
       }
+      // streak line through the trail
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = trailCol;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(this._trail[0].x, this._trail[0].y);
+      for (let i = 1; i < this._trail.length; i++) ctx.lineTo(this._trail[i].x, this._trail[i].y);
+      ctx.lineTo(this.x, this.y);
+      ctx.stroke();
+      ctx.restore();
       ctx.globalAlpha = 1;
     }
 

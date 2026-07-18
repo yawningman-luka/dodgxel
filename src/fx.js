@@ -39,6 +39,16 @@ const FX = {
     this._flashes.push({ color, alpha, t: 0, dur: ms });
   },
 
+  // Anime-style impact frame: brief inverted flash with jagged rays from the hit point
+  impact(x, y, ms = 160) {
+    const rays = [];
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + Math.random() * 0.3;
+      rays.push({ a, len: 260 + Math.random() * 260, w: 0.06 + Math.random() * 0.10 });
+    }
+    this._impact = { x, y, t: 0, dur: ms, rays };
+  },
+
   // Themes: 'embers' | 'leaves' | 'snow' | 'dust' | 'digital' | null
   setAmbient(theme) {
     if (theme === this._ambientTheme) return;
@@ -95,6 +105,11 @@ const FX = {
 
     for (const w of this._waves) w.t += realDt;
     this._waves = this._waves.filter(w => w.t < w.dur);
+
+    if (this._impact) {
+      this._impact.t += realDt;
+      if (this._impact.t >= this._impact.dur) this._impact = null;
+    }
 
     if (this._ambientTheme) {
       const s = realDt / 16;
@@ -154,6 +169,34 @@ const FX = {
         ctx.arc(w.x, w.y, 4 + ease * w.maxR, 0, Math.PI * 2);
         ctx.stroke();
       }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // Impact frame — flickering white/black manga panel with speed-line rays
+    if (this._impact) {
+      const im = this._impact;
+      const prog = im.t / im.dur;
+      const invert = Math.floor(im.t / 40) % 2 === 0; // flicker every ~40ms
+      const bg = invert ? '#FFFFFF' : '#0A0A0A';
+      const fg = invert ? '#0A0A0A' : '#FFFFFF';
+      ctx.save();
+      ctx.globalAlpha = 0.85 * (1 - prog * 0.4);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, C.W, C.H);
+      ctx.fillStyle = fg;
+      for (const r of im.rays) {
+        ctx.beginPath();
+        ctx.moveTo(im.x, im.y);
+        ctx.lineTo(im.x + Math.cos(r.a - r.w) * r.len, im.y + Math.sin(r.a - r.w) * r.len);
+        ctx.lineTo(im.x + Math.cos(r.a + r.w) * r.len, im.y + Math.sin(r.a + r.w) * r.len);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // hit-point burst
+      ctx.beginPath();
+      ctx.arc(im.x, im.y, 18 + prog * 30, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
       ctx.globalAlpha = 1;
     }
