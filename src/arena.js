@@ -526,6 +526,22 @@ function makeCloud(x, y, w) {
   });
 }
 
+// Distant animated birds — flapping "v" shapes drifting across the sky
+function drawFlyingBirds(ctx, t, { count = 4, y = 80, speed = 22, color = '#223', spread = 50 } = {}) {
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  const per = C.W + 140;
+  for (let i = 0; i < count; i++) {
+    const x = ((t / 1000 * speed + i * per * 1.37 / count) % per) - 70;
+    const by = y + Math.sin(i * 3.7) * spread + Math.sin(t / 600 + i) * 6;
+    const flap = Math.sin(t / 140 + i * 2) * 4;
+    ctx.beginPath();
+    ctx.moveTo(x - 7, by - flap);
+    ctx.quadraticCurveTo(x, by + 3, x + 7, by - flap);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+
 // --- Obstacle factory functions ---
 
 function makeBench(x, y) {
@@ -634,12 +650,36 @@ const ARENAS = [
       }
       Sprites.px(ctx, '#5D4037', 373, 270, 54, 100);
       Sprites.px(ctx, '#4E342E', 373, 270, 54, 8);
-      ctx.fillStyle = '#E53935';
-      ctx.fillRect(398, 58, 22, 15);
+      const t = Date.now();
+      // Sun with rotating rays
+      ctx.save();
+      ctx.translate(78, 62);
+      ctx.rotate(t / 9000);
+      ctx.fillStyle = 'rgba(255,220,80,0.35)';
+      for (let i = 0; i < 8; i++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.beginPath();
+        ctx.moveTo(30, -6); ctx.lineTo(58, 0); ctx.lineTo(30, 6);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 25;
+      ctx.fillStyle = '#FFD94A';
+      ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Waving flag on the school pole
       ctx.fillStyle = '#888';
       ctx.fillRect(396, 40, 4, 42);
-      this._cloud(ctx, 80, 60, 60);
+      ctx.fillStyle = '#E53935';
+      ctx.beginPath();
+      ctx.moveTo(400, 44);
+      const wv = t / 250;
+      for (let fx = 0; fx <= 26; fx += 2)
+        ctx.lineTo(400 + fx, 44 + Math.sin(wv + fx / 5) * 3);
+      for (let fx = 26; fx >= 0; fx -= 2)
+        ctx.lineTo(400 + fx, 60 + Math.sin(wv + fx / 5) * 3);
+      ctx.closePath(); ctx.fill();
       this._cloud(ctx, 650, 45, 45);
+      drawFlyingBirds(ctx, t, { count: 5, y: 78, speed: 26, spread: 34 });
     },
     _cloud(ctx, x, y, r) {
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -666,27 +706,57 @@ const ARENAS = [
     ambient: { count: 14, colors: ['#FFFFFF', '#E8F8FF', '#FFF3B0'], size: [2, 3],
                vx: [-0.9, -0.4], vy: [-0.1, 0.15], sway: 0.7, alpha: 0.7, area: [95, C.GROUND - 70] },
     drawBg(ctx) {
-      ctx.fillStyle = '#0077BE';
-      ctx.fillRect(0, C.GROUND - 60, C.W, 60);
-      ctx.fillStyle = '#0099DD';
-      ctx.fillRect(0, C.GROUND - 60, C.W, 20);
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 2;
-      for (let wx = 0; wx < C.W; wx += 60) {
-        const woff = (Date.now() / 1000) % 60;
-        ctx.beginPath();
-        ctx.moveTo(wx - woff, C.GROUND - 45);
-        ctx.bezierCurveTo(wx - woff + 15, C.GROUND - 52, wx - woff + 30, C.GROUND - 38, wx - woff + 40, C.GROUND - 45);
-        ctx.stroke();
-      }
+      const t = Date.now();
+      // Sun with shimmering glow
+      ctx.save();
+      ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 24 + Math.sin(t / 500) * 8;
       ctx.fillStyle = '#FFD700';
       ctx.beginPath(); ctx.arc(700, 70, 40, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Ocean with heaving surface
+      const swell = Math.sin(t / 900) * 4;
+      ctx.fillStyle = '#0077BE';
+      ctx.fillRect(0, C.GROUND - 60 + swell, C.W, 60 - swell);
+      ctx.fillStyle = '#0099DD';
+      ctx.fillRect(0, C.GROUND - 60 + swell, C.W, 20);
+      // Sun glitter path on the water
+      ctx.fillStyle = 'rgba(255,230,140,0.35)';
+      for (let gx = 640; gx < 780; gx += 14) {
+        const ga = Math.sin(t / 300 + gx) * 0.5 + 0.5;
+        ctx.globalAlpha = 0.15 + ga * 0.3;
+        ctx.fillRect(gx, C.GROUND - 52 + swell + (gx % 3) * 4, 8, 2);
+      }
+      ctx.globalAlpha = 1;
+      // Rolling wave crests (two scrolling layers)
+      ctx.lineWidth = 2;
+      for (let layer = 0; layer < 2; layer++) {
+        ctx.strokeStyle = layer ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.6)';
+        const woff = (t / (layer ? 55 : 80)) % 60;
+        const wy = C.GROUND - 45 + swell + layer * 18;
+        for (let wx = -60; wx < C.W; wx += 60) {
+          ctx.beginPath();
+          ctx.moveTo(wx + woff, wy);
+          ctx.bezierCurveTo(wx + woff + 15, wy - 7, wx + woff + 30, wy + 7, wx + woff + 45, wy);
+          ctx.stroke();
+        }
+      }
+      // Drifting sailboat bobbing on the horizon
+      const bx = ((t / 90) % (C.W + 200)) - 100;
+      const bob = Math.sin(t / 700) * 3;
+      const by = C.GROUND - 58 + swell + bob;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(Math.sin(t / 800) * 0.05);
+      ctx.fillStyle = '#7A3B10';
+      ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(18, 0); ctx.lineTo(11, 8); ctx.lineTo(-11, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(0, -28); ctx.lineTo(15, -4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#FFEEDD';
+      ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(-2, -24); ctx.lineTo(-13, -4); ctx.closePath(); ctx.fill();
+      ctx.restore();
       this._palm(ctx, 50, C.GROUND);
       this._palm(ctx, 740, C.GROUND);
-      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
-      [[150,80],[200,65],[220,75]].forEach(([gx,gy]) => {
-        ctx.beginPath(); ctx.moveTo(gx,gy); ctx.quadraticCurveTo(gx+8,gy-5,gx+16,gy); ctx.stroke();
-      });
+      drawFlyingBirds(ctx, t, { count: 4, y: 72, speed: 30, color: '#445', spread: 26 });
     },
     _palm(ctx, x, y) {
       for (let i = 0; i < 5; i++) Sprites.px(ctx, '#8B6914', x - 4 + i, y - i * 18, 8, 20);
@@ -757,15 +827,47 @@ const ARENAS = [
       ctx.beginPath(); ctx.arc(75, C.GROUND, 108, -Math.PI * 0.44, Math.PI * 0.44); ctx.stroke();
       ctx.beginPath(); ctx.arc(C.W - 75, C.GROUND, 108, Math.PI - Math.PI * 0.44, Math.PI + Math.PI * 0.44); ctx.stroke();
 
-      // Ceiling spotlights (visible just below HUD strip)
-      [120, 300, 400, 500, 680].forEach(lx => {
-        ctx.fillStyle = 'rgba(255,230,160,0.055)';
+      // Camera flashes popping in the crowd (deterministic pseudo-random)
+      for (let i = 0; i < 6; i++) {
+        const seed = Math.floor(ct / 130) + i * 977;
+        if ((seed * 2654435761 >>> 0) % 23 === 0) {
+          const fxp = ((seed * 48271) >>> 0) % (C.W - 40) + 20;
+          const fyp = 90 + ((seed * 16807) >>> 0) % 90;
+          ctx.save();
+          ctx.shadowColor = '#FFFFFF'; ctx.shadowBlur = 16;
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.beginPath(); ctx.arc(fxp, fyp, 3.5, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur = 0; ctx.restore();
+        }
+      }
+
+      // Scrolling LED banner between crowd and floor
+      ctx.fillStyle = '#100808';
+      ctx.fillRect(0, 196, C.W, 14);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 196, C.W, 14); ctx.clip();
+      ctx.fillStyle = '#FF3322';
+      ctx.font = 'bold 11px monospace';
+      const banner = '★ DODGXEL CHAMPIONSHIP ★ GO JACO ★ GO LUCY ★ DEFENSE! DEFENSE! ★ ';
+      const bw = ctx.measureText(banner).width;
+      const bx = -((ct / 18) % bw);
+      ctx.fillText(banner, bx, 207);
+      ctx.fillText(banner, bx + bw, 207);
+      ctx.restore();
+
+      // Ceiling spotlights — swaying beams
+      [120, 300, 400, 500, 680].forEach((lx, i) => {
+        const sway = Math.sin(ct / 1400 + i * 1.7) * 34;
+        ctx.fillStyle = `rgba(255,230,160,${0.06 + 0.03 * Math.sin(ct / 900 + i * 2)})`;
         ctx.beginPath();
         ctx.moveTo(lx, 88);
-        ctx.lineTo(lx - 45, C.GROUND);
-        ctx.lineTo(lx + 45, C.GROUND);
+        ctx.lineTo(lx + sway - 45, C.GROUND);
+        ctx.lineTo(lx + sway + 45, C.GROUND);
         ctx.closePath();
         ctx.fill();
+        // Bright floor pool where the beam lands
+        ctx.fillStyle = 'rgba(255,245,200,0.08)';
+        ctx.beginPath(); ctx.ellipse(lx + sway, C.GROUND - 4, 48, 8, 0, 0, Math.PI * 2); ctx.fill();
         Sprites.px(ctx, '#FFEE88', lx - 14, 88, 28, 8);
         ctx.fillStyle = 'rgba(255,250,200,0.55)';
         ctx.beginPath(); ctx.arc(lx, 92, 7, 0, Math.PI * 2); ctx.fill();
@@ -838,13 +940,17 @@ const ARENAS = [
     ambient: { count: 22, colors: ['#7CB342', '#9CCC65', '#D4A030', '#C0CA33'], size: [3, 5],
                vx: [-0.4, 0.1], vy: [0.35, 0.8], sway: 1.1, alpha: 0.9, area: [50, C.GROUND - 5] },
     drawBg(ctx) {
+      const t = Date.now();
+      // God rays — pulsing and slowly swaying
       for (let i = 0; i < 5; i++) {
         const rx = 60 + i * 170;
-        ctx.fillStyle = 'rgba(200,255,150,0.06)';
+        const sway = Math.sin(t / 3000 + i * 1.3) * 26;
+        const pulse = 0.05 + 0.05 * (Math.sin(t / 1600 + i * 2.1) * 0.5 + 0.5);
+        ctx.fillStyle = `rgba(215,255,160,${pulse.toFixed(3)})`;
         ctx.beginPath();
         ctx.moveTo(rx, 0);
-        ctx.lineTo(rx + 50, C.GROUND);
-        ctx.lineTo(rx - 10, C.GROUND);
+        ctx.lineTo(rx + 50 + sway, C.GROUND);
+        ctx.lineTo(rx - 10 + sway, C.GROUND);
         ctx.closePath();
         ctx.fill();
       }
@@ -868,6 +974,27 @@ const ARENAS = [
         ctx.quadraticCurveTo(fx + 20, C.GROUND - 25, fx + 30, C.GROUND - 3);
         ctx.fill();
       }
+      // Drifting fog banks
+      for (let i = 0; i < 3; i++) {
+        const fgx = ((t / (40 + i * 14) + i * 400) % (C.W + 360)) - 180;
+        const fgy = C.GROUND - 40 - i * 60 + Math.sin(t / 2200 + i) * 8;
+        ctx.fillStyle = `rgba(190,220,190,${0.10 - i * 0.02})`;
+        ctx.beginPath(); ctx.ellipse(fgx, fgy, 150, 26, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(fgx + 90, fgy + 10, 110, 20, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      // Fireflies with pulsing glow
+      ctx.save();
+      for (let i = 0; i < 9; i++) {
+        const ffx = 40 + ((i * 197 + 31) % (C.W - 80)) + Math.sin(t / 1100 + i * 2.3) * 22;
+        const ffy = 140 + ((i * 83) % 200) + Math.cos(t / 1300 + i * 1.7) * 16;
+        const glow = Math.sin(t / 450 + i * 2.9) * 0.5 + 0.5;
+        ctx.globalAlpha = 0.25 + glow * 0.75;
+        ctx.shadowColor = '#CCFF55'; ctx.shadowBlur = 6 + glow * 10;
+        ctx.fillStyle = '#EEFF99';
+        ctx.beginPath(); ctx.arc(ffx, ffy, 1.8 + glow, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
     },
     obstacles: [
       makeBranch(145, 225),
@@ -895,11 +1022,43 @@ const ARENAS = [
       for (let gy = 0; gy <= C.GROUND; gy += 40) {
         ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(C.W, gy); ctx.stroke();
       }
+      const lt = Date.now();
       for (let lx = 80; lx < C.W - 60; lx += 200) {
+        const flick = 0.18 + 0.08 * Math.sin(lt / 700 + lx);
         Sprites.px(ctx, '#FFEE88', lx, 0, 100, 14);
-        ctx.fillStyle = 'rgba(255,240,120,0.22)';
+        ctx.fillStyle = `rgba(255,240,120,${flick.toFixed(3)})`;
         ctx.fillRect(lx - 20, 14, 140, 50);
       }
+      // Wall-mounted oscilloscope monitors with live traces
+      [[548, 108], [56, 100]].forEach(([mx, my], mi) => {
+        Sprites.px(ctx, '#37474F', mx - 4, my - 4, 96, 64);
+        Sprites.px(ctx, '#0A1410', mx, my, 88, 50);
+        ctx.strokeStyle = '#22FF88'; ctx.lineWidth = 1.5;
+        ctx.save();
+        ctx.shadowColor = '#22FF88'; ctx.shadowBlur = 5;
+        ctx.beginPath();
+        for (let sx = 0; sx <= 88; sx += 2) {
+          const ph = lt / 260 + mi * 2;
+          const sv = Math.sin(sx / 9 - ph) * Math.sin(sx / 23 - ph * 0.6);
+          ctx.lineTo(mx + sx, my + 25 + sv * 16);
+        }
+        ctx.stroke();
+        ctx.restore();
+        // Blinking status LEDs under the screen
+        for (let li = 0; li < 4; li++) {
+          const on = Math.sin(lt / (280 + li * 130) + li * 2 + mi) > 0;
+          ctx.fillStyle = on ? ['#FF4444', '#44FF66', '#FFBB33', '#44AAFF'][li] : '#222A2E';
+          ctx.beginPath(); ctx.arc(mx + 10 + li * 14, my + 56, 2.5, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+      // Scanline sweep down the room
+      const scanY = (lt / 9) % (C.GROUND + 120) - 60;
+      const sg = ctx.createLinearGradient(0, scanY - 30, 0, scanY + 30);
+      sg.addColorStop(0, 'rgba(60,200,255,0)');
+      sg.addColorStop(0.5, 'rgba(60,200,255,0.10)');
+      sg.addColorStop(1, 'rgba(60,200,255,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(0, Math.max(0, scanY - 30), C.W, 60);
       // Draw portals
       const pColors = ['#FF5050', '#44EE44', '#4488FF'];
       const t = Date.now() / 600;
@@ -987,14 +1146,48 @@ const ARENAS = [
 
     drawBg(ctx) {
       ctx.fillStyle = '#000005'; ctx.fillRect(0, 0, C.W, C.GROUND);
-      // Stars
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      const mt = Date.now();
+      // Twinkling stars
+      ctx.fillStyle = '#FFFFFF';
       for (let i = 0; i < 120; i++) {
         const sx = (i * 137.5 + 7) % C.W;
         const sy = (i * 71.3 + 13) % (C.GROUND - 40);
         const sr = 0.3 + (i % 4) * 0.3;
+        ctx.globalAlpha = 0.35 + 0.55 * (Math.sin(mt / (350 + (i % 7) * 90) + i) * 0.5 + 0.5);
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
       }
+      ctx.globalAlpha = 1;
+      // Shooting star — streaks across every few seconds
+      const sp = mt % 4700;
+      if (sp < 700) {
+        const pr = sp / 700;
+        const ssx = -60 + pr * (C.W + 120);
+        const ssy = 40 + pr * 130;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255,255,230,${(1 - pr) * 0.9})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#FFFFFF'; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(ssx, ssy);
+        ctx.lineTo(ssx - 55, ssy - 15);
+        ctx.stroke();
+        ctx.restore();
+      }
+      // Drifting satellite with blinking beacon
+      const satX = ((mt / 30) % (C.W + 160)) - 80;
+      const satY = 130 + Math.sin(mt / 2200) * 10;
+      ctx.save();
+      ctx.translate(satX, satY);
+      ctx.fillStyle = '#AAB4C0'; ctx.fillRect(-6, -4, 12, 8);       // body
+      ctx.fillStyle = '#2255CC';
+      ctx.fillRect(-24, -3, 14, 6); ctx.fillRect(10, -3, 14, 6);    // solar panels
+      ctx.strokeStyle = '#889'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, -10); ctx.stroke(); // antenna
+      if (Math.floor(mt / 500) % 2 === 0) {
+        ctx.fillStyle = '#FF3333';
+        ctx.beginPath(); ctx.arc(0, -11, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
       // Earth
       ctx.save();
       ctx.shadowColor = '#4488FF'; ctx.shadowBlur = 18;
@@ -1052,12 +1245,22 @@ const ARENAS = [
         const g = ctx.createLinearGradient(0, 0, 0, C.GROUND);
         g.addColorStop(0, '#1A0005'); g.addColorStop(0.5, '#300010'); g.addColorStop(1, '#480018');
         ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.GROUND);
-        // Ceiling cracks
-        ctx.strokeStyle = 'rgba(255,80,0,0.28)'; ctx.lineWidth = 1.5;
+        const ut = Date.now();
+        // Ceiling cracks — flare bright when lightning strikes
+        const bolt = (ut % 3300) < 120;
+        ctx.save();
+        if (bolt) { ctx.shadowColor = '#FF6600'; ctx.shadowBlur = 12; }
+        ctx.strokeStyle = bolt ? 'rgba(255,180,80,0.95)' : 'rgba(255,80,0,0.28)';
+        ctx.lineWidth = bolt ? 2.5 : 1.5;
         [[60,0,90,28],[200,0,170,35],[350,0,320,22],[540,0,510,30],[700,0,680,25]].forEach(([x1,y1,x2,y2]) => {
           ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-14,y2+12); ctx.stroke();
         });
+        ctx.restore();
+        if (bolt) {
+          ctx.fillStyle = 'rgba(255,120,40,0.07)';
+          ctx.fillRect(0, 0, C.W, C.GROUND);
+        }
         // Stalactites
         const stalacs = [[80,14,38],[180,10,28],[360,12,32],[500,16,42],[700,11,26]];
         stalacs.forEach(([sx,sw,sh]) => {
@@ -1066,16 +1269,30 @@ const ARENAS = [
           ctx.fillStyle = '#2A000A';
           ctx.beginPath(); ctx.moveTo(sx-sw/4,0); ctx.lineTo(sx+sw/4,0); ctx.lineTo(sx,sh*0.5); ctx.closePath(); ctx.fill();
         });
-        // Lava glow pools
-        ctx.fillStyle = 'rgba(255,60,0,0.12)';
+        // Lava glow pools — each pulses on its own rhythm, with rising heat shimmer
         [[150,C.GROUND-8,55],[400,C.GROUND-6,40],[600,C.GROUND-9,50]].forEach(([lx,ly,lw]) => {
-          ctx.beginPath(); ctx.ellipse(lx, ly, lw, 9, 0, 0, Math.PI*2); ctx.fill();
+          const pulse = 0.10 + 0.09 * (Math.sin(ut / 600 + lx) * 0.5 + 0.5);
+          ctx.fillStyle = `rgba(255,60,0,${pulse.toFixed(3)})`;
+          ctx.beginPath(); ctx.ellipse(lx, ly, lw + Math.sin(ut / 800 + lx) * 5, 9, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = `rgba(255,160,40,${(pulse * 0.8).toFixed(3)})`;
+          ctx.beginPath(); ctx.ellipse(lx, ly, lw * 0.5, 5, 0, 0, Math.PI*2); ctx.fill();
+          // heat shimmer bubbles drifting up
+          for (let bi = 0; bi < 3; bi++) {
+            const bp = ((ut / (900 + bi * 340) + bi * 0.37 + lx) % 1);
+            ctx.fillStyle = `rgba(255,140,60,${((1 - bp) * 0.35).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.arc(lx + Math.sin(ut / 500 + bi * 2 + lx) * lw * 0.5, ly - bp * 46, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          }
         });
-        // Pentagram
+        // Pentagram — breathes: glow and radius swell in and out
         ctx.save();
-        ctx.strokeStyle = 'rgba(200,0,30,0.15)'; ctx.lineWidth = 1;
+        const breath = Math.sin(ut / 1500) * 0.5 + 0.5;
+        ctx.strokeStyle = `rgba(220,0,40,${(0.10 + breath * 0.22).toFixed(3)})`;
+        ctx.lineWidth = 1 + breath;
+        ctx.shadowColor = '#FF0033'; ctx.shadowBlur = 4 + breath * 10;
         ctx.translate(C.W/2, C.GROUND-2);
-        const R = 60;
+        const R = 56 + breath * 8;
         ctx.beginPath();
         for (let i = 0; i < 5; i++) {
           const a = (i*2*Math.PI/5) - Math.PI/2, b = ((i+2)*2*Math.PI/5) - Math.PI/2;
@@ -1124,20 +1341,56 @@ const ARENAS = [
                  vx: [-0.5, -0.15], vy: [-0.1, 0.15], sway: 0.8, glow: true, alpha: 0.7, area: [60, C.GROUND + 40] },
 
       drawBg(ctx) {
+        const t = Date.now();
+        // Rainbow arc behind everything
+        ctx.save();
+        ctx.lineWidth = 6;
+        ['rgba(255,60,60,0.22)','rgba(255,170,40,0.22)','rgba(255,240,60,0.22)',
+         'rgba(80,220,90,0.22)','rgba(70,150,255,0.22)','rgba(160,90,230,0.22)'].forEach((col, ri) => {
+          ctx.strokeStyle = col;
+          ctx.beginPath();
+          ctx.arc(C.W / 2, C.GROUND + 160, 340 - ri * 6, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.stroke();
+        });
+        ctx.restore();
+        // Drifting background clouds
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        [[80,80,90,22],[300,55,130,18],[550,90,100,20],[700,65,80,18]].forEach(([cx,cy,cw,ch]) => {
-          ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
+        [[80,80,90,22],[300,55,130,18],[550,90,100,20],[700,65,80,18]].forEach(([cx,cy,cw,ch], ci) => {
+          const dx = ((cx + t / (90 + ci * 25)) % (C.W + 2 * cw)) - cw;
+          ctx.beginPath(); ctx.ellipse(dx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
         });
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        [[160,110,70,14],[420,100,90,16],[640,115,65,13]].forEach(([cx,cy,cw,ch]) => {
-          ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
+        [[160,110,70,14],[420,100,90,16],[640,115,65,13]].forEach(([cx,cy,cw,ch], ci) => {
+          const dx = ((cx + t / (60 + ci * 18)) % (C.W + 2 * cw)) - cw;
+          ctx.beginPath(); ctx.ellipse(dx, cy, cw, ch, 0, 0, Math.PI*2); ctx.fill();
         });
 
         ctx.save();
-        ctx.shadowColor = '#FFE066'; ctx.shadowBlur = 20;
+        ctx.shadowColor = '#FFE066'; ctx.shadowBlur = 20 + Math.sin(t / 600) * 6;
         ctx.fillStyle = '#FFD700';
         ctx.beginPath(); ctx.arc(720, 55, 32, 0, Math.PI*2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
+
+        // Drifting hot-air balloon
+        const balX = ((t / 70) % (C.W + 240)) - 120;
+        const balY = 120 + Math.sin(t / 1600) * 14;
+        ctx.save();
+        ctx.translate(balX, balY);
+        ctx.fillStyle = '#E74C3C';
+        ctx.beginPath(); ctx.arc(0, 0, 22, Math.PI, 0); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-22, 0); ctx.quadraticCurveTo(-10, 24, -4, 30);
+        ctx.lineTo(4, 30); ctx.quadraticCurveTo(10, 24, 22, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#F7DC6F';
+        ctx.beginPath(); ctx.moveTo(-8, -21); ctx.quadraticCurveTo(0, 34, 0, 34);
+        ctx.quadraticCurveTo(8, 10, 8, -21); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#6E4B2A'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-5, 30); ctx.lineTo(-4, 38); ctx.moveTo(5, 30); ctx.lineTo(4, 38); ctx.stroke();
+        ctx.fillStyle = '#8B5A2B'; ctx.fillRect(-6, 38, 12, 9);
+        ctx.restore();
+
+        // Bird flocks passing through
+        drawFlyingBirds(ctx, t, { count: 5, y: 200, speed: 34, color: '#3A5068', spread: 30 });
+        drawFlyingBirds(ctx, t + 60000, { count: 3, y: 95, speed: 24, color: '#56708A', spread: 40 });
       },
 
       _drawGround(ctx) {
