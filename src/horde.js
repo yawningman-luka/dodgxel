@@ -79,11 +79,13 @@ class Enemy {
     this.def = ENEMY_DEFS[type];
     this.hp = this.def.hp; this.maxHp = this.def.hp;
     this.w = this.def.w; this.h = this.def.h;
-    // Speed scales up from wave 5 onward: +8% per wave
-    this.speed = this.def.speed * (1 + Math.max(0, waveNum - 5) * 0.08);
+    // Progressive difficulty: speed ramps from wave 3 (+9%/wave), extra HP late game
+    this.speed = this.def.speed * (1 + Math.max(0, waveNum - 3) * 0.09);
+    if (waveNum >= 7) { this.hp += 1; this.maxHp += 1; }
+    this._throwScale = Math.max(0.55, 1 - Math.max(0, waveNum - 3) * 0.055);
     this.vy = 0; this.onGround = true; this.dead = false;
     this._flashTimer = 0; this._floatOffset = Math.random() * Math.PI * 2;
-    this.throwTimer = this.def.throwInterval * (0.4 + Math.random() * 0.6);
+    this.throwTimer = this.def.throwInterval * this._throwScale * (0.4 + Math.random() * 0.6);
     this._legAnim = Math.random() * Math.PI * 2;
     this.contactCooldown = 0;
   }
@@ -106,7 +108,7 @@ class Enemy {
     }
     this.throwTimer -= dt;
     if (this.throwTimer <= 0 && players.length > 0) {
-      this.throwTimer = def.throwInterval * (0.8 + Math.random() * 0.4);
+      this.throwTimer = def.throwInterval * this._throwScale * (0.8 + Math.random() * 0.4);
       let target = players[0];
       for (const p of players) { if (Math.abs(this.x - p.x) < Math.abs(this.x - target.x)) target = p; }
       const dx = target.x - this.x, dy = (target.y - 22) - (this.y - this.h * 0.55);
@@ -147,64 +149,189 @@ class Enemy {
 
   _drawZombie(ctx) {
     const d = this.def, h = this.h, w = this.w, leg = Math.sin(this._legAnim) * 4;
-    Sprites.px(ctx, d.pants, -w*.45, -h*.35, w*.42, h*.35+leg); Sprites.px(ctx, d.pants, w*.03, -h*.35, w*.42, h*.35-leg);
-    Sprites.px(ctx, '#1A1A1A', -w*.5, -h*.08, w*.44, h*.09); Sprites.px(ctx, '#1A1A1A', w*.02, -h*.08, w*.44, h*.09);
-    Sprites.px(ctx, '#888', -w/2, -h*.75, w, h*.40);
-    Sprites.px(ctx, d.color, -w/2-10, -h*.68, 13, 7); Sprites.px(ctx, d.color, w/2-1, -h*.68, 13, 7);
-    Sprites.px(ctx, d.color, -w/2+2, -h, w-4, h*.27);
-    ctx.fillStyle = '#FF2222';
-    ctx.fillRect(-6,-h+3,3,3); ctx.fillRect(-3,-h+6,3,3); ctx.fillRect(2,-h+3,3,3); ctx.fillRect(5,-h+6,3,3);
+    const lurch = Math.sin(this._legAnim * 0.5) * 2;
+    // ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(0, 2, w * .7, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(lurch, 0); ctx.rotate(-0.06);
+    // torn rotted legs, one dragging
+    Sprites.px(ctx, '#2A1F12', -w*.45, -h*.35, w*.42, h*.35+leg);
+    Sprites.px(ctx, '#241A0E', w*.03, -h*.35+3, w*.42, h*.35-leg-3);
+    Sprites.px(ctx, '#4A3A28', -w*.38, -h*.22, 4, 3); // torn knee hole
+    // exposed shin bone on drag leg
+    Sprites.px(ctx, '#D8CFC0', w*.12, -h*.14, 4, h*.12);
+    // rotting torso — torn shirt, exposed ribs
+    Sprites.px(ctx, '#3A3F35', -w/2, -h*.75, w, h*.40);
+    Sprites.px(ctx, d.color, -w*.18, -h*.66, w*.42, h*.20); // flesh through tear
+    ctx.fillStyle = '#B8AF9E'; // ribs
+    for (let i=0;i<3;i++) ctx.fillRect(-w*.12, -h*(.62-i*.06), w*.3, 2);
+    // dark gore stain
+    ctx.fillStyle = 'rgba(90,10,10,0.8)';
+    ctx.beginPath(); ctx.ellipse(-w*.2, -h*.5, 5, 7, 0.4, 0, Math.PI*2); ctx.fill();
+    // arms reaching forward (toward players — left)
+    Sprites.px(ctx, d.color, -w/2-13, -h*.66+Math.sin(this._legAnim)*2, 15, 6);
+    Sprites.px(ctx, d.color, -w/2-11, -h*.55-Math.sin(this._legAnim)*2, 13, 6);
+    ctx.fillStyle = '#2A2A2A'; // clawed fingers
+    ctx.fillRect(-w/2-16, -h*.66, 3, 4); ctx.fillRect(-w/2-14, -h*.55, 3, 4);
+    // decayed head, tilted
+    ctx.save(); ctx.translate(0, -h); ctx.rotate(0.12);
+    Sprites.px(ctx, d.color, -w/2+2, 0, w-4, h*.27);
+    Sprites.px(ctx, '#5A6A4A', -w/2+2, 0, w*.3, h*.1); // decay patch
+    // sunken glowing eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-7, 4, 6, 6); ctx.fillRect(2, 4, 6, 6);
+    ctx.shadowColor = '#FF2200'; ctx.shadowBlur = 6; ctx.fillStyle = '#FF3300';
+    ctx.fillRect(-6, 6, 3, 3); ctx.fillRect(3, 6, 3, 3);
+    ctx.shadowBlur = 0;
+    // unhinged hanging jaw with teeth
+    Sprites.px(ctx, d.color, -4, h*.24, 9, 5);
+    ctx.fillStyle = '#D8CFC0';
+    ctx.fillRect(-3, h*.24, 2, 2); ctx.fillRect(1, h*.24, 2, 2);
+    ctx.fillStyle = 'rgba(120,10,10,0.9)'; ctx.fillRect(-2, h*.27, 5, 2); // blood drool
+    ctx.restore();
+    ctx.restore();
     if (this.type === 'fast_zombie') {
-      ctx.strokeStyle='rgba(140,140,255,.75)'; ctx.lineWidth=1.5; ctx.setLineDash([2,2]);
-      for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(w/2+3,-h*(.3+i*.15));ctx.lineTo(w/2+12,-h*(.3+i*.15));ctx.stroke();}
+      ctx.strokeStyle='rgba(255,60,40,.6)'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
+      for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(w/2+3,-h*(.3+i*.18));ctx.lineTo(w/2+15,-h*(.3+i*.18));ctx.stroke();}
       ctx.setLineDash([]);
     }
   }
 
   _drawNinja(ctx) {
     const h = this.h, w = this.w, leg = Math.sin(this._legAnim) * 5;
-    Sprites.px(ctx,'#111',-w*.45,-h*.35,w*.42,h*.35+leg); Sprites.px(ctx,'#111',w*.03,-h*.35,w*.42,h*.35-leg);
-    Sprites.px(ctx,'#111',-w/2,-h*.75,w,h*.42); Sprites.px(ctx,'#DDD',-w/2,-h*.44,w,3);
-    Sprites.px(ctx,'#111',-w/2-8,-h*.68,10,7); Sprites.px(ctx,'#111',w/2-2,-h*.68,10,7);
-    Sprites.px(ctx,'#111',-w/2+1,-h,w-2,h*.27); Sprites.px(ctx,'#EEE',-w/2+1,-h+2,w-2,h*.09);
-    ctx.fillStyle='#FF4400'; ctx.fillRect(-5,-h+h*.14,10,4);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(0, 2, w * .7, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // flowing tattered scarf trailing behind
+    const t = Date.now() * 0.006 + this._floatOffset;
+    ctx.fillStyle = '#5A0000';
+    ctx.beginPath();
+    ctx.moveTo(2, -h + 4);
+    ctx.quadraticCurveTo(w + 8, -h + 2 + Math.sin(t) * 5, w + 16, -h * .8 + Math.sin(t * 1.3) * 6);
+    ctx.lineTo(w + 12, -h * .74 + Math.sin(t * 1.3) * 6);
+    ctx.quadraticCurveTo(w + 5, -h * .88, 2, -h + 10);
+    ctx.closePath(); ctx.fill();
+    // crouched predatory stance
+    Sprites.px(ctx,'#0A0A0C',-w*.45,-h*.35,w*.42,h*.35+leg); Sprites.px(ctx,'#0A0A0C',w*.03,-h*.35,w*.42,h*.35-leg);
+    Sprites.px(ctx,'#101014',-w/2,-h*.75,w,h*.42);
+    // crossed weapon straps
+    ctx.strokeStyle='#3A2A1A'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(-w/2,-h*.72); ctx.lineTo(w/2,-h*.42); ctx.stroke();
+    // katana on back, glinting edge
+    ctx.strokeStyle='#666'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(w*.3,-h*.9); ctx.lineTo(w*.9,-h*.45); ctx.stroke();
+    ctx.strokeStyle='#DDD'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(w*.3,-h*.91); ctx.lineTo(w*.9,-h*.46); ctx.stroke();
+    // arm with drawn kunai
+    Sprites.px(ctx,'#101014',-w/2-9,-h*.62,11,6);
+    ctx.fillStyle='#B0B8C0';
+    ctx.beginPath(); ctx.moveTo(-w/2-9,-h*.60); ctx.lineTo(-w/2-17,-h*.58); ctx.lineTo(-w/2-9,-h*.55); ctx.closePath(); ctx.fill();
+    // hooded head — only a slit of burning eyes
+    Sprites.px(ctx,'#0C0C10',-w/2+1,-h,w-2,h*.27);
+    Sprites.px(ctx,'#050508',-w/2+1,-h,w-2,h*.08); // hood shadow
+    ctx.fillStyle='#1A0000'; ctx.fillRect(-w/2+3,-h+h*.11,w-6,5); // eye slit
+    ctx.shadowColor='#FF2200'; ctx.shadowBlur=7; ctx.fillStyle='#FF3300';
+    ctx.fillRect(-5,-h+h*.12,3,3); ctx.fillRect(2,-h+h*.12,3,3);
+    ctx.shadowBlur=0;
   }
 
   _drawDino(ctx) {
     const d=this.def,h=this.h,w=this.w,leg=Math.sin(this._legAnim)*4;
-    Sprites.px(ctx,d.pants,-w*.3,-h*.28,w*.27,h*.28+leg); Sprites.px(ctx,d.pants,w*.04,-h*.28,w*.27,h*.28-leg);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(0, 2, w * .85, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // powerful raptor legs with talons
+    Sprites.px(ctx,'#2A5A2A',-w*.3,-h*.28,w*.27,h*.28+leg); Sprites.px(ctx,'#2A5A2A',w*.04,-h*.28,w*.27,h*.28-leg);
+    ctx.fillStyle='#D8D0B8'; // talons
+    ctx.fillRect(-w*.34,-3,4,4); ctx.fillRect(-w*.24,-3,4,4); ctx.fillRect(w*.02,-3,4,4); ctx.fillRect(w*.12,-3,4,4);
+    // scarred muscular body
     Sprites.px(ctx,d.color,-w/2,-h*.82,w,h*.54);
-    Sprites.px(ctx,d.color,-w/2-7,-h*.77,9,7); Sprites.px(ctx,d.color,w/2-2,-h*.75,9,7);
-    Sprites.px(ctx,d.color,w/2,-h*.5,14,11); Sprites.px(ctx,d.color,w/2+12,-h*.42,9,8);
-    Sprites.px(ctx,d.color,-w/2+2,-h,w*.72,h*.22);
-    ctx.fillStyle='#FFD700'; ctx.fillRect(-w*.08,-h*.96,7,7);
-    ctx.fillStyle='#000'; ctx.fillRect(-w*.05,-h*.93,3,3);
-    ctx.fillStyle='#FFF'; for(let i=0;i<3;i++) ctx.fillRect(-w*.42+i*8,-h*.80,5,7);
+    Sprites.px(ctx,'#4A9A4A',-w*.4,-h*.78,w*.8,h*.1); // muscle highlight
+    // claw scars across flank
+    ctx.strokeStyle='#7A2020'; ctx.lineWidth=2;
+    for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-w*.1+i*5,-h*.72);ctx.lineTo(-w*.02+i*5,-h*.46);ctx.stroke();}
+    // spinal ridge spikes
+    ctx.fillStyle='#1A3A1A';
+    for(let i=0;i<4;i++){
+      ctx.beginPath(); ctx.moveTo(-w*.35+i*w*.24,-h*.82);
+      ctx.lineTo(-w*.28+i*w*.24,-h*.97); ctx.lineTo(-w*.21+i*w*.24,-h*.82); ctx.closePath(); ctx.fill();
+    }
+    // small clawed arms
+    Sprites.px(ctx,d.color,-w/2-8,-h*.72,10,6);
+    ctx.fillStyle='#D8D0B8'; ctx.fillRect(-w/2-11,-h*.72,3,4);
+    // thick lashing tail
+    ctx.strokeStyle=d.color; ctx.lineWidth=7;
+    ctx.beginPath(); ctx.moveTo(w*.42,-h*.6);
+    ctx.quadraticCurveTo(w*.95,-h*.5+Math.sin(Date.now()*.005)*6,w*1.15,-h*.32);
+    ctx.stroke();
+    // head with gaping jaw
+    ctx.save(); ctx.translate(-w*.14,-h); ctx.rotate(-0.05);
+    Sprites.px(ctx,d.color,-w*.36,0,w*.72,h*.16); // upper skull
+    Sprites.px(ctx,d.color,-w*.5,h*.05,w*.34,h*.09); // snout
+    Sprites.px(ctx,'#2A5A2A',-w*.46,h*.15,w*.4,h*.08); // lower jaw, open
+    // rows of teeth
+    ctx.fillStyle='#E8E0D0';
+    for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(-w*.46+i*5,h*.14);ctx.lineTo(-w*.44+i*5,h*.19);ctx.lineTo(-w*.42+i*5,h*.14);ctx.closePath();ctx.fill();}
+    for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-w*.43+i*5,h*.23);ctx.lineTo(-w*.41+i*5,h*.18);ctx.lineTo(-w*.39+i*5,h*.23);ctx.closePath();ctx.fill();}
+    ctx.fillStyle='rgba(120,10,10,0.85)'; ctx.fillRect(-w*.3,h*.16,w*.14,2); // bloody maw
+    // slit predator eye
+    ctx.shadowColor='#FFB000'; ctx.shadowBlur=5;
+    ctx.fillStyle='#FFB000'; ctx.fillRect(-w*.1,h*.03,7,6);
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#000'; ctx.fillRect(-w*.07,h*.03,2,6);
+    ctx.restore();
   }
 
   _drawFSM(ctx) {
     const d=this.def,h=this.h,w=this.w,t=Date.now()*.003+this._floatOffset;
-    ctx.strokeStyle=d.color; ctx.lineWidth=5;
+    // ominous aura
+    ctx.save();
+    const grd = ctx.createRadialGradient(0,-h*.5,4,0,-h*.5,w);
+    grd.addColorStop(0,'rgba(160,60,20,0.30)'); grd.addColorStop(1,'rgba(160,60,20,0)');
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(0,-h*.5,w,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    // writhing charred tendrils, hooked tips
+    ctx.strokeStyle='#5A3A1A'; ctx.lineWidth=5; ctx.lineCap='round';
+    for(let n=0;n<4;n++){
+      ctx.beginPath(); const ox=-w*.36+n*w*.24;
+      let nx=ox,ny=0;
+      for(let i=0;i<=8;i++){nx=ox+Math.sin(t+i*.9+n)*8;ny=-h*.3+(i/8)*h*.34; i===0?ctx.moveTo(nx,ny):ctx.lineTo(nx,ny);}
+      ctx.stroke();
+      ctx.fillStyle='#2A1A0A'; // hooked tip
+      ctx.beginPath(); ctx.arc(nx,ny,3,0,Math.PI*2); ctx.fill();
+    }
+    // pulsing fleshy core mass
+    const pulse = 1 + Math.sin(t*2.5)*0.08;
+    ctx.fillStyle='#6A4022';
+    ctx.beginPath(); ctx.ellipse(0,-h*.5,w*.42*pulse,h*.24*pulse,Math.sin(t)*.1,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#8A5A32';
+    ctx.beginPath(); ctx.ellipse(-w*.1,-h*.55,w*.22,h*.12,0,0,Math.PI*2); ctx.fill();
+    // veins across the mass
+    ctx.strokeStyle='rgba(140,20,20,0.7)'; ctx.lineWidth=1.5;
     for(let n=0;n<3;n++){
-      ctx.beginPath(); const ox=-w*.3+n*w*.3;
-      for(let i=0;i<=8;i++){const nx=ox+Math.sin(t+i*.9+n)*7,ny=-h*.3+(i/8)*h*.32; i===0?ctx.moveTo(nx,ny):ctx.lineTo(nx,ny);}
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-w*.3+n*w*.3,-h*.62);
+      ctx.quadraticCurveTo(-w*.2+n*w*.3,-h*.5,-w*.3+n*w*.3+4,-h*.38); ctx.stroke();
     }
-    ctx.fillStyle='#8B2A1A';
-    ctx.beginPath();ctx.arc(-w*.25,-h*.72,10,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(w*.25,-h*.72,10,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#FFF';
-    ctx.beginPath();ctx.arc(-w*.25,-h*.72,4,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(w*.25,-h*.72,4,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#000';
-    ctx.beginPath();ctx.arc(-w*.25+1,-h*.72,2,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(w*.25+1,-h*.72,2,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=d.color; ctx.lineWidth=4;
-    for(let n=0;n<2;n++){
-      ctx.beginPath();
-      for(let i=0;i<=6;i++){const nx=-w/2+(i/6)*w,ny=-h*.6+Math.sin(t+i*1.2+n*2)*6; i===0?ctx.moveTo(nx,ny):ctx.lineTo(nx,ny);}
-      ctx.stroke();
-    }
+    // asymmetric bloodshot eyestalks
+    ctx.fillStyle='#4A2210';
+    ctx.beginPath();ctx.arc(-w*.25,-h*.76,11,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(w*.28,-h*.72,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#E8D8C8';
+    ctx.beginPath();ctx.arc(-w*.25,-h*.76,7,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(w*.28,-h*.72,5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(180,30,30,0.8)'; ctx.lineWidth=1; // bloodshot
+    for(let a=0;a<5;a++){const an=a*1.3;ctx.beginPath();ctx.moveTo(-w*.25+Math.cos(an)*3,-h*.76+Math.sin(an)*3);ctx.lineTo(-w*.25+Math.cos(an)*7,-h*.76+Math.sin(an)*7);ctx.stroke();}
+    ctx.shadowColor='#FF3300'; ctx.shadowBlur=4;
+    ctx.fillStyle='#8B0000';
+    ctx.beginPath();ctx.arc(-w*.25-1,-h*.76,3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(w*.28-1,-h*.72,2.5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // jagged tooth-lined slit mouth
+    ctx.strokeStyle='#1A0A00'; ctx.lineWidth=3;
+    ctx.beginPath();
+    for(let i=0;i<=6;i++){const nx=-w*.28+(i/6)*w*.5,ny=-h*.42+(i%2?3:-2); i===0?ctx.moveTo(nx,ny):ctx.lineTo(nx,ny);}
+    ctx.stroke();
+    ctx.fillStyle='#E8E0D0';
+    for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(-w*.24+i*6,-h*.43);ctx.lineTo(-w*.22+i*6,-h*.38);ctx.lineTo(-w*.2+i*6,-h*.43);ctx.closePath();ctx.fill();}
+    ctx.lineCap='butt';
   }
 }
 
@@ -214,7 +341,7 @@ class BossEnemy {
     this.x = C.W + 100;
     this.y = C.GROUND;
     this.w = 52; this.h = 72;
-    this.hp = 15; this.maxHp = 15;
+    this.hp = 24; this.maxHp = 24;
     this.dead = false;
     this._phase = 'enter';
     this._dir = -1;
@@ -247,17 +374,23 @@ class BossEnemy {
       if (this.x <= this._patrolL) { this.x = this._patrolL; this._dir =  1; }
       if (this.x >= this._patrolR) { this.x = this._patrolR; this._dir = -1; }
 
-      // Fire 3-ball spread
+      // Enrage below 40% HP: faster, meaner, wider spread
+      const enraged = this.hp / this.maxHp <= 0.4;
+      this._enraged = enraged;
+      this._speed = enraged ? 2.3 : 1.5;
+
+      // Fire ball spread (5-way when enraged)
       this._fireTimer -= dt;
       if (this._fireTimer <= 0 && players.length > 0) {
-        this._fireTimer = 1600 + Math.random() * 1400;
+        this._fireTimer = (enraged ? 1000 : 1500) + Math.random() * (enraged ? 700 : 1200);
         let target = players[0];
         for (const p of players) if (Math.abs(this.x - p.x) < Math.abs(this.x - target.x)) target = p;
         const dx = target.x - this.x, dy = (target.y - 22) - (this.y - this.h * 0.5);
         const base = Math.atan2(dy, dx);
-        const spd = 5.5;
-        for (let a = -1; a <= 1; a++) {
-          const ang = base + a * 0.24;
+        const spd = enraged ? 6.4 : 5.5;
+        const n = enraged ? 2 : 1;
+        for (let a = -n; a <= n; a++) {
+          const ang = base + a * 0.22;
           enemyBalls.push(new EnemyBall(
             this.x, this.y - this.h * 0.55,
             Math.cos(ang) * spd, Math.sin(ang) * spd - 1.2
@@ -268,11 +401,11 @@ class BossEnemy {
       // Charge attack
       this._chargeTimer -= dt;
       if (this._chargeTimer <= 0 && players.length > 0) {
-        this._chargeTimer = 7000 + Math.random() * 4000;
+        this._chargeTimer = (enraged ? 4500 : 7000) + Math.random() * 4000;
         this._phase = 'charge';
         let target = players[0];
         for (const p of players) if (Math.abs(this.x - p.x) < Math.abs(this.x - target.x)) target = p;
-        this._chargeDx = Math.sign(target.x - this.x) * 6;
+        this._chargeDx = Math.sign(target.x - this.x) * (enraged ? 7.5 : 6);
         this._chargeTime = 650;
       }
 
@@ -321,54 +454,110 @@ class BossEnemy {
   _drawBody(ctx) {
     const t = this._animT, h = this.h, w = this.w;
     const charging = this._phase === 'charge';
+    const enraged = !!this._enraged;
 
-    // Legs
+    // Ground shadow + hellish aura
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.ellipse(0, 2, w * 0.9, 7, 0, 0, Math.PI * 2); ctx.fill();
+    const auraR = w * 1.5 + Math.sin(t * 0.006) * 6;
+    const aura = ctx.createRadialGradient(0, -h * 0.6, 8, 0, -h * 0.6, auraR);
+    aura.addColorStop(0, enraged ? 'rgba(255,40,0,0.35)' : 'rgba(160,0,30,0.22)');
+    aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(0, -h * 0.6, auraR, 0, Math.PI * 2); ctx.fill();
+
+    // Hulking clawed legs
     const leg = Math.sin(t * 0.014) * 6;
-    Sprites.px(ctx, '#440022', -w * .34, -h * .38, w * .28, h * .38 + leg);
-    Sprites.px(ctx, '#440022',  w * .06, -h * .38, w * .28, h * .38 - leg);
-    Sprites.px(ctx, '#220011', -w * .4,  -h * .06, w * .33, h * .07);
-    Sprites.px(ctx, '#220011',  w * .07, -h * .06, w * .33, h * .07);
+    Sprites.px(ctx, '#1A0510', -w * .36, -h * .38, w * .3, h * .38 + leg);
+    Sprites.px(ctx, '#1A0510',  w * .06, -h * .38, w * .3, h * .38 - leg);
+    // Talon feet
+    ctx.fillStyle = '#5A4A3A';
+    for (const s of [-1, 1]) {
+      const fx = s < 0 ? -w * .36 : w * .06;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(fx + i * w * 0.1, 0);
+        ctx.lineTo(fx + i * w * 0.1 + (s < 0 ? -4 : 4), 4);
+        ctx.lineTo(fx + i * w * 0.1 + w * 0.07, 0);
+        ctx.closePath(); ctx.fill();
+      }
+    }
 
-    // Body
-    Sprites.px(ctx, '#880033', -w * .5, -h * .86, w, h * .48);
-
-    // Wings
-    const flap = Math.sin(t * 0.008) * 10;
-    ctx.fillStyle = 'rgba(160,0,50,0.72)';
+    // Massive scarred torso
+    Sprites.px(ctx, '#3A0518', -w * .52, -h * .88, w * 1.04, h * .5);
+    Sprites.px(ctx, '#55082A', -w * .44, -h * .84, w * .88, h * .2); // muscle highlight
+    // Glowing chest fissure (heart of the demon)
+    const pulse = 0.6 + Math.sin(t * 0.01) * 0.4;
+    ctx.strokeStyle = enraged ? `rgba(255,60,0,${0.6 + pulse * 0.4})` : `rgba(255,120,0,${0.3 + pulse * 0.3})`;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(-w * .5, -h * .78); ctx.lineTo(-w * 1.3, -h * .92 + flap);
-    ctx.lineTo(-w * 1.05, -h * .54); ctx.closePath(); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo( w * .5, -h * .78); ctx.lineTo( w * 1.3, -h * .92 + flap);
-    ctx.lineTo( w * 1.05, -h * .54); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-w * .06, -h * .84); ctx.lineTo(w * .04, -h * .72);
+    ctx.lineTo(-w * .03, -h * .6); ctx.lineTo(w * .06, -h * .46);
+    ctx.stroke();
+    // Battle scars
+    ctx.strokeStyle = '#7A1030'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-w * .4, -h * .8); ctx.lineTo(-w * .2, -h * .62); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w * .32, -h * .74); ctx.lineTo(w * .18, -h * .55); ctx.stroke();
 
-    // Tail
-    ctx.strokeStyle = '#660022'; ctx.lineWidth = 5;
+    // Torn bat wings with bone fingers
+    const flap = Math.sin(t * 0.008) * 12;
+    for (const s of [-1, 1]) {
+      ctx.fillStyle = enraged ? 'rgba(140,10,10,0.8)' : 'rgba(70,5,25,0.85)';
+      ctx.beginPath();
+      ctx.moveTo(s * w * .5, -h * .8);
+      ctx.lineTo(s * w * 1.45, -h * 1.05 + flap);
+      ctx.lineTo(s * w * 1.25, -h * .7 + flap * 0.5);
+      ctx.lineTo(s * w * 1.05, -h * .5);
+      ctx.lineTo(s * w * .85, -h * .58);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#20060F'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(s * w * .5, -h * .8); ctx.lineTo(s * w * 1.45, -h * 1.05 + flap); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s * w * .5, -h * .78); ctx.lineTo(s * w * 1.25, -h * .7 + flap * 0.5); ctx.stroke();
+    }
+
+    // Spiked lashing tail
+    ctx.strokeStyle = '#30051A'; ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(w * .42, -h * .5);
-    ctx.quadraticCurveTo(w * .85, -h * .28 + Math.sin(t * 0.01) * 10, w * .62, -h * .06);
+    ctx.quadraticCurveTo(w * .95, -h * .28 + Math.sin(t * 0.01) * 12, w * .68, -h * .04);
     ctx.stroke();
+    ctx.fillStyle = '#6A5A4A';
+    ctx.beginPath(); ctx.moveTo(w * .68, -h * .04); ctx.lineTo(w * .78, -h * .12); ctx.lineTo(w * .74, 0); ctx.closePath(); ctx.fill();
 
-    // Head
-    Sprites.px(ctx, '#AA0044', -w * .42, -h, w * .84, h * .18);
+    // Brutal horned skull head
+    Sprites.px(ctx, '#4A0A20', -w * .44, -h * 1.02, w * .88, h * .2);
+    Sprites.px(ctx, '#60102A', -w * .38, -h * 1.0, w * .76, h * .08);
+    // Huge curved horns
+    ctx.fillStyle = '#2A1A10';
+    ctx.beginPath(); ctx.moveTo(-w*.26,-h); ctx.quadraticCurveTo(-w*.55,-h*1.2,-w*.44,-h*1.4); ctx.quadraticCurveTo(-w*.34,-h*1.18,-w*.1,-h*1.02); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( w*.26,-h); ctx.quadraticCurveTo( w*.55,-h*1.2, w*.44,-h*1.4); ctx.quadraticCurveTo( w*.34,-h*1.18, w*.1,-h*1.02); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4A3220';
+    ctx.beginPath(); ctx.moveTo(-w*.42,-h*1.34); ctx.lineTo(-w*.44,-h*1.4); ctx.lineTo(-w*.38,-h*1.36); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( w*.42,-h*1.34); ctx.lineTo( w*.44,-h*1.4); ctx.lineTo( w*.38,-h*1.36); ctx.closePath(); ctx.fill();
 
-    // Horns
-    ctx.fillStyle = '#FF2200';
-    ctx.beginPath(); ctx.moveTo(-w*.24,-h); ctx.lineTo(-w*.4,-h*1.25); ctx.lineTo(-w*.1,-h); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo( w*.24,-h); ctx.lineTo( w*.4,-h*1.25); ctx.lineTo( w*.1,-h); ctx.closePath(); ctx.fill();
-
-    // Eyes
-    const eyeCol = charging ? '#FF0000' : '#FF6600';
-    ctx.shadowColor = eyeCol; ctx.shadowBlur = 10;
+    // Burning eyes (white-hot when enraged/charging)
+    const eyeCol = charging ? '#FF0000' : enraged ? '#FFDD00' : '#FF6600';
+    ctx.shadowColor = eyeCol; ctx.shadowBlur = enraged ? 16 : 10;
     ctx.fillStyle = eyeCol;
-    ctx.beginPath(); ctx.arc(-w * .17, -h * .88, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc( w * .17, -h * .88, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-w * .17, -h * .92, enraged ? 6 : 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w * .17, -h * .92, enraged ? 6 : 5, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(-w * .17, -h * .92, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc( w * .17, -h * .92, 2, 0, Math.PI * 2); ctx.fill();
 
-    // Mouth / roar when charging
-    if (charging) {
-      ctx.fillStyle = '#FF4400';
-      ctx.beginPath(); ctx.arc(0, -h * .82, 7, 0, Math.PI); ctx.fill();
+    // Fanged maw — always open when enraged, roaring when charging
+    if (charging || enraged) {
+      ctx.fillStyle = '#1A0000';
+      ctx.beginPath(); ctx.ellipse(0, -h * .85, 9, charging ? 8 : 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#E8E0D0';
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath(); ctx.moveTo(i * 5 - 2, -h * .85 - 4); ctx.lineTo(i * 5, -h * .85 + 1); ctx.lineTo(i * 5 + 2, -h * .85 - 4); ctx.closePath(); ctx.fill();
+      }
+      if (charging) { ctx.fillStyle = '#FF4400'; ctx.beginPath(); ctx.arc(0, -h * .82, 4, 0, Math.PI); ctx.fill(); }
+    } else {
+      ctx.strokeStyle = '#1A0000'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-6, -h * .85); ctx.lineTo(6, -h * .85); ctx.stroke();
     }
   }
 }
@@ -509,7 +698,7 @@ class HordeGame {
         if (ball.x + C.BALL_R > r.x && ball.x - C.BALL_R < r.x + r.w &&
             ball.y + C.BALL_R > r.y && ball.y - C.BALL_R < r.y + r.h) {
           const killed = this.boss.takeBall(ball);
-          this.score += killed ? 10 * (HORDE_WAVES.length + 1) : 5;
+          this.score += killed ? 25 * (HORDE_WAVES.length + 1) : 5;
           if (killed) {
             FX.hitstop(160);
             FX.shake(10, 500);
@@ -765,49 +954,76 @@ class HordeGame {
 
   // ── HUD: players left/right, wave info center ─────────────────────────────
   _drawHUD(ctx) {
-    ctx.fillStyle = 'rgba(0,0,0,0.82)';
-    ctx.fillRect(0, 0, C.W, 52);
-    // dividers
-    ctx.fillStyle = '#282828';
-    ctx.fillRect(290, 2, 1, 48); ctx.fillRect(C.W - 291, 2, 1, 48);
+    // Gradient top strip with bottom glow line
+    const g = ctx.createLinearGradient(0, 0, 0, 58);
+    g.addColorStop(0, 'rgba(8,10,18,0.96)');
+    g.addColorStop(0.8, 'rgba(10,12,22,0.88)');
+    g.addColorStop(1, 'rgba(10,12,22,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, C.W, 58);
+    ctx.fillStyle = 'rgba(255,215,0,0.25)';
+    ctx.fillRect(0, 52, C.W, 1);
 
     this._drawPlayerPanel(ctx, this.p1, this.p1Hp, this.p1Fallen, C.COL.P1_HUD, this.p1.charName || 'JACO', false);
     if (!this.solo)
       this._drawPlayerPanel(ctx, this.p2, this.p2Hp, this.p2Fallen, C.COL.P2_HUD, this.p2.charName || 'LUCY', true);
 
-    // Center: wave + score + enemy count
-    const cx = C.W / 2;
+    // Center command plate (angled sides)
+    const cx = C.W / 2, pw = 190, ph = 50;
+    ctx.beginPath();
+    ctx.moveTo(cx - pw / 2, 0); ctx.lineTo(cx + pw / 2, 0);
+    ctx.lineTo(cx + pw / 2 - 14, ph); ctx.lineTo(cx - pw / 2 + 14, ph);
+    ctx.closePath();
+    const pg = ctx.createLinearGradient(0, 0, 0, ph);
+    pg.addColorStop(0, 'rgba(30,32,48,0.95)');
+    pg.addColorStop(1, 'rgba(14,15,26,0.95)');
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,215,0,0.45)'; ctx.lineWidth = 1; ctx.stroke();
+
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 13px Segoe UI, Arial, sans-serif';
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 14px Segoe UI, Arial, sans-serif';
+    ctx.shadowColor = 'rgba(255,180,0,0.7)'; ctx.shadowBlur = 8;
     ctx.fillText(`WAVE ${this.wave || '—'} / ${HORDE_WAVES.length}`, cx, 16);
+    ctx.shadowBlur = 0;
 
-    // Wave progress bar
-    ctx.fillStyle = '#1A1A1A'; ctx.fillRect(cx - 48, 20, 96, 5);
-    ctx.fillStyle = '#FFD700'; ctx.fillRect(cx - 48, 20, 96 * (this.wave / HORDE_WAVES.length), 5);
+    // Segmented wave progress
+    for (let i = 0; i < HORDE_WAVES.length; i++) {
+      const sw = 9, sx = cx - (HORDE_WAVES.length * (sw + 2) - 2) / 2 + i * (sw + 2);
+      ctx.fillStyle = i < this.wave ? '#FFD700' : 'rgba(255,255,255,0.1)';
+      ctx.fillRect(sx, 21, sw, 4);
+    }
 
-    ctx.fillStyle = '#aaa'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
-    ctx.fillText(`${this.score} pts`, cx, 36);
+    ctx.fillStyle = '#E8E8F0'; ctx.font = 'bold 12px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`${this.score.toLocaleString()} PTS`, cx, 38);
 
     if (this.waveState === 'fighting' || this.waveState === 'spawning') {
       const rem = this.enemies.length + this._spawnQueue.length;
-      ctx.fillStyle = rem > 6 ? '#FF8888' : '#FFBB44';
-      ctx.font = '11px Segoe UI, Arial, sans-serif';
-      ctx.fillText(`${rem} enemies left`, cx, 48);
+      ctx.fillStyle = rem > 6 ? '#FF7070' : '#FFBB44';
+      ctx.font = '10px Segoe UI, Arial, sans-serif';
+      ctx.fillText(`◆ ${rem} HOSTILES`, cx, 49);
     }
 
-    // Boss HP bar (centre, below wave info)
+    // Boss HP bar — cinematic, centre bottom of strip
     if (this.boss && !this.boss.dead && this.waveState === 'boss_fight') {
-      const bw = 220, bh = 10, bx = cx - bw / 2;
+      const bw = 260, bh = 12, bx = cx - bw / 2, by = 62;
       const hpPct = this.boss.hp / this.boss.maxHp;
-      const bPulse = 0.7 + 0.3 * Math.sin(Date.now() / 180);
-      ctx.fillStyle = '#1A0000'; ctx.fillRect(bx, 38, bw, bh);
-      ctx.fillStyle = hpPct > 0.5 ? '#FF3333' : hpPct > 0.25 ? '#FF8800' : '#FF0000';
-      ctx.globalAlpha = bPulse;
-      ctx.fillRect(bx, 38, bw * hpPct, bh);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#880000'; ctx.lineWidth = 1; ctx.strokeRect(bx, 38, bw, bh);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(bx - 4, by - 16, bw + 8, bh + 20);
       ctx.fillStyle = '#FF4444'; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
-      ctx.fillText('⚡ OVERLORD', cx, 36);
+      ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 6;
+      ctx.fillText(this.boss._enraged ? '☠ THE OVERLORD — ENRAGED ☠' : '☠ THE OVERLORD', cx, by - 4);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#1A0000'; ctx.fillRect(bx, by, bw, bh);
+      const bg2 = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+      bg2.addColorStop(0, '#8B0000'); bg2.addColorStop(1, hpPct > 0.4 ? '#FF3333' : '#FF7700');
+      ctx.fillStyle = bg2;
+      ctx.fillRect(bx, by, bw * hpPct, bh);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(bx, by, bw * hpPct, 3);
+      // segment ticks
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      for (let i = 1; i < 8; i++) ctx.fillRect(bx + (bw / 8) * i, by, 1, bh);
+      ctx.strokeStyle = '#AA1111'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
     }
 
     // ESC hint
@@ -818,57 +1034,106 @@ class HordeGame {
   }
 
   _drawPlayerPanel(ctx, player, hp, fallen, col, name, right) {
-    const x0 = right ? C.W - 288 : 8;
+    const panW = 280, panH = 46;
+    const px0 = right ? C.W - panW - 6 : 6;
+
+    // Angled player card
+    ctx.beginPath();
+    if (right) {
+      ctx.moveTo(px0 + 14, 3); ctx.lineTo(px0 + panW, 3);
+      ctx.lineTo(px0 + panW, 3 + panH); ctx.lineTo(px0, 3 + panH);
+    } else {
+      ctx.moveTo(px0, 3); ctx.lineTo(px0 + panW - 14, 3);
+      ctx.lineTo(px0 + panW, 3 + panH); ctx.lineTo(px0, 3 + panH);
+    }
+    ctx.closePath();
+    const cg = ctx.createLinearGradient(0, 3, 0, 3 + panH);
+    cg.addColorStop(0, 'rgba(24,26,40,0.92)');
+    cg.addColorStop(1, 'rgba(12,13,22,0.92)');
+    ctx.fillStyle = cg; ctx.fill();
+    ctx.strokeStyle = fallen ? 'rgba(255,60,60,0.7)' : col; ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.6; ctx.stroke(); ctx.globalAlpha = 1;
+    // Accent edge stripe
+    ctx.fillStyle = fallen ? '#FF3333' : col;
+    ctx.fillRect(right ? px0 + panW - 3 : px0, 3, 3, panH);
+
+    const x0 = right ? px0 + panW - 12 : px0 + 12;
 
     if (fallen) {
-      ctx.fillStyle = 'rgba(180,0,0,0.28)';
-      ctx.fillRect(right ? C.W - 290 : 0, 0, 290, 52);
-      ctx.fillStyle = '#FF4444'; ctx.font = 'bold 20px Segoe UI, Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('K.O.', right ? C.W - 145 : 145, 33);
+      ctx.fillStyle = 'rgba(180,0,0,0.22)';
+      ctx.fillRect(px0, 3, panW, panH);
+      ctx.textAlign = right ? 'right' : 'left';
+      ctx.fillStyle = col; ctx.font = 'bold 12px Segoe UI, Arial, sans-serif';
+      ctx.fillText(name, x0, 20);
+      ctx.fillStyle = '#FF4444'; ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
+      ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 8;
+      ctx.fillText('K.O.', x0, 42);
+      ctx.shadowBlur = 0;
+      ctx.textAlign = 'left';
       return;
     }
 
-    // Name
+    // Name with subtle glow
     ctx.textAlign = right ? 'right' : 'left';
-    ctx.fillStyle = col; ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
-    ctx.fillText(name, right ? C.W - 8 : x0, 14);
+    ctx.fillStyle = col; ctx.font = 'bold 12px Segoe UI, Arial, sans-serif';
+    ctx.shadowColor = col; ctx.shadowBlur = 5;
+    ctx.fillText(name, x0, 17);
+    ctx.shadowBlur = 0;
 
-    // HP hearts
+    // HP hearts — beveled diamonds
     for (let i = 0; i < 3; i++) {
-      const hx = right ? C.W - 70 - i * 20 : x0 + 46 + i * 20;
-      ctx.fillStyle = i < hp ? '#EE2222' : '#222';
-      ctx.beginPath(); ctx.arc(hx, 10, 7, 0, Math.PI * 2); ctx.fill();
-      if (i < hp) {
-        ctx.fillStyle = 'rgba(255,100,100,0.4)';
-        ctx.beginPath(); ctx.arc(hx, 10, 7, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#FF4444';
-        ctx.beginPath(); ctx.arc(hx, 10, 5, 0, Math.PI * 2); ctx.fill();
-      }
+      const hx = right ? x0 - 76 - i * 22 : x0 + 76 + i * 22;
+      const alive = i < hp;
+      ctx.save();
+      ctx.translate(hx, 12); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = alive ? '#EE2222' : 'rgba(255,255,255,0.08)';
+      if (alive) { ctx.shadowColor = '#FF2222'; ctx.shadowBlur = 7; }
+      ctx.fillRect(-6, -6, 12, 12);
+      ctx.shadowBlur = 0;
+      if (alive) { ctx.fillStyle = 'rgba(255,180,180,0.6)'; ctx.fillRect(-6, -6, 12, 4); }
+      ctx.strokeStyle = alive ? '#FF6666' : 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1; ctx.strokeRect(-6, -6, 12, 12);
+      ctx.restore();
     }
 
-    // SP bar
-    const barX = right ? C.W - 8 - 170 : x0;
+    // SP bar — gradient fill with shine + charge glow
+    const barW = 180, barH = 9;
+    const barX = right ? x0 - barW : x0;
     const spPct = Math.min(1, player.spCharge / C.SP_CHARGE_MAX);
-    ctx.fillStyle = '#111'; ctx.fillRect(barX, 22, 170, 8);
-    ctx.fillStyle = spPct >= 1 ? '#FFD700' : col;
-    ctx.fillRect(barX, 22, 170 * spPct, 8);
-    ctx.strokeStyle = '#2A2A2A'; ctx.lineWidth = 1; ctx.strokeRect(barX, 22, 170, 8);
+    const full = spPct >= 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(barX, 26, barW, barH);
+    if (spPct > 0) {
+      const sg = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+      if (full) { sg.addColorStop(0, '#FFB000'); sg.addColorStop(1, '#FFE060'); }
+      else { sg.addColorStop(0, col); sg.addColorStop(1, '#FFFFFF'); }
+      ctx.fillStyle = sg;
+      if (full) { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 8 + 4 * Math.sin(Date.now() / 150); }
+      ctx.fillRect(barX, 26, barW * spPct, barH);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(barX, 26, barW * spPct, 3);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    for (let i = 1; i < 6; i++) ctx.fillRect(barX + (barW / 6) * i, 26, 1, barH);
+    ctx.strokeStyle = full ? '#FFD700' : 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1; ctx.strokeRect(barX, 26, barW, barH);
 
-    ctx.fillStyle = '#444'; ctx.font =  '11px Segoe UI, Arial, sans-serif';
+    ctx.fillStyle = full ? '#FFD700' : 'rgba(255,255,255,0.35)';
+    ctx.font = 'bold 9px Segoe UI, Arial, sans-serif';
     ctx.textAlign = right ? 'right' : 'left';
-    ctx.fillText('PWR', right ? barX - 2 : barX + 174, 29);
+    ctx.fillText(full ? 'READY' : 'PWR', right ? barX - 4 : barX + barW + 4, 33);
 
-    // Active power
+    // Active power callout
     if (player._powerAssigned && player.spCharge >= C.SP_CHARGE_MAX) {
       const pcol = player.currentPower === 'rocket' ? C.COL.SP_ROCKET
                  : player.currentPower === 'double' ? C.COL.SP_DOUBLE
                  : player.currentPower === 'curve'  ? C.COL.SP_CURVE
                  : C.COL.SP_SHADOW;
-      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 200);
-      ctx.fillStyle = pcol; ctx.font = '11px Segoe UI, Arial, sans-serif';
-      ctx.textAlign = right ? 'right' : 'left';
-      ctx.fillText(`★ ${C.POWER_NAMES[player.currentPower]}`, right ? C.W - 8 : x0, 46);
+      ctx.globalAlpha = 0.7 + 0.3 * Math.sin(Date.now() / 200);
+      ctx.fillStyle = pcol; ctx.font = 'bold 10px Segoe UI, Arial, sans-serif';
+      ctx.shadowColor = pcol; ctx.shadowBlur = 6;
+      ctx.fillText(`★ ${C.POWER_NAMES[player.currentPower]}`, x0, 45);
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     }
 

@@ -764,30 +764,71 @@ const Sprites = {
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fillRect(0, 87, C.W, 1);
 
-    // === CENTRAL SCORE PANEL ===
+    // === CENTRAL SCORE PANEL — chamfered plate ===
     const panW = 272, panH = 62, panX = cx - panW / 2, panY = 2;
+    const ch = 14; // chamfer size
 
-    // Panel background
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(panX + ch, panY);
+    ctx.lineTo(panX + panW - ch, panY);
+    ctx.lineTo(panX + panW, panY + panH - ch);
+    ctx.lineTo(panX + panW - ch, panY + panH);
+    ctx.lineTo(panX + ch, panY + panH);
+    ctx.lineTo(panX, panY + panH - ch);
+    ctx.closePath();
     const panGrad = ctx.createLinearGradient(panX, panY, panX, panY + panH);
-    panGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
-    panGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
+    panGrad.addColorStop(0, 'rgba(40,48,70,0.85)');
+    panGrad.addColorStop(0.5, 'rgba(16,20,34,0.9)');
+    panGrad.addColorStop(1, 'rgba(8,10,18,0.92)');
     ctx.fillStyle = panGrad;
-    ctx.fillRect(panX, panY, panW, panH);
+    ctx.fill();
+    // Team-color side glows inside the plate
+    ctx.clip();
+    const g1 = ctx.createLinearGradient(panX, 0, cx, 0);
+    g1.addColorStop(0, C.COL.P1_HUD); g1.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.14; ctx.fillStyle = g1;
+    ctx.fillRect(panX, panY, panW / 2, panH);
+    const g2 = ctx.createLinearGradient(panX + panW, 0, cx, 0);
+    g2.addColorStop(0, C.COL.P2_HUD); g2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(cx, panY, panW / 2, panH);
+    ctx.globalAlpha = 1;
+    ctx.restore();
 
-    // Panel border
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    // Panel border (same chamfered path)
+    ctx.beginPath();
+    ctx.moveTo(panX + ch, panY);
+    ctx.lineTo(panX + panW - ch, panY);
+    ctx.lineTo(panX + panW, panY + panH - ch);
+    ctx.lineTo(panX + panW - ch, panY + panH);
+    ctx.lineTo(panX + ch, panY + panH);
+    ctx.lineTo(panX, panY + panH - ch);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(panX, panY, panW, panH);
+    ctx.stroke();
 
     // Team-color accent stripes at top of panel
     ctx.fillStyle = C.COL.P1_HUD;
-    ctx.fillRect(panX + 1, panY, panW / 2 - 2, 3);
+    ctx.fillRect(panX + ch, panY, panW / 2 - ch - 14, 3);
     ctx.fillStyle = C.COL.P2_HUD;
-    ctx.fillRect(cx + 1, panY, panW / 2 - 2, 3);
+    ctx.fillRect(cx + 14, panY, panW / 2 - ch - 14, 3);
 
-    // Center divider
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    // VS emblem on the divider
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.fillRect(cx - 1, panY + 8, 2, panH - 16);
+    ctx.beginPath();
+    ctx.moveTo(cx, panY + 20); ctx.lineTo(cx + 11, panY + 31);
+    ctx.lineTo(cx, panY + 42); ctx.lineTo(cx - 11, panY + 31);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(10,12,20,0.95)'; ctx.fill();
+    ctx.strokeStyle = '#FFD700'; ctx.globalAlpha = 0.7; ctx.lineWidth = 1;
+    ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 9px Segoe UI, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('VS', cx, panY + 34);
 
     // Player names
     ctx.textAlign = 'center';
@@ -827,24 +868,29 @@ const Sprites = {
     ctx.restore();
     ctx.shadowBlur = 0;
 
-    // Win dots — glowing when lit
-    const dotR = 4, dotGap = 10;
+    // Win pips — beveled diamonds, glowing when lit
+    const dotR = 4.5, dotGap = 11;
+    const drawPip = (px, py, lit, col) => {
+      ctx.shadowColor = col;
+      ctx.shadowBlur = lit ? 8 : 0;
+      ctx.beginPath();
+      ctx.moveTo(px, py - dotR); ctx.lineTo(px + dotR, py);
+      ctx.lineTo(px, py + dotR); ctx.lineTo(px - dotR, py);
+      ctx.closePath();
+      ctx.fillStyle = lit ? col : 'rgba(255,255,255,0.1)';
+      ctx.fill();
+      if (lit) {
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(px, py - dotR); ctx.lineTo(px + dotR, py); ctx.lineTo(px, py);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fill();
+      }
+    };
     for (let i = 0; i < C.WIN_SCORE; i++) {
-      const lit1 = i < p1.score, lit2 = i < p2.score;
-
-      ctx.shadowColor = C.COL.P1_HUD;
-      ctx.shadowBlur = lit1 ? 8 : 0;
-      ctx.fillStyle = lit1 ? C.COL.P1_HUD : 'rgba(255,255,255,0.12)';
-      ctx.beginPath();
-      ctx.arc(cx - 16 - i * dotGap, 75, dotR, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.shadowColor = C.COL.P2_HUD;
-      ctx.shadowBlur = lit2 ? 8 : 0;
-      ctx.fillStyle = lit2 ? C.COL.P2_HUD : 'rgba(255,255,255,0.12)';
-      ctx.beginPath();
-      ctx.arc(cx + 16 + i * dotGap, 75, dotR, 0, Math.PI * 2);
-      ctx.fill();
+      drawPip(cx - 18 - i * dotGap, 75, i < p1.score, C.COL.P1_HUD);
+      drawPip(cx + 18 + i * dotGap, 75, i < p2.score, C.COL.P2_HUD);
     }
     ctx.shadowBlur = 0;
 

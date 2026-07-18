@@ -23,11 +23,11 @@ const STORY_ENEMY_DEFS = {
   overload_bot: { speed: 0.7,  hp: 3, w: 28, h: 54, throwInterval: 2000, throwSpeed: 5.5, color: '#FF5500', pants: '#CC3300' },
 
   // ── BOSSES ────────────────────────────────────────────────────────────────
-  patient_zero:   { speed: 0.6,  hp: 16, w: 56, h: 88, throwInterval: 700,  throwSpeed: 5.5, color: '#5a3a2a', pants: '#3a2a1a', isBoss: true },
-  stone_guardian: { speed: 0.4,  hp: 18, w: 68, h: 100, throwInterval: 1000, throwSpeed: 4.0, color: '#7a6a4a', pants: '#5a4a2a', isBoss: true },
-  mech_fluffkins: { speed: 1.0,  hp: 20, w: 62, h: 90,  throwInterval: 2500, throwSpeed: 6.0, color: '#445566', pants: '#223344', isBoss: true, floats: true },
-  iron_champion:  { speed: 1.2,  hp: 20, w: 58, h: 96,  throwInterval: 3500, throwSpeed: 5.0, color: '#667788', pants: '#445566', isBoss: true },
-  nexus_core:     { speed: 0.5,  hp: 24, w: 72, h: 80,  throwInterval: 1800, throwSpeed: 7.0, color: '#003355', pants: '#001133', isBoss: true, floats: true },
+  patient_zero:   { speed: 0.7,  hp: 18, w: 56, h: 88, throwInterval: 620,  throwSpeed: 5.8, color: '#5a3a2a', pants: '#3a2a1a', isBoss: true },
+  stone_guardian: { speed: 0.5,  hp: 22, w: 68, h: 100, throwInterval: 850, throwSpeed: 4.4, color: '#7a6a4a', pants: '#5a4a2a', isBoss: true },
+  mech_fluffkins: { speed: 1.2,  hp: 24, w: 62, h: 90,  throwInterval: 2100, throwSpeed: 6.6, color: '#445566', pants: '#223344', isBoss: true, floats: true },
+  iron_champion:  { speed: 1.4,  hp: 26, w: 58, h: 96,  throwInterval: 2800, throwSpeed: 5.6, color: '#667788', pants: '#445566', isBoss: true },
+  nexus_core:     { speed: 0.6,  hp: 30, w: 72, h: 80,  throwInterval: 1400, throwSpeed: 7.6, color: '#003355', pants: '#001133', isBoss: true, floats: true },
 };
 
 const STORY_ACTS = [
