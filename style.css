@@ -43,6 +43,82 @@ body {
   flex: 1;
 }
 
+/* ===== Mobile touch controls ===== */
+body.touch-mode { touch-action: none; -webkit-user-select: none; user-select: none; }
+body.touch-mode #controls-hint { display: none; }
+
+#touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  font-family: 'Courier New', monospace;
+}
+
+.tc-cluster { position: absolute; display: flex; gap: 10px; }
+
+.tc-cluster { gap: 8px; }
+
+.tc-left {
+  left: 6px;
+  bottom: 14px;
+  align-items: flex-start;
+}
+
+.tc-right {
+  right: 6px;
+  bottom: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 170px;
+  align-items: flex-start;
+}
+
+.tc-menu {
+  top: 8px;
+  right: 8px;
+  gap: 8px;
+}
+
+.tc-btn {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #eee;
+  background: rgba(30, 30, 40, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tc-btn small {
+  font-size: 9px;
+  letter-spacing: 1px;
+  margin-top: 3px;
+  opacity: 0.8;
+}
+
+.tc-move { width: 52px; height: 52px; font-size: 22px; }
+.tc-act  { width: 48px; height: 48px; font-size: 17px; }
+.tc-sys  { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+.tc-jump   { border-color: rgba(120, 220, 120, 0.55); }
+.tc-throw  { border-color: rgba(255, 120, 120, 0.55); }
+.tc-catch  { border-color: rgba(120, 180, 255, 0.55); }
+.tc-shield { border-color: rgba(200, 200, 120, 0.55); }
+.tc-sp     { border-color: rgba(255, 200, 60, 0.75); color: #ffd75e; }
+
+.tc-down {
+  background: rgba(255, 255, 255, 0.28);
+  transform: scale(0.94);
+}
+
 #controls-hint kbd {
   display: inline-block;
   background: #2a2a2a;
