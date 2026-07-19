@@ -1482,7 +1482,7 @@
       // Instant rematch — same arena, scores reset
       this._startGame(this.arenaIndex);
     }
-    if (Input.wasPressed('KeyR')) {
+    if (Input.wasPressed('KeyR') || Input.wasPressed('KeyH')) { // KeyH = SHIELD touch button
       this.state = C.STATE.ARENA_SELECT;
       this.menuCursor = this.arenaIndex;
       this._as_p1Ready = false; this._as_p2Ready = false;
@@ -1492,7 +1492,7 @@
 
   // ---- Pause menu ----
   _updatePaused() {
-    const OPTS = 3; // Resume / Restart Match / Quit to Menu
+    const OPTS = 4; // Resume / Restart Match / Sound / Quit to Menu
     if (Input.wasPressed('ArrowUp')   || Input.wasPressed('KeyW')) { this._pauseCursor = (this._pauseCursor - 1 + OPTS) % OPTS; Sound.play('menuMove'); }
     if (Input.wasPressed('ArrowDown') || Input.wasPressed('KeyS')) { this._pauseCursor = (this._pauseCursor + 1) % OPTS; Sound.play('menuMove'); }
     if (Input.wasPressed('KeyM')) Sound.toggleMute();
@@ -1504,6 +1504,9 @@
       } else if (this._pauseCursor === 1) {
         Sound.play('menuSel');
         this._startGame(this.arenaIndex);
+      } else if (this._pauseCursor === 2) {
+        Sound.toggleMute();
+        Sound.play('menuSel');
       } else {
         Sound.play('menuSel');
         Sound.stopMusic();
@@ -1521,7 +1524,7 @@
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 34px Segoe UI, Arial, sans-serif';
     ctx.fillText('PAUSED', C.W / 2, 140);
-    const opts = ['RESUME', 'RESTART MATCH', 'QUIT TO MENU'];
+    const opts = ['RESUME', 'RESTART MATCH', `SOUND: ${Sound.muted ? 'OFF' : 'ON'}`, 'QUIT TO MENU'];
     ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
     for (let i = 0; i < opts.length; i++) {
       const y = 200 + i * 40;
@@ -1535,7 +1538,9 @@
     }
     ctx.fillStyle = '#666';
     ctx.font = '11px Segoe UI, Arial, sans-serif';
-    ctx.fillText(`↑/↓ select · ENTER confirm · ESC resume · M ${Sound.muted ? 'unmute' : 'mute'} sound`, C.W / 2, 350);
+    ctx.fillText(Touch.active
+      ? 'JUMP/▼ select · OK confirm · BACK resume'
+      : `↑/↓ select · ENTER confirm · ESC resume · M ${Sound.muted ? 'unmute' : 'mute'} sound`, C.W / 2, 350);
     ctx.restore();
     ctx.textAlign = 'left';
   }
@@ -1722,7 +1727,9 @@
     ctx.globalAlpha = pulse;
     ctx.fillStyle = '#fff';
     ctx.font = '15px Segoe UI, Arial, sans-serif';
-    ctx.fillText('ENTER = rematch · R = new arena · ESC = menu', C.W / 2, C.H / 2 + 72);
+    ctx.fillText(Touch.active
+      ? 'OK = rematch · SHIELD = new arena · BACK = menu'
+      : 'ENTER = rematch · R = new arena · ESC = menu', C.W / 2, C.H / 2 + 72);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
