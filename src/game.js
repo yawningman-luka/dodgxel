@@ -1406,8 +1406,12 @@
 
     // Track who threw — capture lastThrower at the moment of launch,
     // because wall/ceiling bounces reset it to -1 before the ball dies.
-    if (this.ball.inFlight && !this._ballWasInFlight) {
-      this._ballThrownBy = this.ball.lastThrower; // 0 or 1
+    // A same-frame bounce can already have reset it, so only accept 0/1;
+    // holding the ball also counts as possession (covers catches).
+    if (this.ball.holder >= 0) {
+      this._ballThrownBy = this.ball.holder;
+    } else if (this.ball.inFlight && !this._ballWasInFlight && this.ball.lastThrower >= 0) {
+      this._ballThrownBy = this.ball.lastThrower;
     }
     this._ballWasInFlight = this.ball.inFlight;
 
@@ -1461,7 +1465,7 @@
       } else {
         const nextHolder = this.roundWinner >= 0
           ? 1 - this.roundWinner
-          : (this._ballDeadHolder ?? 0);
+          : (this._ballThrownBy === 0 ? 1 : 0);
         this._startRound(nextHolder);
         this.state = C.STATE.PLAYING;
       }
